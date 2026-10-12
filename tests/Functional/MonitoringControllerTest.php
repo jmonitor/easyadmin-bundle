@@ -127,6 +127,36 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testThePhpTabShowsTheRunningProcess(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'PHP');
+        self::assertSelectorTextContains('body', PHP_VERSION);
+        self::assertSelectorTextContains('body', 'OPcache');
+        self::assertSelectorTextContains('body', 'APCu');
+        self::assertSelectorTextContains('body', 'memory_limit');
+        self::assertSelectorExists('details.jm-extensions');
+    }
+
+    public function testTheSymfonyTabShowsTheKernelAndTheRecommendations(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/symfony');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'Symfony');
+        self::assertSelectorTextContains('body', 'JmonitorEasyAdminBundle');
+        self::assertSelectorTextContains('body', 'Recommendations');
+        self::assertSelectorTextContains('body', 'OPcache enabled');
+        self::assertSelectorTextContains('body', 'Messenger');
+        self::assertSelectorTextContains('body', 'not collected');
+    }
+
     private function adminClient(): KernelBrowser
     {
         $client = static::createClient();
