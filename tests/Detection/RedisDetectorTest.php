@@ -76,6 +76,22 @@ final class RedisDetectorTest extends TestCase
         self::assertFalse($detection->isFound(), 'the provider was tried first and is invalid');
     }
 
+    public function testAFrameworkProviderThatIsAServiceIdIsResolvedFromTheLocator(): void
+    {
+        $client = new \stdClass();
+        $detector = new RedisDetector(new ServiceLocator(['app.redis' => static fn(): object => $client]), null, null, 'app.redis', null);
+
+        self::assertTrue($detector->detect()->isFound());
+    }
+
+    public function testAFrameworkProviderServiceIdThatIsMissingIsUnavailable(): void
+    {
+        $detection = (new RedisDetector(new ServiceLocator([]), null, null, 'app.redis', 'redis://127.0.0.1:1'))->detect();
+
+        self::assertFalse($detection->isFound());
+        self::assertStringContainsString('app.redis', (string) $detection->error);
+    }
+
     public function testTheEnvVarIsTheLastResort(): void
     {
         self::assertTrue((new RedisDetector(new ServiceLocator([]), null, null, null, 'redis://127.0.0.1:1'))->detect()->isFound());
