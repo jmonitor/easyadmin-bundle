@@ -43,4 +43,24 @@ final class BundleBootTest extends TestCase
 
         $kernel->shutdown();
     }
+
+    public function testTheCacheRedisProviderIsPickedUp(): void
+    {
+        $kernel = new TestKernel([], ['cache' => ['default_redis_provider' => 'redis://cache.internal']]);
+        $kernel->boot();
+
+        self::assertSame('redis://cache.internal', $kernel->getContainer()->getParameter('jmonitor_easyadmin.framework_redis_provider'));
+
+        $kernel->shutdown();
+    }
+
+    public function testWithoutACacheRedisProviderTheParameterIsAbsent(): void
+    {
+        $kernel = new TestKernel();
+        $kernel->boot();
+
+        self::assertFalse($kernel->getContainer()->hasParameter('jmonitor_easyadmin.framework_redis_provider'));
+
+        $kernel->shutdown();
+    }
 }

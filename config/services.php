@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
+use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
@@ -51,6 +52,19 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connection' => $config['components']['mysql']['connection'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
+    ;
+
+    $redisConfig = $config['components']['redis'];
+
+    $services->set(RedisDetector::class)
+        ->args([
+            $redisConfig['service'] !== null ? service_locator([$redisConfig['service'] => service($redisConfig['service'])]) : service_locator([]),
+            $redisConfig['service'],
+            $redisConfig['dsn'],
+            $builder->hasParameter('jmonitor_easyadmin.framework_redis_provider') ? '%jmonitor_easyadmin.framework_redis_provider%' : null,
+            env('default::REDIS_URL'),
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Redis->value])
     ;
 
     $services->set(ComponentRegistry::class)

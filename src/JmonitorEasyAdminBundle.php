@@ -31,6 +31,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         $container->addCompilerPass(new DoctrineConnectionsPass());
     }
 
+    public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
+    {
+        foreach ($builder->getExtensionConfig('framework') as $frameworkConfig) {
+            $provider = $frameworkConfig['cache']['default_redis_provider'] ?? null;
+
+            if (is_string($provider) && $provider !== '') {
+                $builder->setParameter('jmonitor_easyadmin.framework_redis_provider', $provider);
+            }
+        }
+    }
+
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $builder->setParameter('jmonitor_easyadmin.config', $config);

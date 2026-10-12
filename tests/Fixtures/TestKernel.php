@@ -16,6 +16,7 @@ final class TestKernel extends Kernel
 
     public function __construct(
         private readonly array $bundleConfig = [],
+        private readonly array $frameworkConfig = [],
     ) {
         parent::__construct('test', true);
     }
@@ -28,7 +29,7 @@ final class TestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/jmonitor_easyadmin_bundle/' . md5(serialize($this->bundleConfig)) . '/cache';
+        return sys_get_temp_dir() . '/jmonitor_easyadmin_bundle/' . md5(serialize([$this->bundleConfig, $this->frameworkConfig])) . '/cache';
     }
 
     public function getLogDir(): string
@@ -38,13 +39,13 @@ final class TestKernel extends Kernel
 
     protected function configureContainer(ContainerConfigurator $container): void
     {
-        $container->extension('framework', [
+        $container->extension('framework', array_replace_recursive([
             'secret' => 'test',
             'test' => true,
             'http_method_override' => false,
             'handle_all_throwables' => true,
             'php_errors' => ['log' => true],
-        ]);
+        ], $this->frameworkConfig));
 
         $container->extension('jmonitor_easyadmin', $this->bundleConfig);
     }
