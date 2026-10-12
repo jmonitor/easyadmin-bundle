@@ -57,6 +57,20 @@ final readonly class SnapshotProvider
         return 'jmonitor_easyadmin.collect.' . $name;
     }
 
+    /**
+     * Collectors wrap the driver error in a generic message; the cause is what the admin needs.
+     */
+    private static function describe(\Throwable $e): string
+    {
+        $cause = $e->getPrevious()?->getMessage();
+
+        if ($cause === null || $cause === '' || $cause === $e->getMessage()) {
+            return $e->getMessage();
+        }
+
+        return sprintf('%s (%s)', $e->getMessage(), $cause);
+    }
+
     private function result(CollectorSpec $spec): CollectorResult
     {
         $item = $this->cache->getItem(self::cacheKey($spec->name));
@@ -72,7 +86,7 @@ final readonly class SnapshotProvider
             $error = null;
         } catch (\Throwable $e) {
             $data = [];
-            $error = $e->getMessage();
+            $error = self::describe($e);
         }
 
         $delta = $error === null && $spec->trackDelta ? $this->deltas->track($spec->name, $data, $now) : null;

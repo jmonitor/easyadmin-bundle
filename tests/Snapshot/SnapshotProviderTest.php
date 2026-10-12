@@ -16,6 +16,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cache\RecordingCachePool;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
+use Jmonitor\Exceptions\BootFailedException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -84,6 +85,16 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame('performance_schema table is not readable', $snapshot->result('mysql.slow_queries')?->error);
         self::assertSame(1, $slow->collects, 'the failure is cached too');
         self::assertSame(10, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.slow_queries')], 'but only for the dynamic lifetime, not the collector one');
+    }
+
+    public function testTheCauseOfAWrappedFailureIsPartOfTheMessage(): void
+    {
+        $status = new FakeCollector('mysql.status', collectFailure: new BootFailedException('SHOW GLOBAL STATUS is not accessible', new \RuntimeException('SQLSTATE[HY000] [2002] Connection refused')));
+        $provider = $this->provider(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]);
+
+        $snapshot = $provider->get(Component::Mysql);
+
+        self::assertSame('SHOW GLOBAL STATUS is not accessible (SQLSTATE[HY000] [2002] Connection refused)', $snapshot->result('mysql.status')?->error);
     }
 
     public function testRefreshForgetsTheComponent(): void

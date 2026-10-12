@@ -6,7 +6,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\Detection;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use PHPUnit\Framework\TestCase;
@@ -72,24 +72,51 @@ final class MysqlDetectorTest extends TestCase
         self::assertStringContainsString('Unknown Doctrine connection "missing"', (string) $detection->error);
     }
 
-    public function testUnreachableServerIsReportedNotThrown(): void
+    public function testDetectionReadsTheParametersAndNeverTouchesTheServer(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('getDatabasePlatform')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection refused'));
-        $detector = new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'db.internal', 'dbname' => 'app']);
+        $connection->expects(self::never())->method('getDatabasePlatform');
+        $connection->expects(self::never())->method('getDatabase');
+        $connection->expects(self::never())->method('fetchAllAssociative');
 
-        $detection = $detector->detect();
+        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null))->detect();
 
-        self::assertFalse($detection->isFound());
-        self::assertStringContainsString('Connection refused', (string) $detection->error);
-        self::assertStringContainsString('"default"', (string) $detection->error);
+        self::assertTrue($detection->isFound());
+    }
+
+    public function testMysqliAndACustomMysqlDriverClassAreDetected(): void
+    {
+        $mysqli = $this->createMock(Connection::class);
+        $mysqli->method('getParams')->willReturn(['driver' => 'mysqli', 'dbname' => 'app']);
+        $custom = $this->createMock(Connection::class);
+        $custom->method('getParams')->willReturn(['driverClass' => \Doctrine\DBAL\Driver\PDO\MySQL\Driver::class, 'dbname' => 'app']);
+
+        self::assertTrue((new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $mysqli]), ['default'], null))->detect()->isFound());
+        self::assertTrue((new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $custom]), ['default'], null))->detect()->isFound());
+    }
+
+    public function testAnUnreachableServerIsDetectedAndFailsAtCollectTime(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => 'app']);
+        $connection->method('fetchAllAssociative')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection refused'));
+        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null))->detect();
+
+        self::assertTrue($detection->isFound(), 'the tab stays, the outage is shown inside it');
+
+        try {
+            (new CollectorRunner())->run($detection->collectors->get('mysql.status')->collector);
+            self::fail('Collecting from a dead server must fail');
+        } catch (\Throwable $e) {
+            self::assertStringContainsString('Connection refused', $e->getPrevious()?->getMessage() ?? $e->getMessage());
+        }
     }
 
     private function mysqlConnection(string $database): Connection
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('getDatabasePlatform')->willReturn(new MySQLPlatform());
-        $connection->method('getDatabase')->willReturn($database);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => $database]);
 
         return $connection;
     }

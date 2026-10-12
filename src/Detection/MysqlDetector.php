@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Detection;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Driver\AbstractMySQLDriver;
 use Jmonitor\Collector\Mysql\MysqlInformationSchemaCollector;
 use Jmonitor\Collector\Mysql\MysqlSlowQueriesCollector;
 use Jmonitor\Collector\Mysql\MysqlStatusCollector;
@@ -17,8 +17,14 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\Utils\DatabaseAdapter\DoctrineAdapter;
 use Psr\Container\ContainerInterface;
 
+/**
+ * Detection reads the connection parameters only and never opens the connection: a server
+ * that is down shows up as a collect error inside the tab, exactly when an admin wants to look.
+ */
 final readonly class MysqlDetector implements ComponentDetectorInterface
 {
+    private const DRIVERS = ['pdo_mysql', 'mysqli'];
+
     /**
      * @param ContainerInterface $connections     Doctrine connections, keyed by connection name
      * @param list<string>       $connectionNames
@@ -42,7 +48,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         }
 
         $candidates = $this->connection !== null ? [$this->connection] : $this->connectionNames;
-        $lastError = null;
 
         foreach ($candidates as $name) {
             if (!$this->connections->has($name)) {
@@ -51,17 +56,9 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
 
             /** @var Connection $connection */
             $connection = $this->connections->get($name);
+            $params = $connection->getParams();
 
-            try {
-                $platform = $connection->getDatabasePlatform();
-                $database = $connection->getDatabase();
-            } catch (\Throwable $e) {
-                $lastError = sprintf('Connection "%s": %s', $name, $e->getMessage());
-
-                continue;
-            }
-
-            if (!$platform instanceof AbstractMySQLPlatform) {
+            if (!self::isMysql($params)) {
                 if ($this->connection !== null) {
                     return Detection::unavailable(sprintf('Doctrine connection "%s" is not a MySQL or MariaDB connection.', $name));
                 }
@@ -69,10 +66,26 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
                 continue;
             }
 
-            return Detection::found($this->collectors($connection, $database ?? ''));
+            $database = $params['dbname'] ?? null;
+
+            return Detection::found($this->collectors($connection, is_string($database) ? $database : ''));
         }
 
-        return Detection::unavailable($lastError ?? 'No MySQL or MariaDB Doctrine connection found.');
+        return Detection::unavailable('No MySQL or MariaDB Doctrine connection found.');
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private static function isMysql(array $params): bool
+    {
+        $driverClass = $params['driverClass'] ?? null;
+
+        if (is_string($driverClass) && class_exists($driverClass)) {
+            return is_a($driverClass, AbstractMySQLDriver::class, true);
+        }
+
+        return in_array($params['driver'] ?? null, self::DRIVERS, true);
     }
 
     private function collectors(Connection $connection, string $database): CollectorSet
