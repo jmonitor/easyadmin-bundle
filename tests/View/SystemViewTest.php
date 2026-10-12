@@ -43,6 +43,20 @@ final class SystemViewTest extends TestCase
         self::assertSame(2_000_000_000, $view->ramAvailable);
         self::assertSame(100_000_000_000, $view->diskTotal);
         self::assertSame(25_000_000_000, $view->diskFree);
+        self::assertSame(6_000_000_000, $view->ramUsed);
+        self::assertSame(75_000_000_000, $view->diskUsed);
+    }
+
+    public function testAMissingAvailableAmountGivesNoUsedAmount(): void
+    {
+        $view = new SystemView($this->snapshot([
+            'ram' => ['total' => 8_000_000_000],
+            'disk' => ['total' => 100_000_000_000],
+        ]), $this->gauges());
+
+        self::assertNull($view->ramUsed);
+        self::assertNull($view->diskUsed);
+        self::assertFalse($view->ram->available());
     }
 
     public function testMissingDataGivesUnavailableGauges(): void

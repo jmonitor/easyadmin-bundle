@@ -5,13 +5,13 @@
 
     <div class="row g-3">
         <div class="col-md-4 col-xl-3">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ram, detail: view.ramTotal is null ? null : (view.ramTotal - view.ramAvailable)|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ram, detail: view.ramUsed is null ? null : view.ramUsed|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
         </div>
         <div class="col-md-4 col-xl-3">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cpu, detail: view.cores is null ? null : view.cores ~ ' cores'}) }}
         </div>
         <div class="col-md-4 col-xl-3">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.disk, detail: view.diskTotal is null ? null : (view.diskTotal - view.diskFree)|jm_bytes ~ ' / ' ~ view.diskTotal|jm_bytes}) }}
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.disk, detail: view.diskUsed is null ? null : view.diskUsed|jm_bytes ~ ' / ' ~ view.diskTotal|jm_bytes}) }}
         </div>
         <div class="col-xl-3">
             <div class="card h-100">

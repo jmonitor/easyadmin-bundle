@@ -15,10 +15,6 @@ use Jmonitor\JmonitorBundle\Collector\Components\SchedulerCollector;
 use Jmonitor\JmonitorBundle\Collector\SymfonyCollector;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-/**
- * The sub-collectors run console commands, some in a sub-process: the whole set lives
- * behind the static lifetime.
- */
 final readonly class SymfonyDetector implements ComponentDetectorInterface
 {
     public function __construct(

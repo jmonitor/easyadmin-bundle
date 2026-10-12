@@ -93,7 +93,7 @@
     {% else %}
         <div class="row g-3">
             <div class="col-md-6 col-xl-3">
-                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmActive, detail: view.fpmStats['Active processes'] ~ ' active, ' ~ view.fpmStats['Idle processes'] ~ ' idle'}) }}
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmActive, detail: view.fpmStats['Active processes'] is null or view.fpmStats['Idle processes'] is null ? null : view.fpmStats['Active processes'] ~ ' active, ' ~ view.fpmStats['Idle processes'] ~ ' idle'}) }}
             </div>
             <div class="col-md-6 col-xl-3">
                 {% if view.fpmMemoryPeak %}

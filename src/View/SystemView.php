@@ -23,6 +23,8 @@ final readonly class SystemView
     public ?int $ramAvailable;
     public ?int $diskTotal;
     public ?int $diskFree;
+    public ?int $ramUsed;
+    public ?int $diskUsed;
     public ?float $load1;
     public ?float $load5;
     public ?float $load15;
@@ -45,11 +47,11 @@ final readonly class SystemView
         $this->timezone = Values::string($data['timezone'] ?? null);
         $this->hostname = Values::string($data['hostname'] ?? null);
 
-        $ramUsed = $this->ramTotal !== null && $this->ramAvailable !== null ? $this->ramTotal - $this->ramAvailable : null;
-        $diskUsed = $this->diskTotal !== null && $this->diskFree !== null ? $this->diskTotal - $this->diskFree : null;
+        $this->ramUsed = $this->ramTotal !== null && $this->ramAvailable !== null ? $this->ramTotal - $this->ramAvailable : null;
+        $this->diskUsed = $this->diskTotal !== null && $this->diskFree !== null ? $this->diskTotal - $this->diskFree : null;
 
-        $this->ram = $gauges->create('system.ram_usage', 'RAM usage', Values::percent($ramUsed, $this->ramTotal));
+        $this->ram = $gauges->create('system.ram_usage', 'RAM usage', Values::percent($this->ramUsed, $this->ramTotal));
         $this->cpu = $gauges->create('system.cpu_usage', 'CPU usage', Values::float($data['cpu']['load'] ?? null));
-        $this->disk = $gauges->create('system.disk_usage', 'Disk usage', Values::percent($diskUsed, $this->diskTotal));
+        $this->disk = $gauges->create('system.disk_usage', 'Disk usage', Values::percent($this->diskUsed, $this->diskTotal));
     }
 }

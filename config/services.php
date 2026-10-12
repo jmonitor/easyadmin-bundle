@@ -14,6 +14,7 @@ use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
+use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
@@ -61,13 +62,23 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     ;
 
     $redisConfig = $config['components']['redis'];
+    $redisProvider = $builder->hasParameter('jmonitor_easyadmin.framework_redis_provider') ? $builder->getParameter('jmonitor_easyadmin.framework_redis_provider') : null;
+    $redisServices = [];
+
+    if ($redisConfig['service'] !== null) {
+        $redisServices[$redisConfig['service']] = service($redisConfig['service']);
+    }
+
+    if (is_string($redisProvider) && !str_starts_with($redisProvider, '%') && !RedisDetector::isDsn($redisProvider)) {
+        $redisServices[$redisProvider] = service($redisProvider)->ignoreOnInvalid();
+    }
 
     $services->set(RedisDetector::class)
         ->args([
-            $redisConfig['service'] !== null ? service_locator([$redisConfig['service'] => service($redisConfig['service'])]) : service_locator([]),
+            service_locator($redisServices),
             $redisConfig['service'],
             $redisConfig['dsn'],
-            $builder->hasParameter('jmonitor_easyadmin.framework_redis_provider') ? '%jmonitor_easyadmin.framework_redis_provider%' : null,
+            $redisProvider !== null ? '%jmonitor_easyadmin.framework_redis_provider%' : null,
             env('default::REDIS_URL'),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Redis->value])
@@ -90,7 +101,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([service(Ranges::class)])
     ;
 
-    $services->set(CollectorRunner::class);
+    $services->set(MinimumLevelLogger::class)
+        ->args([service('logger')->nullOnInvalid()])
+        ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
+    ;
+
+    $services->set(CollectorRunner::class)
+        ->args([service(MinimumLevelLogger::class)])
+    ;
 
     $services->set(DeltaCalculator::class)
         ->args([
@@ -131,6 +149,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service('router'),
             $config['role'],
             $config['polling_interval'],
+            service('security.csrf.token_manager')->nullOnInvalid(),
         ])
         ->tag('controller.service_arguments')
         ->tag('ea.admin_route_controller')

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use PHPUnit\Framework\TestCase;
 
 final class ComponentTest extends TestCase
@@ -18,8 +19,10 @@ final class ComponentTest extends TestCase
         self::assertSame('Redis', Component::Redis->label());
     }
 
-    public function testRouteRequirementListsEveryComponent(): void
+    public function testTheControllerRouteRequirementListsEveryComponent(): void
     {
-        self::assertSame('system|php|symfony|mysql|redis', Component::routeRequirement());
+        $options = (new \ReflectionClassConstant(MonitoringController::class, 'COMPONENT_OPTIONS'))->getValue();
+
+        self::assertSame(implode('|', array_map(static fn(Component $c): string => $c->value, Component::cases())), $options['requirements']['component']);
     }
 }

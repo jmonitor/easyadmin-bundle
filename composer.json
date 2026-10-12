@@ -36,20 +36,26 @@
         "symfony/config": "^6.4|^7.0|^8.0",
         "symfony/dependency-injection": "^6.4|^7.0|^8.0",
         "symfony/framework-bundle": "^6.4|^7.0|^8.0",
+        "symfony/http-foundation": "^6.4|^7.0|^8.0",
         "symfony/http-kernel": "^6.4|^7.0|^8.0",
         "symfony/routing": "^6.4|^7.0|^8.0",
         "symfony/security-core": "^6.4|^7.0|^8.0",
+        "symfony/security-csrf": "^6.4|^7.0|^8.0",
+        "symfony/service-contracts": "^2.5|^3.0",
         "symfony/twig-bundle": "^6.4|^7.0|^8.0",
-        "twig/twig": "^3.0"
+        "twig/twig": "^3.15"
     },
     "require-dev": {
+        "doctrine/doctrine-bundle": "^2.13|^3.0",
         "friendsofphp/php-cs-fixer": "^3.86",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
         "predis/predis": "^2.0|^3.0",
         "symfony/browser-kit": "^6.4|^7.0|^8.0",
         "symfony/css-selector": "^6.4|^7.0|^8.0",
-        "symfony/yaml": "^6.4|^7.0|^8.0"
+        "symfony/ux-twig-component": "^2.20|^3.0",
+        "symfony/yaml": "^6.4|^7.0|^8.0",
+        "twig/extra-bundle": "^3.15"
     },
     "autoload": {
         "psr-4": {

@@ -10,10 +10,6 @@ use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
-/**
- * DoctrineBundle lists its connections in a parameter that only exists once every
- * extension is loaded, hence a pass rather than the bundle's own configuration.
- */
 final class DoctrineConnectionsPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void

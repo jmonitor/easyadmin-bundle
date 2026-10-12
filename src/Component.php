@@ -22,9 +22,4 @@ enum Component: string
             self::Redis => 'Redis',
         };
     }
-
-    public static function routeRequirement(): string
-    {
-        return implode('|', array_map(static fn(self $component): string => $component->value, self::cases()));
-    }
 }
