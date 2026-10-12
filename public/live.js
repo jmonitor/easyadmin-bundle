@@ -51,6 +51,14 @@
 
         fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
             .then(function (response) {
+                if (response.redirected || response.status === 401 || response.status === 403) {
+                    // the session is gone: let the firewall show its login page instead of injecting it here
+                    stop();
+                    window.location.reload();
+
+                    return null;
+                }
+
                 return response.ok ? response.text() : null;
             })
             .then(function (html) {
