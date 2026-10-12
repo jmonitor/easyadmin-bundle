@@ -46,7 +46,7 @@ jmonitor_easyadmin:
             flex: true         # runs "composer recipes"
         mysql:
             enabled: auto
-            connection: null   # a Doctrine DBAL connection service id, defaults to the first MySQL one
+            connection: null   # a Doctrine connection name, defaults to the first MySQL one
         redis:
             enabled: auto
             dsn: null          # redis://localhost

@@ -725,7 +725,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         },
  *         mysql?: array{ // Detected from the Doctrine DBAL connections when "auto".
  *             enabled?: "auto"|true|false|Param, // Default: "auto"
- *             connection?: scalar|Param|null, // Doctrine DBAL connection service id. Defaults to the first MySQL/MariaDB connection found. // Default: null
+ *             connection?: scalar|Param|null, // Doctrine connection name (e.g. "default"). Defaults to the first MySQL/MariaDB connection found. // Default: null
  *             ...<string, mixed>
  *         },
  *         redis?: array{ // Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".

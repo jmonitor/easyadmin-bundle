@@ -7,6 +7,7 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
@@ -41,6 +42,15 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['components']['symfony']['flex'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Symfony->value])
+    ;
+
+    $services->set(MysqlDetector::class)
+        ->args([
+            '$connections' => service_locator([]),
+            '$connectionNames' => [],
+            '$connection' => $config['components']['mysql']['connection'],
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
 
     $services->set(ComponentRegistry::class)
