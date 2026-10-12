@@ -12,6 +12,8 @@ use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
+use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
+use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -73,6 +75,15 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['components'],
         ])
         ->tag('kernel.reset', ['method' => 'reset'])
+    ;
+
+    $services->set(Ranges::class)
+        ->factory([Ranges::class, 'fromFile'])
+        ->args([__DIR__ . '/ranges.php'])
+    ;
+
+    $services->set(GaugeFactory::class)
+        ->args([service(Ranges::class)])
     ;
 
     $services->set(CollectorRunner::class);
