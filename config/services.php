@@ -16,6 +16,7 @@ use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -112,5 +113,9 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(GaugeFactory::class),
             service(SnapshotProvider::class),
         ])
+    ;
+    $services->set(MonitoringExtension::class)
+        ->args([$config['help_url']])
+        ->tag('twig.extension')
     ;
 };
