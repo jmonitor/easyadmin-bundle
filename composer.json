@@ -1,0 +1,56 @@
+{
+    "name": "jmonitor/easyadmin-bundle",
+    "description": "Live monitoring pages inside EasyAdmin: system, PHP, MySQL, Redis and Symfony metrics collected when you open the page, no worker required.",
+    "keywords": ["monitoring", "metrics", "easyadmin", "symfony", "mysql", "redis", "php", "system", "opcache"],
+    "homepage": "https://jmonitor.io",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jonathan Plantey",
+            "homepage": "https://jonathan-plantey.fr/"
+        }
+    ],
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2",
+        "easycorp/easyadmin-bundle": "^5.0",
+        "jmonitor/jmonitor-bundle": "^2.1",
+        "symfony/cache": "^6.4|^7.0|^8.0",
+        "symfony/config": "^6.4|^7.0|^8.0",
+        "symfony/dependency-injection": "^6.4|^7.0|^8.0",
+        "symfony/framework-bundle": "^6.4|^7.0|^8.0",
+        "symfony/http-kernel": "^6.4|^7.0|^8.0",
+        "symfony/twig-bundle": "^6.4|^7.0|^8.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.86",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.5",
+        "symfony/yaml": "^6.4|^7.0|^8.0"
+    },
+    "autoload": {
+        "psr-4": { "Jmonitor\\EasyAdminBundle\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "Jmonitor\\EasyAdminBundle\\Tests\\": "tests/" }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-1.x": "1.x-dev"
+        }
+    },
+    "scripts": {
+        "lint:check": "./vendor/bin/php-cs-fixer check --verbose --diff",
+        "lint:fix": "./vendor/bin/php-cs-fixer fix --verbose --diff",
+        "phpstan": "./vendor/bin/phpstan",
+        "phpunit": "./vendor/bin/phpunit"
+    }
+}

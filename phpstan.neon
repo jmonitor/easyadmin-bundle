@@ -1,0 +1,12 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    # Some ignores only match on certain Symfony versions. Don't fail when an ignore is unmatched.
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # On Symfony 6.4, DefinitionConfigurator::rootNode() is typed as NodeDefinition
+        # (no children()), while at runtime it always returns an ArrayNodeDefinition.
+        -
+            message: '#^Call to an undefined method Symfony\\Component\\Config\\Definition\\Builder\\NodeDefinition::children\(\)\.$#'
+            path: src/JmonitorEasyAdminBundle.php
