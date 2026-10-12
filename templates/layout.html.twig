@@ -1,0 +1,51 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Monitoring{% endblock %}
+
+{% block head_stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('bundles/jmonitoreasyadmin/monitoring.css') }}">
+{% endblock %}
+
+{% block head_javascript %}
+    {{ parent() }}
+    {% if current and polling_interval > 0 %}
+        {% guard function csp_nonce %}
+            <script src="{{ asset('bundles/jmonitoreasyadmin/live.js') }}" nonce="{{ csp_nonce('script') }}" defer></script>
+        {% else %}
+            <script src="{{ asset('bundles/jmonitoreasyadmin/live.js') }}" defer></script>
+        {% endguard %}
+    {% endif %}
+{% endblock %}
+
+{% block main %}
+    <div class="jm-monitoring"
+        {% if current and polling_interval > 0 %}
+            data-live
+            data-live-url="{{ path(routes.fragment, {component: current.value}) }}"
+            data-live-interval="{{ polling_interval }}"
+        {% endif %}
+    >
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <ul class="nav nav-tabs flex-grow-1">
+                {% for component in components %}
+                    <li class="nav-item">
+                        <a class="nav-link{{ component is same as(current) ? ' active' }}" href="{{ path(routes.component, {component: component.value}) }}">{{ component.label }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if current %}
+                {% if polling_interval > 0 %}
+                    <button type="button" class="btn btn-secondary btn-sm" data-live-toggle aria-pressed="true">Live</button>
+                {% endif %}
+                <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">
+                    <button type="submit" class="btn btn-secondary btn-sm">Refresh</button>
+                </form>
+            {% endif %}
+        </div>
+
+        <div data-live-content>
+            {% block jm_content %}{% endblock %}
+        </div>
+    </div>
+{% endblock %}

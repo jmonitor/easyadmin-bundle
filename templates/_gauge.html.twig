@@ -1,0 +1,22 @@
+{# @var gauge \Jmonitor\EasyAdminBundle\Metric\Gauge #}
+{% set detailText = detail|default(gauge.detail) %}
+<div class="card h-100 jm-gauge-card">
+    <div class="card-body text-center">
+        {% if gauge.available %}
+            <svg class="jm-gauge jm-gauge-{{ gauge.badge ? gauge.badge.style.value : 'none' }}" viewBox="0 0 120 90" role="img" aria-label="{{ gauge.label }}: {{ gauge.value|jm_number(1) }}%">
+                <circle class="jm-gauge-track" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="192 1000"/>
+                <circle class="jm-gauge-value" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="{{ (192 * gauge.fraction)|round(2) }} 1000"/>
+                <text class="jm-gauge-text" x="60" y="68" text-anchor="middle">{{ gauge.value|jm_number(gauge.value < 10 ? 1 : 0) }}%</text>
+            </svg>
+        {% else %}
+            <div class="jm-gauge-empty text-muted" title="Not available">n/a</div>
+        {% endif %}
+        <div class="jm-gauge-label">
+            {{ gauge.label }}
+            {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: gauge.metric}) }}
+        </div>
+        {% if detailText %}<div class="small text-muted">{{ detailText }}</div>{% endif %}
+        {% if gauge.hint %}<div class="small text-muted">{{ gauge.hint }}</div>{% endif %}
+        {% if gauge.badge %}<div class="mt-1">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: gauge.badge}) }}</div>{% endif %}
+    </div>
+</div>

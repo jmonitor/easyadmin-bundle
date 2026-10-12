@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
+use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
@@ -117,5 +119,20 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     $services->set(MonitoringExtension::class)
         ->args([$config['help_url']])
         ->tag('twig.extension')
+    ;
+    $services->set(MonitoringController::class)
+        ->args([
+            service(ComponentRegistry::class),
+            service(SnapshotProvider::class),
+            service(ViewFactory::class),
+            service('twig'),
+            service('security.authorization_checker'),
+            service(AdminContextProviderInterface::class),
+            service('router'),
+            $config['role'],
+            $config['polling_interval'],
+        ])
+        ->tag('controller.service_arguments')
+        ->tag('ea.admin_route_controller')
     ;
 };

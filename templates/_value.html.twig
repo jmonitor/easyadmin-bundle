@@ -1,0 +1,9 @@
+{%- if value is null -%}
+    <span class="text-muted">—</span>
+{%- elseif value is same as(true) -%}
+    <span class="badge text-bg-success">On</span>
+{%- elseif value is same as(false) -%}
+    <span class="badge text-bg-secondary">Off</span>
+{%- else -%}
+    {{ value }}
+{%- endif -%}
