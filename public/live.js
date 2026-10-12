@@ -49,7 +49,10 @@
 
         inFlight = true;
 
-        fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+        var controller = typeof AbortController === 'function' ? new AbortController() : null;
+        var deadline = controller ? window.setTimeout(function () { controller.abort(); }, interval * 2) : null;
+
+        fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' }, signal: controller ? controller.signal : undefined })
             .then(function (response) {
                 if (response.redirected || response.status === 401 || response.status === 403) {
                     // the session is gone: let the firewall show its login page instead of injecting it here
@@ -67,9 +70,13 @@
                 }
             })
             .catch(function () {
-                // network hiccup: keep the current content, try again next tick
+                // network hiccup or timeout: keep the current content, try again next tick
             })
             .then(function () {
+                if (deadline !== null) {
+                    window.clearTimeout(deadline);
+                }
+
                 inFlight = false;
             });
     }
