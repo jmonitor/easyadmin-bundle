@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
+use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
@@ -30,6 +31,16 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
 
     $services->set(PhpDetector::class)
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Php->value])
+    ;
+
+    $services->set(SymfonyDetector::class)
+        ->args([
+            service('kernel'),
+            $config['components']['symfony']['messenger'],
+            $config['components']['symfony']['scheduler'],
+            $config['components']['symfony']['flex'],
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Symfony->value])
     ;
 
     $services->set(ComponentRegistry::class)
