@@ -73,6 +73,28 @@ final class ComponentRegistryTest extends TestCase
         self::assertSame($set, $registry->collectorsFor(Component::Php));
     }
 
+    public function testAThrowingDetectorBecomesAnUnavailableComponent(): void
+    {
+        $throwing = new class implements \Jmonitor\EasyAdminBundle\Detection\ComponentDetectorInterface {
+            public function component(): Component
+            {
+                return Component::Mysql;
+            }
+
+            public function detect(): Detection
+            {
+                throw new \RuntimeException('Malformed DSN');
+            }
+        };
+
+        $auto = new ComponentRegistry(['mysql' => $throwing, 'php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
+        self::assertSame([Component::Php], $auto->available(), 'auto: the component is simply absent, the other tabs still render');
+
+        $forced = new ComponentRegistry(['mysql' => $throwing], $this->config(['mysql' => ['enabled' => true]]));
+        self::assertSame([Component::Mysql], $forced->available());
+        self::assertSame('Malformed DSN', $forced->errorFor(Component::Mysql));
+    }
+
     private function found(Component $component): Detection
     {
         return Detection::found(new CollectorSet($component, [new CollectorSpec(new FakeCollector($component->value), Lifetime::Dynamic)]));

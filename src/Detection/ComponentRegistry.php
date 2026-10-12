@@ -78,7 +78,11 @@ final class ComponentRegistry implements ResetInterface
                 continue;
             }
 
-            $detection = $detector->detect();
+            try {
+                $detection = $detector->detect();
+            } catch (\Throwable $e) {
+                $detection = Detection::unavailable($e->getMessage());
+            }
 
             if ($enabled === 'auto' && !$detection->isFound()) {
                 continue;

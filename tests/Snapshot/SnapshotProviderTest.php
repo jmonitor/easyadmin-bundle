@@ -97,6 +97,20 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame('SHOW GLOBAL STATUS is not accessible (SQLSTATE[HY000] [2002] Connection refused)', $snapshot->result('mysql.status')?->error);
     }
 
+    public function testACachedPayloadWithAnUnexpectedShapeIsCollectedAgain(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $provider = $this->provider(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]);
+        $item = $this->cache->getItem(SnapshotProvider::cacheKey('mysql.status'));
+        $item->set(['payload' => 'from an older version of the bundle']);
+        $this->cache->save($item);
+
+        $snapshot = $provider->get(Component::Mysql);
+
+        self::assertSame(1, $status->collects);
+        self::assertSame(['Questions' => 100], $snapshot->data('mysql.status'));
+    }
+
     public function testRefreshForgetsTheComponent(): void
     {
         $variables = new FakeCollector('mysql.variables', ['version' => '8.4']);

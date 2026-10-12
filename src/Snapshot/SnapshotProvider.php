@@ -57,9 +57,6 @@ final readonly class SnapshotProvider
         return 'jmonitor_easyadmin.collect.' . $name;
     }
 
-    /**
-     * Collectors wrap the driver error in a generic message; the cause is what the admin needs.
-     */
     private static function describe(\Throwable $e): string
     {
         $cause = $e->getPrevious()?->getMessage();
@@ -75,7 +72,7 @@ final readonly class SnapshotProvider
     {
         $item = $this->cache->getItem(self::cacheKey($spec->name));
 
-        if ($item->isHit() && is_array($item->get())) {
+        if ($item->isHit() && CollectorResult::isValidArray($item->get())) {
             return CollectorResult::fromArray($spec->name, $item->get());
         }
 
