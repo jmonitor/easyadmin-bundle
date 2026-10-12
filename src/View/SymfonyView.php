@@ -35,6 +35,7 @@ final readonly class SymfonyView
     public ?array $nextTask;
 
     public bool $flexAvailable;
+    public bool $flexCheckFailed;
     public ?bool $recipesUpToDate;
     /** @var list<string> */
     public array $outdatedRecipes;
@@ -90,6 +91,7 @@ final readonly class SymfonyView
         $this->flexAvailable = $flex !== null;
         $this->recipesUpToDate = $flex === null ? null : Values::bool($flex['up_to_date'] ?? null);
         $this->outdatedRecipes = is_array($flex['outdated_recipes'] ?? null) ? array_values(array_filter($flex['outdated_recipes'], 'is_string')) : [];
+        $this->flexCheckFailed = $flex !== null && $this->recipesUpToDate === false && $this->outdatedRecipes === [];
 
         $this->recommendations = $this->recommendations($php->data('php'));
     }

@@ -68,6 +68,18 @@ final class SymfonyViewTest extends TestCase
         ], $view->recommendations);
     }
 
+    public function testAFlexCheckThatCouldNotRunIsNotReportedAsOutdated(): void
+    {
+        $view = new SymfonyView($this->symfony(['env' => 'prod', 'debug' => false, 'bundles' => [], 'components' => [
+            'flex_recipes' => ['up_to_date' => false, 'outdated_recipes' => []],
+        ]]), $this->php([]));
+
+        self::assertTrue($view->flexAvailable);
+        self::assertTrue($view->flexCheckFailed, 'composer is missing on the server: no verdict, not "0 outdated"');
+        self::assertFalse($view->recipesUpToDate);
+        self::assertSame([], $view->outdatedRecipes);
+    }
+
     public function testDebugInProductionIsFlagged(): void
     {
         $view = new SymfonyView($this->symfony(['env' => 'prod', 'debug' => true, 'bundles' => [], 'components' => []]), $this->php([]));

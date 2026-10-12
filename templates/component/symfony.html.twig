@@ -115,6 +115,8 @@
         <div class="card-body">
             {% if not view.flexAvailable %}
                 <p class="text-muted mb-0">Flex recipes are not collected.</p>
+            {% elseif view.flexCheckFailed %}
+                <p class="text-muted mb-0">The recipes check could not run: is <code>composer</code> available on this server?</p>
             {% elseif view.recipesUpToDate %}
                 <span class="badge text-bg-success">All recipes are up to date</span>
             {% else %}
