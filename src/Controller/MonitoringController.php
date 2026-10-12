@@ -11,11 +11,15 @@ use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 
 /**
@@ -25,6 +29,7 @@ use Twig\Environment;
 final class MonitoringController
 {
     private const COMPONENT_OPTIONS = ['requirements' => ['component' => 'system|php|symfony|mysql|redis']];
+    public const REFRESH_TOKEN_ID = 'jmonitor_refresh';
 
     public function __construct(
         private readonly ComponentRegistry $registry,
@@ -36,6 +41,7 @@ final class MonitoringController
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly string $role,
         private readonly int $pollingInterval,
+        private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
     ) {}
 
     #[AdminRoute(name: 'index')]
@@ -65,10 +71,14 @@ final class MonitoringController
     }
 
     #[AdminRoute(path: '/{component}/refresh', name: 'refresh', options: self::COMPONENT_OPTIONS + ['methods' => ['POST']])]
-    public function refresh(Component $component): Response
+    public function refresh(Request $request, Component $component): Response
     {
         $this->denyAccessUnlessGranted();
         $this->denyUnlessAvailable($component);
+
+        if ($this->csrfTokenManager !== null && !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::REFRESH_TOKEN_ID, $request->request->getString('_token')))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
+        }
 
         $this->snapshots->refresh($component);
 

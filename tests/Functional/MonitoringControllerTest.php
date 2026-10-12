@@ -93,10 +93,20 @@ final class MonitoringControllerTest extends WebTestCase
     public function testRefreshRedirectsBackToTheTab(): void
     {
         $client = $this->adminClient();
+        $crawler = $client->request('GET', '/admin/jmonitor/php');
 
-        $client->request('POST', '/admin/jmonitor/php/refresh');
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/php/refresh"]')->form());
 
         self::assertResponseRedirects('/admin/jmonitor/php');
+    }
+
+    public function testRefreshWithoutAValidTokenIsRefused(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('POST', '/admin/jmonitor/php/refresh', ['_token' => 'forged']);
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testAViewerIsDenied(): void

@@ -39,6 +39,9 @@
                     <button type="button" class="btn btn-secondary btn-sm" data-live-toggle aria-pressed="true">Live</button>
                 {% endif %}
                 <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">
+                    {% guard function csrf_token %}
+                        <input type="hidden" name="_token" value="{{ csrf_token('jmonitor_refresh') }}">
+                    {% endguard %}
                     <button type="submit" class="btn btn-secondary btn-sm">Refresh</button>
                 </form>
             {% endif %}
