@@ -18,9 +18,16 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 {
     protected string $extensionAlias = 'jmonitor_easyadmin';
 
+    public function getPath(): string
+    {
+        return \dirname(__DIR__);
+    }
+
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $builder->setParameter('jmonitor_easyadmin.config', $config);
+
+        $container->import('../config/services.php');
     }
 
     public function configure(DefinitionConfigurator $definition): void
