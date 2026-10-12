@@ -28,7 +28,9 @@ final readonly class ComponentSnapshot
      */
     public function data(string $name): array
     {
-        return $this->result($name)?->data ?? [];
+        $result = $this->result($name);
+
+        return $result === null ? [] : $result->data;
     }
 
     public function has(string $name): bool
