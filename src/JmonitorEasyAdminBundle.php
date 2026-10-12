@@ -61,22 +61,16 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                         ->append($this->componentNode('system', 'Collected on Linux only when "auto".'))
                         ->append($this->componentNode('php', 'Always available when "auto": metrics of the PHP process serving the page.'))
                         ->append($this->componentNode('symfony', 'Always available when "auto".', static function (NodeBuilder $children): void {
-                            $children
-                                ->booleanNode('messenger')->defaultValue(class_exists(Worker::class))->info('Show the Messenger transports (runs "messenger:stats").')->end()
-                                ->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").')->end()
-                                ->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").')->end()
-                            ;
+                            $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class))->info('Show the Messenger transports (runs "messenger:stats").');
+                            $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');
+                            $children->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").');
                         }))
                         ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
-                            $children
-                                ->scalarNode('connection')->defaultNull()->info('Doctrine DBAL connection service id. Defaults to the first MySQL/MariaDB connection found.')->end()
-                            ;
+                            $children->scalarNode('connection')->defaultNull()->info('Doctrine DBAL connection service id. Defaults to the first MySQL/MariaDB connection found.');
                         }))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
-                            $children
-                                ->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.')->end()
-                                ->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.')->end()
-                            ;
+                            $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
+                            $children->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.');
                         }))
                     ->end()
                 ->end()
@@ -106,18 +100,11 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         ;
 
         $children = $node->children();
-        $children
-            ->enumNode('enabled')
-                ->values(['auto', true, false])
-                ->defaultValue('auto')
-            ->end()
-        ;
+        $children->enumNode('enabled')->values(['auto', true, false])->defaultValue('auto');
 
         if ($options !== null) {
             $options($children);
         }
-
-        $children->end();
 
         return $node;
     }

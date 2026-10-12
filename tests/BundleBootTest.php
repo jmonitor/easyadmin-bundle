@@ -9,6 +9,15 @@ use PHPUnit\Framework\TestCase;
 
 final class BundleBootTest extends TestCase
 {
+    /**
+     * FrameworkBundle registers an exception handler at boot and never removes it,
+     * which PHPUnit reports as a risky test.
+     */
+    protected function tearDown(): void
+    {
+        restore_exception_handler();
+    }
+
     public function testTheBundleBootsWithoutConfiguration(): void
     {
         $kernel = new TestKernel();
