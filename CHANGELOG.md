@@ -6,3 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- Monitoring pages inside EasyAdmin 5 with one tab per detected component: system, PHP, MySQL, Redis and Symfony.
+- Live refresh of the current tab, with a toggle in the page and a configurable interval.
+- Detection of MySQL from the Doctrine connections and of Redis from the Symfony cache provider or `REDIS_URL`.

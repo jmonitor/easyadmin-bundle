@@ -1,0 +1,177 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Jmonitor\EasyAdminBundle\Tests\Functional;
+
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\AdminKernel;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Routing\RouterInterface;
+use Symfony\Component\Security\Core\User\InMemoryUser;
+
+final class MonitoringControllerTest extends WebTestCase
+{
+    protected static function getKernelClass(): string
+    {
+        return AdminKernel::class;
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        restore_exception_handler();
+    }
+
+    public function testTheAdminRoutesAreRegisteredUnderTheDashboard(): void
+    {
+        self::bootKernel();
+        /** @var RouterInterface $router */
+        $router = self::getContainer()->get('router');
+        $routes = $router->getRouteCollection();
+
+        self::assertSame('/admin/jmonitor', $routes->get('admin_jmonitor_index')?->getPath());
+        self::assertSame('/admin/jmonitor/{component}', $routes->get('admin_jmonitor_component')?->getPath());
+        self::assertSame('/admin/jmonitor/{component}/fragment', $routes->get('admin_jmonitor_fragment')?->getPath());
+        self::assertSame('/admin/jmonitor/{component}/refresh', $routes->get('admin_jmonitor_refresh')?->getPath());
+        self::assertSame(['POST'], $routes->get('admin_jmonitor_refresh')->getMethods());
+        self::assertSame('system|php|symfony|mysql|redis', $routes->get('admin_jmonitor_component')->getRequirement('component'));
+    }
+
+    public function testIndexRedirectsToTheFirstAvailableComponent(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor');
+
+        self::assertResponseRedirects();
+        self::assertStringEndsWith('/admin/jmonitor/' . (PHP_OS_FAMILY === 'Linux' ? 'system' : 'php'), (string) $client->getResponse()->headers->get('Location'));
+    }
+
+    public function testTheSystemTabRendersInsideTheAdminLayout(): void
+    {
+        if (PHP_OS_FAMILY !== 'Linux') {
+            self::markTestSkipped('System metrics are collected on Linux only.');
+        }
+
+        $client = $this->adminClient();
+
+        $crawler = $client->request('GET', '/admin/jmonitor/system');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'System');
+        self::assertSelectorExists('.nav-tabs a[href="/admin/jmonitor/php"]');
+        self::assertSelectorExists('.nav-tabs a[href="/admin/jmonitor/symfony"]');
+        self::assertSelectorNotExists('.nav-tabs a[href="/admin/jmonitor/redis"]');
+        self::assertSelectorExists('[data-live-content]');
+        self::assertSelectorExists('[data-live-toggle]');
+        self::assertSelectorExists('.jm-gauge');
+        self::assertSelectorTextContains('body', 'RAM usage');
+        self::assertCount(1, $crawler->filter('script[src*="live.js"]'));
+        self::assertCount(1, $crawler->filter('link[href*="monitoring.css"]'));
+        self::assertSelectorExists('form[action="/admin/jmonitor/system/refresh"]');
+    }
+
+    public function testTheFragmentHasNoLayout(): void
+    {
+        if (PHP_OS_FAMILY !== 'Linux') {
+            self::markTestSkipped('System metrics are collected on Linux only.');
+        }
+
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/system/fragment');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('<html', $content);
+        self::assertStringNotContainsString('nav-tabs', $content);
+        self::assertStringContainsString('jm-gauge', $content);
+    }
+
+    public function testRefreshRedirectsBackToTheTab(): void
+    {
+        $client = $this->adminClient();
+        $crawler = $client->request('GET', '/admin/jmonitor/php');
+
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/php/refresh"]')->form());
+
+        self::assertResponseRedirects('/admin/jmonitor/php');
+    }
+
+    public function testRefreshWithoutAValidTokenIsRefused(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('POST', '/admin/jmonitor/php/refresh', ['_token' => 'forged']);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAViewerIsDenied(): void
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('viewer', 'viewer', ['ROLE_USER']));
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testADisabledComponentIsNotFound(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/redis');
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAnUnknownComponentIsNotFound(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/postgres');
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testThePhpTabShowsTheRunningProcess(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'PHP');
+        self::assertSelectorTextContains('body', PHP_VERSION);
+        self::assertSelectorTextContains('body', 'OPcache');
+        self::assertSelectorTextContains('body', 'APCu');
+        self::assertSelectorTextContains('body', 'memory_limit');
+        self::assertSelectorExists('details.jm-extensions');
+    }
+
+    public function testTheSymfonyTabShowsTheKernelAndTheRecommendations(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/symfony');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'Symfony');
+        self::assertSelectorTextContains('body', 'JmonitorEasyAdminBundle');
+        self::assertSelectorTextContains('body', 'Recommendations');
+        self::assertSelectorTextContains('body', 'OPcache enabled');
+        self::assertSelectorTextContains('body', 'Messenger');
+        self::assertSelectorTextContains('body', 'not collected');
+    }
+
+    private function adminClient(): KernelBrowser
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('admin', 'admin', ['ROLE_ADMIN']));
+
+        return $client;
+    }
+}

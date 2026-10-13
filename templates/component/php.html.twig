@@ -1,0 +1,127 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">PHP {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.version'}) }}</div>
+                <div class="card-body">
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Version': view.version,
+                        'SAPI': view.sapi,
+                        'Loaded ini file': view.iniFile,
+                        'Additional ini files': view.iniFiles|length ? view.iniFiles|join(', ') : null,
+                    }}) }}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header">Configuration {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.base_config'}) }}</div>
+                <div class="card-body">
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.baseConfig}) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4">OPcache</h2>
+    {% if view.opcacheEnabled is null %}
+        <p class="text-muted">OPcache is not available in this PHP process.</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheMemory, detail: view.opcacheConfig['opcache.memory_consumption'] is null ? null : 'of ' ~ view.opcacheConfig['opcache.memory_consumption']|jm_bytes}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheHitRate}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-header">Configuration {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.opcache_config'}) }}</div>
+                    <div class="card-body">
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.opcacheConfig|merge({
+                            'opcache.memory_consumption': view.opcacheConfig['opcache.memory_consumption']|jm_bytes,
+                            'opcache.jit_buffer_size': view.opcacheConfig['opcache.jit_buffer_size'] is null ? null : view.opcacheConfig['opcache.jit_buffer_size']|jm_bytes,
+                        })}) }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-header">Statistics</div>
+                    <div class="card-body">
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.opcacheStats|merge({'Wasted memory': view.opcacheStats['Wasted memory']|jm_bytes})}) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <h2 class="h5 mt-4">APCu</h2>
+    {% if view.apcuEnabled is null %}
+        <p class="text-muted">APCu is not installed.</p>
+    {% elseif view.apcuEnabled is same as(false) %}
+        <p class="text-muted">APCu is installed but disabled in this PHP process.</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.apcuMemory, detail: view.apcuStats['Total memory'] is null ? null : 'of ' ~ view.apcuStats['Total memory']|jm_bytes}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.apcuHitRate}) }}
+            </div>
+            <div class="col-xl-6">
+                <div class="card h-100">
+                    <div class="card-header">Statistics {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.apcu_config'}) }}</div>
+                    <div class="card-body">
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.apcuStats|merge({
+                            'Used memory': view.apcuStats['Used memory']|jm_bytes,
+                            'Total memory': view.apcuStats['Total memory']|jm_bytes,
+                        })}) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <h2 class="h5 mt-4">PHP-FPM</h2>
+    {% if not view.fpm %}
+        <p class="text-muted">This PHP process is not served by PHP-FPM ({{ view.sapi ?? 'unknown SAPI' }}).</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmActive, detail: view.fpmStats['Active processes'] is null or view.fpmStats['Idle processes'] is null ? null : view.fpmStats['Active processes'] ~ ' active, ' ~ view.fpmStats['Idle processes'] ~ ' idle'}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {% if view.fpmMemoryPeak %}
+                    {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmMemoryPeak, detail: view.fpmStats['Memory peak']|jm_bytes ~ ' of memory_limit'}) }}
+                {% else %}
+                    <div class="card h-100"><div class="card-body text-center text-muted">Memory peak needs PHP 8.2 and a memory_limit.</div></div>
+                {% endif %}
+            </div>
+            <div class="col-xl-6">
+                <div class="card h-100">
+                    <div class="card-header">Pool {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.fpm_config'}) }}</div>
+                    <div class="card-body">
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.fpmStats|merge({
+                            'Uptime': view.fpmStats['Uptime']|jm_duration,
+                            'Memory peak': view.fpmStats['Memory peak']|jm_bytes,
+                        })}) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <details class="jm-extensions mt-4">
+        <summary class="h5">Extensions <span class="badge text-bg-secondary">{{ view.extensions|length }}</span></summary>
+        <div class="d-flex flex-wrap gap-1 mt-2">
+            {% for extension in view.extensions %}
+                <span class="badge text-bg-light border">{{ extension }}</span>
+            {% endfor %}
+        </div>
+    </details>
+{% endblock %}

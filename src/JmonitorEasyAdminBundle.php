@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle;
 
+use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -18,9 +19,34 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 {
     protected string $extensionAlias = 'jmonitor_easyadmin';
 
+    public function getPath(): string
+    {
+        return \dirname(__DIR__);
+    }
+
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        $container->addCompilerPass(new DoctrineConnectionsPass());
+    }
+
+    public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
+    {
+        foreach ($builder->getExtensionConfig('framework') as $frameworkConfig) {
+            $provider = $frameworkConfig['cache']['default_redis_provider'] ?? null;
+
+            if (is_string($provider) && $provider !== '') {
+                $builder->setParameter('jmonitor_easyadmin.framework_redis_provider', $provider);
+            }
+        }
+    }
+
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $builder->setParameter('jmonitor_easyadmin.config', $config);
+
+        $container->import('../config/services.php');
     }
 
     public function configure(DefinitionConfigurator $definition): void
@@ -66,7 +92,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").');
                         }))
                         ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
-                            $children->scalarNode('connection')->defaultNull()->info('Doctrine DBAL connection service id. Defaults to the first MySQL/MariaDB connection found.');
+                            $children->scalarNode('connection')->defaultNull()->info('Doctrine connection name (e.g. "default"). Defaults to the first MySQL/MariaDB connection found.');
                         }))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');

@@ -1,0 +1,76 @@
+.jm-monitoring .nav-tabs .nav-link {
+    cursor: pointer;
+}
+
+.jm-gauge {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin: 0 auto;
+}
+
+.jm-gauge circle {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+}
+
+.jm-gauge-track {
+    stroke: var(--bs-secondary-bg, #e9ecef);
+}
+
+.jm-gauge-value {
+    stroke: var(--bs-primary, #0d6efd);
+    transition: stroke-dasharray .4s ease;
+}
+
+.jm-gauge-success .jm-gauge-value { stroke: var(--bs-success, #198754); }
+.jm-gauge-info .jm-gauge-value { stroke: var(--bs-info, #0dcaf0); }
+.jm-gauge-warning .jm-gauge-value { stroke: var(--bs-warning, #ffc107); }
+.jm-gauge-danger .jm-gauge-value { stroke: var(--bs-danger, #dc3545); }
+
+.jm-gauge-text {
+    font-size: 22px;
+    font-weight: 600;
+    fill: currentColor;
+}
+
+.jm-gauge-empty {
+    font-size: 1.5rem;
+    line-height: 4.5rem;
+}
+
+.jm-gauge-label {
+    font-weight: 500;
+    margin-top: .25rem;
+}
+
+.jm-help {
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    line-height: 1.1rem;
+    border-radius: 50%;
+    font-size: .75rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    background: var(--bs-secondary-bg, #e9ecef);
+    vertical-align: middle;
+}
+
+.jm-rate {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.jm-kv dt,
+.jm-kv dd {
+    word-break: break-word;
+}
+
+[data-live-toggle]:not(.active) {
+    opacity: .6;
+}

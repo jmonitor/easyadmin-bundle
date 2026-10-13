@@ -1,0 +1,88 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">Server {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'mysql.informations'}) }}</div>
+                <div class="card-body">
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Version': view.version is null ? null : view.version ~ (view.versionComment ? ' (' ~ view.versionComment ~ ')' : ''),
+                        'Uptime': view.uptime|jm_duration,
+                        'Schema': view.schema,
+                        'Data size': view.dataLength|jm_bytes,
+                        'Index size': view.indexLength|jm_bytes,
+                        'Slow query log': view.slowQueryLog,
+                        'long_query_time': view.longQueryTime is null ? null : view.longQueryTime ~ ' s',
+                    }}) }}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header">Traffic {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'mysql.queries_per_sec'}) }}</div>
+                <div class="card-body">
+                    <div class="row g-3 text-center">
+                        <div class="col-6 col-md-4"><div class="small text-muted">Queries</div>{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.questionsPerSec}) }}</div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">InnoDB reads</div>{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.innodbReadsPerSec}) }}</div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">InnoDB writes</div>{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.innodbWritesPerSec}) }}</div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Threads connected</div><span class="jm-rate">{{ view.threadsConnected|jm_number }}</span></div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Threads running</div><span class="jm-rate">{{ view.threadsRunning|jm_number }}</span></div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Max used connections</div><span class="jm-rate">{{ view.maxUsedConnections|jm_number }}{% if view.maxConnections %} <small class="text-muted">/ {{ view.maxConnections }}</small>{% endif %}</span></div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Slow queries (total)</div><span class="jm-rate">{{ view.slowQueriesTotal|jm_number }}</span></div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Aborted connects</div><span class="jm-rate">{{ view.abortedConnects|jm_number }}</span></div>
+                        <div class="col-6 col-md-4"><div class="small text-muted">Aborted clients</div><span class="jm-rate">{{ view.abortedClients|jm_number }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4">Health</h2>
+    <div class="row g-3">
+        <div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.connections, detail: view.maxConnections is null ? null : view.threadsConnected ~ ' / ' ~ view.maxConnections}) }}</div>
+        {% if view.bufferPoolUsage %}<div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.bufferPoolUsage}) }}</div>{% endif %}
+        {% if view.bufferPoolHitRate %}<div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.bufferPoolHitRate}) }}</div>{% endif %}
+        {% if view.tmpDiskTables %}<div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.tmpDiskTables}) }}</div>{% endif %}
+        {% if view.threadCacheMiss %}<div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.threadCacheMiss}) }}</div>{% endif %}
+        {% if view.lockWaits %}<div class="col-md-4 col-xl-2">{{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.lockWaits}) }}</div>{% endif %}
+    </div>
+
+    <h2 class="h5 mt-4">Slow queries {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'mysql.slow_queries_top'}) }}</h2>
+    {% if view.slowQueriesError %}
+        <p class="text-muted">Slow queries are not available: {{ view.slowQueriesError }}</p>
+    {% elseif not view.slowQueriesAvailable %}
+        <p class="text-muted">Slow queries were not collected.</p>
+    {% elseif view.slowQueries is empty %}
+        <p class="text-muted">No slow query recorded by the performance schema.</p>
+    {% else %}
+        {% if view.slowQueryLog is same as(false) %}
+            <p class="text-warning small">The slow query log is disabled: the figures come from the performance schema digests.</p>
+        {% endif %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Query</th><th class="text-end">Executions</th><th class="text-end">Avg</th><th class="text-end">Max</th><th class="text-end">Total</th></tr></thead>
+                <tbody>
+                    {% for query in view.slowQueries %}
+                        <tr>
+                            <td><code class="text-wrap">{{ query.query_sample }}</code></td>
+                            <td class="text-end">{{ query.exec_count|jm_number }}</td>
+                            <td class="text-end">{{ query.avg_time_ms|jm_number }} ms</td>
+                            <td class="text-end">{{ query.max_time_ms|jm_number }} ms</td>
+                            <td class="text-end">{{ query.total_time_ms|jm_number }} ms</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <details class="mt-4">
+        <summary class="h5">Variables {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'mysql.config'}) }}</summary>
+        <div class="card mt-2"><div class="card-body">
+            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.variables}) }}
+        </div></div>
+    </details>
+{% endblock %}

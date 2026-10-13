@@ -1,0 +1,31 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-md-4 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ram, detail: view.ramUsed is null ? null : view.ramUsed|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
+        </div>
+        <div class="col-md-4 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cpu, detail: view.cores is null ? null : view.cores ~ ' cores'}) }}
+        </div>
+        <div class="col-md-4 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.disk, detail: view.diskUsed is null ? null : view.diskUsed|jm_bytes ~ ' / ' ~ view.diskTotal|jm_bytes}) }}
+        </div>
+        <div class="col-xl-3">
+            <div class="card h-100">
+                <div class="card-header">Server {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'system.informations'}) }}</div>
+                <div class="card-body">
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Hostname': view.hostname,
+                        'OS': view.os,
+                        'Uptime': view.uptime|jm_duration,
+                        'Load average': view.load1 is null ? null : view.load1 ~ ' / ' ~ view.load5 ~ ' / ' ~ view.load15,
+                        'Timezone': view.timezone,
+                    }}) }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
