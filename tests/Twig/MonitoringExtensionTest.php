@@ -11,7 +11,7 @@ final class MonitoringExtensionTest extends TestCase
 {
     public function testBytes(): void
     {
-        $extension = new MonitoringExtension('https://jmonitor.io/help/metric/');
+        $extension = new MonitoringExtension('https://dash.jmonitor.io/help/metric/');
 
         self::assertSame('—', $extension->bytes(null));
         self::assertSame('0 B', $extension->bytes(0));
@@ -24,7 +24,7 @@ final class MonitoringExtensionTest extends TestCase
 
     public function testDuration(): void
     {
-        $extension = new MonitoringExtension('https://jmonitor.io/help/metric/');
+        $extension = new MonitoringExtension('https://dash.jmonitor.io/help/metric/');
 
         self::assertSame('—', $extension->duration(null));
         self::assertSame('45s', $extension->duration(45));
@@ -36,7 +36,7 @@ final class MonitoringExtensionTest extends TestCase
 
     public function testNumber(): void
     {
-        $extension = new MonitoringExtension('https://jmonitor.io/help/metric/');
+        $extension = new MonitoringExtension('https://dash.jmonitor.io/help/metric/');
 
         self::assertSame('—', $extension->number(null));
         self::assertSame('1 234', $extension->number(1234));
@@ -46,9 +46,15 @@ final class MonitoringExtensionTest extends TestCase
 
     public function testHelpUrl(): void
     {
-        self::assertSame('https://jmonitor.io/help/metric/mysql.connections_usage', (new MonitoringExtension('https://jmonitor.io/help/metric/'))->helpUrl('mysql.connections_usage'));
+        self::assertSame('https://dash.jmonitor.io/help/metric/mysql.connections_usage', (new MonitoringExtension('https://dash.jmonitor.io/help/metric/'))->helpUrl('mysql.connections_usage'));
         self::assertSame('https://example.com/help/redis.hit_rate', (new MonitoringExtension('https://example.com/help'))->helpUrl('redis.hit_rate'));
         self::assertNull((new MonitoringExtension(false))->helpUrl('redis.hit_rate'));
+    }
+
+    public function testHelpEnabled(): void
+    {
+        self::assertTrue((new MonitoringExtension('https://dash.jmonitor.io/help/metric/'))->helpEnabled());
+        self::assertFalse((new MonitoringExtension(false))->helpEnabled());
     }
 
     public function testRegistersFiltersAndFunctions(): void
@@ -59,6 +65,6 @@ final class MonitoringExtensionTest extends TestCase
         $functions = array_map(static fn($function): string => $function->getName(), $extension->getFunctions());
 
         self::assertSame(['jm_bytes', 'jm_duration', 'jm_number'], $filters);
-        self::assertSame(['jm_help_url'], $functions);
+        self::assertSame(['jm_help_url', 'jm_help_enabled'], $functions);
     }
 }
