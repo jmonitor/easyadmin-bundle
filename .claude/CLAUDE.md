@@ -8,7 +8,7 @@ It reuses the collectors of `jmonitor/collector` and the Symfony collectors of `
 
 ## Status
 
-- v1 is implemented on branch `v1`, pull request #1 against `1.x`, CI green on the whole matrix. Nothing is released, the package is not on Packagist, the GitHub repository is still private.
+- v1 is implemented and merged into `1.x`. Nothing is released, the package is not on Packagist, the GitHub repository is still private.
 - Before the first release: ship the public help pages on jmonitor.io (the `?` links default to `https://jmonitor.io/help/metric/<metric key>`, served by the SaaS, not yet online), do a manual pass in a real EasyAdmin application (`public/live.js` was only verified in a browser against a harness reproducing the layout's markup), make the repository public, write the Flex recipe (the bundle currently relies on Flex's automatic bundle registration).
 - Known minor follow-ups, none blocking: `CollectorRunner` runs `boot()` at every collect (one probe query per lifetime); detection builds the collector instances on every monitoring request even when the cache is warm (cheap objects, but a detection/construction split would avoid it); the `$available` property of the views is only read by tests; the README does not mention that several web nodes sharing one cache pool show whichever node collected last; no test renders a component forced with `enabled: true` whose detection failed, nor the `no_component` page; `live.js` has no automated test.
 
