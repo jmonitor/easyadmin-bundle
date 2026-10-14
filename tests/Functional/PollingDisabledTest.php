@@ -41,6 +41,7 @@ final class PollingDisabledTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('script[src*="live.js"]'));
+        self::assertCount(1, $crawler->filter('script[src*="help.js"]'), 'the help panel does not depend on the polling');
         self::assertSelectorNotExists('[data-live-toggle]');
         self::assertSelectorNotExists('[data-live]');
         self::assertSelectorExists('form[action="/admin/jmonitor/php/refresh"]', 'the manual refresh stays');

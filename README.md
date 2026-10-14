@@ -37,7 +37,7 @@ One tab per detected component:
 - **Redis**: memory, hit rate, operations per second, clients, persistence, keyspaces.
 - **Symfony**: version, environment, bundles, Messenger transports, Scheduler tasks, outdated Flex recipes, and a few recommendations.
 
-Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric links to its help page on jmonitor.io.
+Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
 
 ## Configuration
 
@@ -50,7 +50,7 @@ jmonitor_easyadmin:
     polling_interval: 10       # seconds between two live refreshes, 0 disables them
     static_ttl: 3600           # seconds during which versions, configuration and OS data are kept
     role: ROLE_ADMIN           # role required to open the pages
-    help_url: https://jmonitor.io/help/metric/   # false hides the help links
+    help_url: https://dash.jmonitor.io/help/metric/   # false hides the help links
     components:
         system: auto           # auto | true | false
         php: auto
@@ -75,6 +75,8 @@ jmonitor_easyadmin:
 Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. Every admin looking at the page shares that cache, so a tab left open costs one collection per interval. The **Refresh** button drops the component's cache, for instance after a server restart. The **Live** button pauses the polling; the choice is remembered in the browser.
 
 The Symfony tab runs console commands (`messenger:stats`, `debug:scheduler`, `composer recipes`) and is cached for `static_ttl`; disable the ones you do not want.
+
+The help panel loads `help_url` in an iframe. If your admin sends a Content-Security-Policy, allow that origin in `frame-src` (`https://dash.jmonitor.io` by default); otherwise the panel stays empty and its "Open in a new tab" link still works.
 
 ## License
 

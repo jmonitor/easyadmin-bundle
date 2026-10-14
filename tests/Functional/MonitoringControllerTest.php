@@ -73,6 +73,18 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorExists('form[action="/admin/jmonitor/system/refresh"]');
     }
 
+    public function testHelpLinksOpenInThePanel(): void
+    {
+        $client = $this->adminClient();
+
+        $crawler = $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a.jm-help[data-jm-help][href="https://dash.jmonitor.io/help/metric/php.version"]');
+        self::assertSelectorExists('.offcanvas[data-jm-help-panel] iframe[data-jm-help-frame][sandbox]');
+        self::assertCount(1, $crawler->filter('script[src*="help.js"]'));
+    }
+
     public function testTheFragmentHasNoLayout(): void
     {
         if (PHP_OS_FAMILY !== 'Linux') {

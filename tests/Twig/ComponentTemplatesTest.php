@@ -93,6 +93,21 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('No keys', $html);
     }
 
+    public function testNoHelpLinkWhenTheHelpIsDisabled(): void
+    {
+        $kernel = new TestKernel(['help_url' => false]);
+        $kernel->boot();
+
+        try {
+            /** @var Environment $twig */
+            $twig = $kernel->getContainer()->get('test.service_container')->get('twig');
+
+            self::assertSame('', trim($twig->render('@JmonitorEasyAdmin/_help.html.twig', ['metric' => 'php.version'])));
+        } finally {
+            $kernel->shutdown();
+        }
+    }
+
     private function render(string $component, ComponentSnapshot $snapshot, object $view): string
     {
         return $this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component), [

@@ -74,7 +74,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->info('Role required to open the monitoring pages.')
                 ->end()
                 ->scalarNode('help_url')
-                    ->defaultValue('https://jmonitor.io/help/metric/')
+                    ->defaultValue('https://dash.jmonitor.io/help/metric/')
                     ->info('Base URL of the public metric help pages. Set to false to hide the help links.')
                     ->validate()
                         ->ifTrue(static fn($v): bool => $v !== false && (!is_string($v) || $v === ''))

@@ -29,6 +29,7 @@ final class MonitoringExtension extends AbstractExtension
     {
         return [
             new TwigFunction('jm_help_url', $this->helpUrl(...)),
+            new TwigFunction('jm_help_enabled', $this->helpEnabled(...)),
         ];
     }
 
@@ -101,5 +102,10 @@ final class MonitoringExtension extends AbstractExtension
         }
 
         return rtrim($this->helpUrl, '/') . '/' . $metric;
+    }
+
+    public function helpEnabled(): bool
+    {
+        return $this->helpUrl !== false;
     }
 }
