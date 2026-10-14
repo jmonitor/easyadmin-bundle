@@ -60,19 +60,13 @@ final readonly class PhpView
         $this->baseConfig = [
             'memory_limit' => $data['memory_limit'] ?? null,
             'max_execution_time' => $data['max_execution_time'] ?? null,
-            'max_input_time' => $data['max_input_time'] ?? null,
-            'max_input_vars' => $data['max_input_vars'] ?? null,
-            'post_max_size' => $data['post_max_size'] ?? null,
-            'upload_max_filesize' => $data['upload_max_filesize'] ?? null,
             'display_errors' => Values::bool($data['display_errors'] ?? null),
-            'display_startup_errors' => Values::bool($data['display_startup_errors'] ?? null),
             'log_errors' => Values::bool($data['log_errors'] ?? null),
             'error_log' => $data['error_log'] ?? null,
             'error_reporting' => ErrorReporting::describe(Values::int($data['error_reporting'] ?? null)),
+            'post_max_size' => $data['post_max_size'] ?? null,
+            'upload_max_filesize' => $data['upload_max_filesize'] ?? null,
             'date.timezone' => $data['date.timezone'] ?? null,
-            'expose_php' => Values::bool($data['expose_php'] ?? null),
-            'realpath_cache_size' => $data['realpath_cache_size'] ?? null,
-            'realpath_cache_ttl' => $data['realpath_cache_ttl'] ?? null,
         ];
 
         $opcache = is_array($data['opcache'] ?? null) ? $data['opcache'] : [];

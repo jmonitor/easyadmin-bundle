@@ -34,6 +34,7 @@ final class PhpViewTest extends TestCase
         self::assertSame(30, $view->baseConfig['max_execution_time']);
         self::assertFalse($view->baseConfig['display_errors']);
         self::assertSame('E_ALL', $view->baseConfig['error_reporting']);
+        self::assertSame(['memory_limit', 'max_execution_time', 'display_errors', 'log_errors', 'error_log', 'error_reporting', 'post_max_size', 'upload_max_filesize', 'date.timezone'], array_keys($view->baseConfig), 'the keys of the php.base_config help page');
 
         self::assertTrue($view->opcacheEnabled);
         self::assertSame(60.0, $view->opcacheMemory?->value);
