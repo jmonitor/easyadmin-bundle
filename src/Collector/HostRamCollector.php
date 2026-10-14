@@ -17,6 +17,9 @@ final readonly class HostRamCollector implements CollectorInterface, ResetInterf
         private AdapterInterface $adapter,
     ) {}
 
+    /**
+     * @return array{total: ?int}
+     */
     public function collect(): array
     {
         return ['total' => $this->adapter->getTotalMemory()];
