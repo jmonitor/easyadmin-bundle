@@ -174,7 +174,7 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'Symfony');
         self::assertSelectorTextContains('body', 'JmonitorEasyAdminBundle');
         self::assertSelectorTextContains('body', 'Recommendations');
-        self::assertSelectorTextContains('body', 'OPcache enabled');
+        self::assertSelectorTextContains('body', 'realpath_cache_size');
         self::assertSelectorTextContains('body', 'Messenger');
         self::assertSelectorTextContains('body', 'not collected');
     }

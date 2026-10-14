@@ -15,6 +15,7 @@ use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
+use Jmonitor\EasyAdminBundle\View\SymfonyView;
 use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
@@ -166,6 +167,23 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('APCu is disabled.', $html);
         self::assertStringContainsString('PHP-FPM usage not detected.', $html);
         self::assertMatchesRegularExpression('#error_log</dt>\s*<dd[^>]*><span class="text-muted">—</span>#', $html);
+    }
+
+    public function testTheSymfonyFragmentRenders(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', Payloads::symfony(), null, 1_000)]);
+        $php = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000)]);
+
+        $html = $this->render('symfony', $snapshot, new SymfonyView($snapshot, $php));
+
+        self::assertStringContainsString('PROD', $html);
+        self::assertStringContainsString('Debug: disabled', $html);
+        self::assertStringContainsString('realpath_cache_size', $html);
+        self::assertStringContainsString('Outdated', $html);
+        self::assertStringContainsString('Uncountable', $html);
+        self::assertStringContainsString('Scheduler - Next task', $html);
+        self::assertStringContainsString('0-10 second jitters', $html);
+        self::assertStringContainsString('Every 1 hour', $html);
     }
 
     public function testNoHelpLinkWhenTheHelpIsDisabled(): void

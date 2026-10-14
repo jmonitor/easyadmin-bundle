@@ -172,4 +172,25 @@ final class Payloads
             'config' => ['save' => '3600 1 300 100 60 10000'],
         ];
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function symfony(): array
+    {
+        return [
+            'env' => 'prod',
+            'debug' => false,
+            'version' => '7.4.2',
+            'bundles' => ['TwigBundle', 'FrameworkBundle', 'EasyAdminBundle'],
+            'components' => [
+                'scheduler' => [
+                    ['trigger' => 'every 1 hour', 'command' => 'app:cleanup', 'next_run' => 1_760_003_600, 'description' => 'Clean up'],
+                    ['trigger' => 'every 5 minutes with 0-10 second jitter', 'command' => 'app:ping', 'next_run' => 1_760_000_300, 'description' => 'Ping'],
+                ],
+                'flex_recipes' => ['up_to_date' => false, 'outdated_recipes' => ['symfony/framework-bundle', 'symfony/twig-bundle']],
+                'messenger' => ['transports' => ['async' => ['count' => 3], 'failed' => ['count' => 1], 'retry' => ['count' => 0]], 'uncountable_transports' => ['sync']],
+            ],
+        ];
+    }
 }
