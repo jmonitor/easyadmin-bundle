@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\View;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use PHPUnit\Framework\TestCase;
 
@@ -18,41 +20,64 @@ final class PhpViewTest extends TestCase
 {
     public function testFullPayloadUnderFpm(): void
     {
-        $previous = ['opcache' => ['status' => ['opcache_statistics' => ['hits' => 1000, 'misses' => 100]]]];
-        $current = ['opcache' => ['status' => ['opcache_statistics' => ['hits' => 1090, 'misses' => 110]]]];
+        $previous = ['opcache' => ['status' => ['opcache_statistics' => ['hits' => 1000, 'misses' => 100]]], 'fpm' => ['accepted-conn' => 4950]];
+        $current = ['opcache' => ['status' => ['opcache_statistics' => ['hits' => 1090, 'misses' => 110]]], 'fpm' => ['accepted-conn' => 5000]];
         $delta = new Delta(Delta::flatten($previous), Delta::flatten($current), 10);
 
-        $view = new PhpView($this->snapshot($this->payload(), $delta), $this->gauges());
+        $view = new PhpView($this->snapshot(Payloads::php(), $delta), $this->gauges());
 
         self::assertTrue($view->available);
         self::assertSame('8.4.23', $view->version);
         self::assertSame('fpm-fcgi', $view->sapi);
-        self::assertSame('/etc/php/8.4/fpm/php.ini', $view->iniFile);
-        self::assertSame(['/etc/php/8.4/fpm/conf.d/10-opcache.ini'], $view->iniFiles);
-        self::assertSame(['apcu', 'Core', 'json', 'Zend OPcache'], $view->extensions, 'sorted without regard to case');
-        self::assertSame('128M', $view->baseConfig['memory_limit']);
-        self::assertSame(30, $view->baseConfig['max_execution_time']);
-        self::assertFalse($view->baseConfig['display_errors']);
+        self::assertSame(['/etc/php/8.4/fpm/php.ini', '/etc/php/8.4/fpm/conf.d/10-opcache.ini'], $view->iniFiles, 'the loaded ini file comes first');
+        self::assertSame(['Core', 'json', 'Zend OPcache', 'apcu'], $view->extensions);
 
-        self::assertTrue($view->opcacheEnabled);
-        self::assertSame(60.0, $view->opcacheMemory?->value);
+        self::assertSame(134_217_728, $view->memoryLimit);
+        self::assertSame(30, $view->maxExecutionTime);
+        self::assertNull($view->memoryLimitUnlimited);
+        self::assertNull($view->maxExecutionTimeUnlimited);
+        self::assertSame(BadgeStyle::Success, self::badge($view->displayErrors)->style);
+        self::assertSame('0', self::badge($view->displayErrors)->label);
+        self::assertSame(BadgeStyle::Success, $view->logErrors?->style);
+        self::assertSame('/var/log/php/error.log', $view->errorLog);
+        self::assertSame('E_ALL', $view->errorReporting);
+        self::assertSame('8M', $view->postMaxSize);
+        self::assertSame('2M', $view->uploadMaxFilesize);
+        self::assertSame('UTC', $view->timezone);
+
+        self::assertTrue($view->opcache);
+        self::assertSame('Enabled', $view->opcacheEnabled->label);
+        self::assertSame('CLI: disabled', $view->opcacheCli->label);
+        self::assertSame(60.0, $view->opcacheMemory->value);
         self::assertSame(BadgeStyle::Success, $view->opcacheMemory->badge?->style);
-        self::assertSame(90.0, $view->opcacheHitRate?->value, 'hit rate from the delta: 90 hits for 10 misses');
+        self::assertSame(100_000_000, $view->opcacheTotal);
+        self::assertSame(90.0, $view->opcacheHitRate->value, 'hit rate from the delta: 90 hits for 10 misses');
         self::assertNull($view->opcacheHitRate->hint);
-        self::assertSame(134217728, $view->opcacheConfig['opcache.memory_consumption']);
-        self::assertSame(1234, $view->opcacheStats['Cached scripts']);
+        self::assertSame(134_217_728, $view->opcacheMemoryConsumption);
+        self::assertSame('Disabled', $view->opcachePreload->label);
+        self::assertSame('Disabled', self::badge($view->opcacheRevalidateFreq)->label, 'validate_timestamps is off');
+        self::assertSame(20000, $view->opcacheMaxAcceleratedFiles);
 
-        self::assertTrue($view->apcuEnabled);
-        self::assertSame(75.0, $view->apcuMemory?->value);
-        self::assertSame(90.0, $view->apcuHitRate?->value);
+        self::assertTrue($view->apcu);
+        self::assertSame('Enabled', $view->apcuEnabled->label);
+        self::assertSame(75.0, $view->apcuMemory->value);
+        self::assertSame(90.0, $view->apcuHitRate->value);
         self::assertSame('since server start', $view->apcuHitRate->hint, 'no APCu counters in the delta: cumulative value');
-        self::assertSame(42, $view->apcuStats['Entries']);
+        self::assertSame(33_554_432, $view->apcuShmSize);
+        self::assertSame(1, $view->apcuShmSegments);
+        self::assertSame(0, $view->apcuTtl);
 
         self::assertTrue($view->fpm);
-        self::assertSame(25.0, $view->fpmActive?->value, '2 active out of 2 + 6');
-        self::assertSame(50.0, $view->fpmMemoryPeak?->value, '64 MB peak for a 128M memory_limit');
-        self::assertSame('www', $view->fpmStats['Pool']);
-        self::assertSame(3, $view->fpmStats['Max children reached']);
+        self::assertSame(5.0, $view->fpmRequestsPerSec->value, '50 connections in 10 seconds');
+        self::assertSame(25.0, $view->fpmActiveProcesses->value, '2 active out of 2 + 6');
+        self::assertSame(6, $view->fpmIdle);
+        self::assertSame(3, $view->fpmMaxChildrenReached);
+        self::assertSame('Reached', $view->fpmMaxChildrenReachedBadge?->label);
+        self::assertSame('Detected', $view->fpmSlowRequestsBadge?->label);
+        self::assertSame(50.0, $view->fpmMemoryPeakPercent?->value, '64 MB peak for a 128M memory_limit');
+        self::assertSame('www', $view->fpmPool);
+        self::assertSame('dynamic', $view->fpmProcessManager);
+        self::assertSame(3600, $view->fpmUptime);
     }
 
     public function testCliWithoutOpcacheApcuOrFpm(): void
@@ -61,32 +86,59 @@ final class PhpViewTest extends TestCase
             'version' => '8.4.23',
             'sapi_name' => 'cli',
             'memory_limit' => '-1',
+            'display_errors' => 'stderr',
             'loaded_extensions' => ['Core'],
             'opcache' => [],
             'apcu' => [],
             'fpm' => [],
         ]), $this->gauges());
 
-        self::assertNull($view->opcacheEnabled);
-        self::assertNull($view->opcacheMemory);
-        self::assertNull($view->opcacheHitRate);
-        self::assertNull($view->apcuEnabled);
-        self::assertNull($view->apcuMemory);
+        self::assertFalse($view->opcache);
+        self::assertFalse($view->apcu);
         self::assertFalse($view->fpm);
-        self::assertNull($view->fpmActive);
-        self::assertNull($view->fpmMemoryPeak);
+        self::assertNull($view->memoryLimit, 'no limit');
+        self::assertSame('Unlimited', $view->memoryLimitUnlimited?->label);
+        self::assertSame('stderr', $view->displayErrors);
         self::assertSame([], $view->iniFiles);
     }
 
-    public function testUnlimitedMemoryHasNoPeakGauge(): void
+    public function testUnlimitedMemoryShowsThePeakAsAValue(): void
     {
-        $payload = $this->payload();
+        $payload = Payloads::php();
         $payload['memory_limit'] = '-1';
 
         $view = new PhpView($this->snapshot($payload), $this->gauges());
 
-        self::assertNull($view->fpmMemoryPeak);
-        self::assertTrue($view->fpmActive?->available());
+        self::assertNull($view->fpmMemoryPeakPercent);
+        self::assertSame(67_108_864, $view->fpmMemoryPeak);
+    }
+
+    public function testNoMemoryPeakGaugeWithoutThePeak(): void
+    {
+        $payload = Payloads::php();
+        unset($payload['fpm']['memory-peak']);
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertNull($view->fpmMemoryPeakPercent, 'PHP-FPM before 8.2 reports no memory peak');
+    }
+
+    public function testNoExecutionTimeLimitIsUnlimited(): void
+    {
+        $view = new PhpView($this->snapshot(['max_execution_time' => 0] + Payloads::php()), $this->gauges());
+
+        self::assertNull($view->maxExecutionTime);
+        self::assertSame('Unlimited', $view->maxExecutionTimeUnlimited?->label);
+    }
+
+    public function testOpcacheTurnedOffAtRuntimeIsDisabled(): void
+    {
+        $payload = Payloads::php();
+        $payload['opcache']['status']['opcache_enabled'] = false;
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertSame('Disabled', $view->opcacheEnabled->label, 'opcache.enable is on but the accelerator is not');
     }
 
     public function testFailedCollectorIsUnavailable(): void
@@ -98,77 +150,11 @@ final class PhpViewTest extends TestCase
         self::assertSame([], $view->extensions);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function payload(): array
+    private static function badge(mixed $value): Badge
     {
-        return [
-            'version' => '8.4.23',
-            'sapi_name' => 'fpm-fcgi',
-            'ini_file' => '/etc/php/8.4/fpm/php.ini',
-            'ini_files' => ['/etc/php/8.4/fpm/conf.d/10-opcache.ini'],
-            'expose_php' => false,
-            'memory_limit' => '128M',
-            'max_execution_time' => 30,
-            'max_input_time' => 60,
-            'max_input_vars' => 1000,
-            'realpath_cache_used_size' => 120000,
-            'realpath_cache_size' => '4096K',
-            'realpath_cache_ttl' => 600,
-            'post_max_size' => '8M',
-            'upload_max_filesize' => '2M',
-            'display_errors' => '0',
-            'display_startup_errors' => false,
-            'log_errors' => true,
-            'error_log' => '/var/log/php/error.log',
-            'error_reporting' => 32767,
-            'date.timezone' => 'UTC',
-            'loaded_extensions' => ['Core', 'json', 'Zend OPcache', 'apcu'],
-            'opcache' => [
-                'config' => [
-                    'directives' => [
-                        'opcache.enable' => true,
-                        'opcache.enable_cli' => false,
-                        'opcache.memory_consumption' => 134217728,
-                        'opcache.interned_strings_buffer' => 16,
-                        'opcache.max_accelerated_files' => 20000,
-                        'opcache.validate_timestamps' => false,
-                        'opcache.revalidate_freq' => 2,
-                        'opcache.jit' => 'tracing',
-                        'opcache.jit_buffer_size' => 67108864,
-                    ],
-                    'version' => ['version' => '8.4.23', 'opcache_product_name' => 'Zend OPcache'],
-                ],
-                'status' => [
-                    'opcache_enabled' => true,
-                    'memory_usage' => ['used_memory' => 60000000, 'free_memory' => 30000000, 'wasted_memory' => 10000000, 'current_wasted_percentage' => 10.0],
-                    'opcache_statistics' => ['num_cached_scripts' => 1234, 'num_cached_keys' => 1500, 'max_cached_keys' => 32531, 'hits' => 1090, 'misses' => 110, 'opcache_hit_rate' => 90.8, 'oom_restarts' => 0, 'hash_restarts' => 0, 'manual_restarts' => 1],
-                ],
-            ],
-            'apcu' => [
-                'config' => ['apc.enabled' => true, 'apc.enable_cli' => false, 'apc.shm_size' => '32M', 'apc.shm_segments' => 1, 'apc.ttl' => 0],
-                'cache_info' => ['num_slots' => 4099, 'ttl' => 0, 'num_hits' => 900, 'num_misses' => 100, 'num_inserts' => 120, 'num_entries' => 42, 'expunges' => 0, 'start_time' => 1760000000, 'mem_size' => 25165824],
-                'sma_info' => ['num_seg' => 1, 'seg_size' => 33554432, 'avail_mem' => 8388608],
-            ],
-            'fpm' => [
-                'pool' => 'www',
-                'process-manager' => 'dynamic',
-                'start-time' => 1760000000,
-                'start-since' => 3600,
-                'accepted-conn' => 5000,
-                'listen-queue' => 0,
-                'max-listen-queue' => 2,
-                'listen-queue-len' => 511,
-                'idle-processes' => 6,
-                'active-processes' => 2,
-                'total-processes' => 8,
-                'max-active-processes' => 7,
-                'max-children-reached' => 3,
-                'slow-requests' => 1,
-                'memory-peak' => 67108864,
-            ],
-        ];
+        self::assertInstanceOf(Badge::class, $value);
+
+        return $value;
     }
 
     /**

@@ -3,126 +3,170 @@
 {% block jm_content %}
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
 
-    {% if view.debugInProduction %}
-        <div class="alert alert-danger">Debug mode is enabled in the production environment.</div>
-    {% endif %}
-
     <div class="row g-3">
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">Application {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'symfony.version'}) }}</div>
-                <div class="card-body">
-                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                        'Symfony version': view.version,
-                        'Environment': view.environment,
-                        'Debug': view.debug,
-                        'Charset': view.charset,
-                        'Project dir': view.projectDir,
-                        'Cache dir': view.cacheDir,
-                        'Log dir': view.logDir,
-                    }}) }}
-                </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Symfony version', metric: 'symfony.version', value: view.version}) }}</div>
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Environment', metric: 'symfony.environment', value: view.environment, badge: view.debug}) }}</div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-md-8 col-xl-5">
             <div class="card h-100">
-                <div class="card-header">Recommendations</div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        {% for recommendation in view.recommendations %}
-                            <li class="d-flex justify-content-between align-items-center py-1">
-                                <span>{{ recommendation.label }}{% if recommendation.value %} <small class="text-muted">({{ recommendation.value }})</small>{% endif %}</span>
-                                {% if recommendation.ok is null %}
-                                    <span class="badge text-bg-secondary">unknown</span>
-                                {% elseif recommendation.ok %}
-                                    <span class="badge text-bg-success">OK</span>
-                                {% else %}
-                                    <span class="badge text-bg-warning">check</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-symfony-recommendations" aria-controls="jm-symfony-recommendations" aria-selected="true">Recommendations</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-symfony-bundles" aria-controls="jm-symfony-bundles" aria-selected="false">Bundles <span class="badge text-bg-secondary">{{ view.bundles|length }}</span></button>
+                        </li>
                     </ul>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">Bundles <span class="badge text-bg-secondary">{{ view.bundles|length }}</span></div>
-                <div class="card-body d-flex flex-wrap gap-1 align-content-start">
-                    {% for bundle in view.bundles %}
-                        <span class="badge text-bg-light border">{{ bundle }}</span>
-                    {% endfor %}
+                <div class="card-body jm-scroll tab-content">
+                    <div class="tab-pane active" id="jm-symfony-recommendations" role="tabpanel">
+                        {% if view.recommendationsAvailable %}
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'OPcache': view.opcache,
+                                'APCu': view.apcu,
+                            }}) }}
+                            <hr>
+                            <h6 class="text-muted">[PHP]</h6>
+                            <dl class="jm-kv mb-0">
+                                <div class="jm-kv-row">
+                                    <dt>realpath_cache_size</dt>
+                                    <dd>
+                                        {%- if view.realpathCacheSizeStyle -%}
+                                            <span class="badge {{ view.realpathCacheSizeStyle.cssClass }}">{{ view.realpathCacheSize|jm_bytes }}</span>
+                                        {%- else -%}
+                                            {{ include('@JmonitorEasyAdmin/_value.html.twig', {value: null}) }}
+                                        {%- endif -%}
+                                    </dd>
+                                </div>
+                            </dl>
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'realpath_cache_ttl': view.realpathCacheTtl}}) }}
+                        {% else %}
+                            <p class="text-muted mb-0">The PHP metrics are not available.</p>
+                        {% endif %}
+                    </div>
+                    <div class="tab-pane" id="jm-symfony-bundles" role="tabpanel">
+                        {{ view.bundles|join(', ') }}
+                    </div>
                 </div>
             </div>
+        </div>
+        <div class="col-xl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Flex recipes', metric: 'symfony.flex', badge: view.flex} %}
+                {% block body %}
+                    {% if not view.flexAvailable %}
+                        <p class="text-muted mb-0">Flex recipes are not collected.</p>
+                    {% elseif view.flexCheckFailed %}
+                        <p class="text-muted mb-0">The recipes check could not run: is <code>composer</code> available on this server?</p>
+                    {% elseif view.recipesUpToDate %}
+                        <p class="mb-0">Configuration optimized.<br><span class="text-muted">No recipe updates required.</span></p>
+                    {% else %}
+                        <ul class="mb-0">
+                            {% for recipe in view.outdatedRecipes %}
+                                <li>{{ recipe }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
         </div>
     </div>
 
-    <div class="row g-3 mt-1">
+    <h2 class="h5 mt-4 mb-2">Components</h2>
+    <div class="row g-3">
         <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">Messenger {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'symfony.messenger'}) }}</div>
-                <div class="card-body">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Messenger', metric: 'symfony.messenger'} %}
+                {% block body %}
                     {% if not view.messengerAvailable %}
                         <p class="text-muted mb-0">Messenger stats are not collected.</p>
                     {% else %}
-                        <table class="table table-sm mb-2">
-                            <thead><tr><th>Transport</th><th class="text-end">Queued</th></tr></thead>
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Transport</th><th class="text-end">Messages</th></tr></thead>
                             <tbody>
                                 {% for name, count in view.messengerTransports %}
                                     <tr>
                                         <td>{{ name }}</td>
-                                        <td class="text-end">{% if count is null %}—{% else %}<span class="badge {{ count > 0 ? 'text-bg-warning' : 'text-bg-success' }}">{{ count }}</span>{% endif %}</td>
+                                        <td class="text-end">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</td>
+                                    </tr>
+                                {% endfor %}
+                                {% for name in view.messengerUncountable %}
+                                    <tr>
+                                        <td>{{ name }}</td>
+                                        <td class="text-end text-muted">Uncountable</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                        {% if view.messengerUncountable %}
-                            <small class="text-muted">Not countable: {{ view.messengerUncountable|join(', ') }}</small>
-                        {% endif %}
                     {% endif %}
-                </div>
-            </div>
+                {% endblock %}
+            {% endembed %}
         </div>
         <div class="col-lg-8">
-            <div class="card h-100">
-                <div class="card-header">Scheduler {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'symfony.scheduler_tasks'}) }}</div>
-                <div class="card-body">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scheduler - Next task', metric: 'symfony.scheduler_next_task'} %}
+                {% block body %}
                     {% if not view.schedulerAvailable %}
                         <p class="text-muted mb-0">Scheduler tasks are not collected.</p>
-                    {% elseif view.schedulerTasks is empty %}
-                        <p class="text-muted mb-0">No scheduled task.</p>
+                    {% elseif not view.nextTask %}
+                        <p class="text-muted mb-0">No tasks</p>
                     {% else %}
-                        <table class="table table-sm mb-0">
-                            <thead><tr><th>Command</th><th>Trigger</th><th>Next run</th></tr></thead>
-                            <tbody>
-                                {% for task in view.schedulerTasks %}
-                                    <tr>
-                                        <td><code>{{ task.command }}</code>{% if task.description %}<br><small class="text-muted">{{ task.description }}</small>{% endif %}</td>
-                                        <td>{{ task.trigger }}</td>
-                                        <td>{{ task.next_run is null ? '—' : task.next_run|date('Y-m-d H:i:s') }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                        <div class="d-flex flex-wrap justify-content-between gap-3">
+                            <div>
+                                <div class="fs-5"><code>{{ view.nextTask.command }}</code></div>
+                                {% if view.nextTask.description %}<div class="text-muted">{{ view.nextTask.description }}</div>{% endif %}
+                                <div class="mt-2">
+                                    {% if view.nextTask.trigger %}<span class="badge text-bg-info">{{ view.nextTask.trigger }}</span>{% endif %}
+                                    {% if view.nextTask.jitter %}<span class="small text-muted ms-1">{{ view.nextTask.jitter }} jitters</span>{% endif %}
+                                </div>
+                            </div>
+                            {% if view.nextTask.next_run %}
+                                <div class="text-end">
+                                    <div class="fs-5">{{ view.nextTask.next_run|jm_ago }}</div>
+                                    <div class="small text-muted">{{ view.nextTask.next_run|date('Y-m-d H:i:s') }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
                     {% endif %}
-                </div>
-            </div>
+                {% endblock %}
+            {% endembed %}
         </div>
     </div>
 
-    <div class="card mt-3">
-        <div class="card-header">Flex recipes {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'symfony.flex'}) }}</div>
-        <div class="card-body">
-            {% if not view.flexAvailable %}
-                <p class="text-muted mb-0">Flex recipes are not collected.</p>
-            {% elseif view.flexCheckFailed %}
-                <p class="text-muted mb-0">The recipes check could not run: is <code>composer</code> available on this server?</p>
-            {% elseif view.recipesUpToDate %}
-                <span class="badge text-bg-success">All recipes are up to date</span>
-            {% else %}
-                <span class="badge text-bg-warning">{{ view.outdatedRecipes|length }} outdated</span>
-                <span class="ms-2">{{ view.outdatedRecipes|join(', ') }}</span>
-            {% endif %}
+    {% if view.schedulerTasks is not empty %}
+        <div class="card mt-3">
+            <div class="card-header d-flex align-items-center gap-2">
+                <span>Scheduler - Upcoming tasks</span>
+                {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'symfony.scheduler_tasks'}) }}
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Command</th><th>Description</th><th>Trigger</th><th>Next run</th></tr></thead>
+                        <tbody>
+                            {% for task in view.schedulerTasks %}
+                                <tr>
+                                    <td><code>{{ task.command }}</code></td>
+                                    <td>{{ task.description }}</td>
+                                    <td>
+                                        {{ task.trigger ? task.trigger|capitalize : "—" }}
+                                        {% if task.jitter %}<div class="small text-muted">{{ task.jitter }} jitters</div>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.next_run %}
+                                            {{ task.next_run|jm_ago }}
+                                            <div class="small text-muted">{{ task.next_run|date('Y-m-d H:i:s') }}</div>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock %}

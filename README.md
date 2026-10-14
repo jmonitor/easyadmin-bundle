@@ -8,7 +8,7 @@ It reuses the collectors of [jmonitor/collector](https://github.com/jmonitor/col
 
 - PHP 8.2+
 - Symfony 6.4+
-- EasyAdmin 5
+- EasyAdmin 5.2+
 
 ## Installation
 
@@ -31,13 +31,13 @@ The pages live under your dashboard, at `/admin/jmonitor`, behind the same firew
 
 One tab per detected component:
 
-- **System**: RAM, CPU and disk gauges, OS, uptime, load average.
-- **PHP**: version and configuration of the PHP process serving the page, OPcache memory and hit rate, APCu memory and hit rate, PHP-FPM processes and memory peak, loaded extensions.
-- **MySQL** (or MariaDB): connections, InnoDB buffer pool usage and hit rate, temporary tables on disk, thread cache misses, table lock waits, queries and InnoDB reads/writes per second, slow queries from the performance schema, key variables.
-- **Redis**: memory, hit rate, operations per second, clients, persistence, keyspaces.
-- **Symfony**: version, environment, bundles, Messenger transports, Scheduler tasks, outdated Flex recipes, and a few recommendations.
+- **System**: RAM, CPU (with the number of cores) and disk gauges; hostname, OS, server time, timezone, uptime and the 1, 5 and 15-minute load average.
+- **PHP**: version, SAPI and configuration of the PHP process serving the page, INI files and extensions; OpCache and APCu memory, hit rate and configuration; PHP-FPM requests per second, active and idle processes, max children reached, slow requests, memory peak and pool.
+- **MySQL** (or MariaDB): version, server informations and configuration; connection usage, max connections reached, queries per second; slow queries from the performance schema; InnoDB buffer pool usage and hit rate, RAM ratio when the server runs on the same host, disk operations; table lock waits, threads, thread cache misses, temporary tables on disk; data and index size.
+- **Redis**: version, mode, server and replication, RDB and AOF persistence, memory usage or peak, eviction policy, operations per second, hit rate, evictions and errors, keys per database.
+- **Symfony**: version, environment and debug mode, OPcache / APCu / realpath cache recommendations, bundles, outdated Flex recipes, Messenger transports, Scheduler tasks.
 
-Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
+The cards are those of the jmonitor.io dashboard, without the history. Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, or when nothing happened in between, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
 
 ## Configuration
 
@@ -72,7 +72,7 @@ jmonitor_easyadmin:
 
 ## How it works
 
-Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. Every admin looking at the page shares that cache, so a tab left open costs one collection per interval. The **Refresh** button drops the component's cache, for instance after a server restart. The **Live** button pauses the polling; the choice is remembered in the browser.
+Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. Every admin looking at the page shares that cache, so a tab left open costs one collection per interval. The **Refresh** button drops the component's cache, for instance after a server restart. The **Live** switch pauses the polling; the choice is remembered in the browser, and it shows the interval and the time of the last update.
 
 The Symfony tab runs console commands (`messenger:stats`, `debug:scheduler`, `composer recipes`) and is cached for `static_ttl`; disable the ones you do not want.
 

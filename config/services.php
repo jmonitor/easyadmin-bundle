@@ -132,6 +132,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             service(GaugeFactory::class),
             service(SnapshotProvider::class),
+            service('clock'),
         ])
     ;
     $services->set(MonitoringExtension::class)

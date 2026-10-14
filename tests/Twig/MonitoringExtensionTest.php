@@ -44,6 +44,18 @@ final class MonitoringExtensionTest extends TestCase
         self::assertSame('97.1', $extension->number(97.123, 1));
     }
 
+    public function testAgo(): void
+    {
+        $extension = new MonitoringExtension(false);
+
+        self::assertSame('—', $extension->ago(null));
+        self::assertSame('just now', $extension->ago(1_000, 1_003));
+        self::assertSame('42 s ago', $extension->ago(1_000, 1_042));
+        self::assertSame('5 min ago', $extension->ago(1_000, 1_300));
+        self::assertSame('in 3 h', $extension->ago(20_000, 9_000));
+        self::assertSame('2 d ago', $extension->ago(0, 200_000));
+    }
+
     public function testHelpUrl(): void
     {
         self::assertSame('https://dash.jmonitor.io/help/metric/mysql.connections_usage', (new MonitoringExtension('https://dash.jmonitor.io/help/metric/'))->helpUrl('mysql.connections_usage'));
@@ -64,7 +76,7 @@ final class MonitoringExtensionTest extends TestCase
         $filters = array_map(static fn($filter): string => $filter->getName(), $extension->getFilters());
         $functions = array_map(static fn($function): string => $function->getName(), $extension->getFunctions());
 
-        self::assertSame(['jm_bytes', 'jm_duration', 'jm_number'], $filters);
+        self::assertSame(['jm_bytes', 'jm_duration', 'jm_number', 'jm_ago'], $filters);
         self::assertSame(['jm_help_url', 'jm_help_enabled'], $functions);
     }
 }

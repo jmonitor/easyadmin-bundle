@@ -18,12 +18,12 @@ final class Ratios
             $o = $delta->getValue($otherKey);
 
             if ($p !== null && $o !== null && $p + $o > 0) {
-                return new Rate(round($p / ($p + $o) * 100, 2), RateSource::Delta, '%');
+                return new Rate(round($p / ($p + $o) * 100, 2), RateSource::Delta, '%', $p, $p + $o);
             }
         }
 
         if ($part !== null && $other !== null && $part + $other > 0) {
-            return new Rate(round($part / ($part + $other) * 100, 2), RateSource::SinceStart, '%');
+            return new Rate(round($part / ($part + $other) * 100, 2), RateSource::SinceStart, '%', $part, $part + $other);
         }
 
         return Rate::unavailable('%');
@@ -36,12 +36,12 @@ final class Ratios
             $t = $delta->getValue($totalKey);
 
             if ($p !== null && $t !== null && $t > 0) {
-                return new Rate(round($p / $t * 100, 2), RateSource::Delta, '%');
+                return new Rate(round($p / $t * 100, 2), RateSource::Delta, '%', $p, $t);
             }
         }
 
         if ($part !== null && $total !== null && $total > 0) {
-            return new Rate(round($part / $total * 100, 2), RateSource::SinceStart, '%');
+            return new Rate(round($part / $total * 100, 2), RateSource::SinceStart, '%', $part, $total);
         }
 
         return Rate::unavailable('%');
@@ -54,12 +54,12 @@ final class Ratios
             $t = $delta->getValue($totalKey);
 
             if ($p !== null && $t !== null && $t > 0) {
-                return new Rate(round(($t - $p) / $t * 100, 2), RateSource::Delta, '%');
+                return new Rate(round(($t - $p) / $t * 100, 2), RateSource::Delta, '%', $p, $t);
             }
         }
 
         if ($part !== null && $total !== null && $total > 0) {
-            return new Rate(round(($total - $part) / $total * 100, 2), RateSource::SinceStart, '%');
+            return new Rate(round(($total - $part) / $total * 100, 2), RateSource::SinceStart, '%', $part, $total);
         }
 
         return Rate::unavailable('%');

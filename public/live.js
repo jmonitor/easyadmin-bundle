@@ -12,9 +12,11 @@
     var interval = Math.max(1, parseInt(root.getAttribute('data-live-interval'), 10) || 10) * 1000;
     var content = root.querySelector('[data-live-content]');
     var toggle = root.querySelector('[data-live-toggle]');
+    var updated = root.querySelector('[data-live-updated]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
+    var updatedAt = Date.now();
 
     function readPreference() {
         try {
@@ -37,9 +39,82 @@
             return;
         }
 
-        toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-        toggle.classList.toggle('active', enabled);
-        toggle.textContent = enabled ? 'Live' : 'Live (paused)';
+        toggle.checked = enabled;
+    }
+
+    function ago(milliseconds) {
+        var seconds = Math.floor(milliseconds / 1000);
+
+        if (seconds < 5) {
+            return 'just now';
+        }
+
+        if (seconds < 60) {
+            return seconds + ' s ago';
+        }
+
+        if (seconds < 3600) {
+            return Math.floor(seconds / 60) + ' min ago';
+        }
+
+        if (seconds < 86400) {
+            return Math.floor(seconds / 3600) + ' h ago';
+        }
+
+        return Math.floor(seconds / 86400) + ' d ago';
+    }
+
+    function renderUpdated() {
+        if (updated) {
+            updated.textContent = ago(Date.now() - updatedAt);
+        }
+    }
+
+    function markUpdated() {
+        updatedAt = Date.now();
+
+        if (updated) {
+            updated.dateTime = new Date(updatedAt).toISOString();
+        }
+
+        renderUpdated();
+    }
+
+    function replaceContent(html) {
+        var activeTabs = Array.prototype.map.call(content.querySelectorAll('[data-bs-toggle="tab"].active'), function (tab) {
+            return tab.getAttribute('data-bs-target');
+        });
+        var scrolls = Array.prototype.map.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element) {
+            return element.scrollTop;
+        });
+
+        content.innerHTML = html;
+
+        activeTabs.forEach(function (target) {
+            var tab = content.querySelector('[data-bs-toggle="tab"][data-bs-target="' + target + '"]');
+            var pane = content.querySelector(target);
+
+            if (!tab || !pane) {
+                return;
+            }
+
+            Array.prototype.forEach.call(tab.closest('.nav').querySelectorAll('[data-bs-toggle="tab"]'), function (other) {
+                other.classList.remove('active');
+                other.setAttribute('aria-selected', 'false');
+            });
+            Array.prototype.forEach.call(pane.parentElement.children, function (other) {
+                other.classList.remove('active');
+            });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            pane.classList.add('active');
+        });
+
+        Array.prototype.forEach.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element, index) {
+            if (scrolls[index]) {
+                element.scrollTop = scrolls[index];
+            }
+        });
     }
 
     function refresh() {
@@ -66,7 +141,8 @@
             })
             .then(function (html) {
                 if (html !== null) {
-                    content.innerHTML = html;
+                    replaceContent(html);
+                    markUpdated();
                 }
             })
             .catch(function () {
@@ -97,10 +173,9 @@
     }
 
     if (toggle) {
-        toggle.addEventListener('click', function () {
-            enabled = !enabled;
+        toggle.addEventListener('change', function () {
+            enabled = toggle.checked;
             writePreference(enabled);
-            renderToggle();
             start();
         });
     }
@@ -115,5 +190,7 @@
     });
 
     renderToggle();
+    markUpdated();
+    window.setInterval(renderUpdated, 1000);
     start();
 })();

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\View;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Metric\Badge;
+use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
-use Jmonitor\EasyAdminBundle\View\Recommendation;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\SymfonyView;
 use PHPUnit\Framework\TestCase;
 
@@ -15,57 +17,45 @@ final class SymfonyViewTest extends TestCase
 {
     public function testFactsComponentsAndRecommendations(): void
     {
-        $view = new SymfonyView($this->symfony([
-            'env' => 'prod',
-            'debug' => false,
-            'version' => '7.4.2',
-            'bundles' => ['TwigBundle', 'FrameworkBundle', 'EasyAdminBundle'],
-            'project_dir' => '/srv/app',
-            'cache_dir' => '/srv/app/var/cache/prod',
-            'log_dir' => '/srv/app/var/log',
-            'charset' => 'UTF-8',
-            'components' => [
-                'scheduler' => [
-                    ['trigger' => 'every 1 hour', 'command' => 'app:cleanup', 'next_run' => 1_760_003_600, 'description' => 'Clean up'],
-                    ['trigger' => 'every 5 minutes with 0-10 second jitter', 'command' => 'app:ping', 'next_run' => 1_760_000_300, 'description' => 'Ping'],
-                ],
-                'flex_recipes' => ['up_to_date' => false, 'outdated_recipes' => ['symfony/framework-bundle', 'symfony/twig-bundle']],
-                'messenger' => ['transports' => ['async' => ['count' => 3], 'failed' => ['count' => 0]], 'uncountable_transports' => ['sync']],
-            ],
-        ]), $this->php([
+        $view = new SymfonyView($this->symfony(Payloads::symfony()), $this->php([
             'realpath_cache_size' => '4096K',
             'realpath_cache_ttl' => 120,
-            'opcache' => ['status' => ['opcache_enabled' => true], 'config' => ['directives' => ['opcache.enable' => true]]],
+            'opcache' => ['config' => ['directives' => ['opcache.enable' => true]]],
             'apcu' => ['config' => ['apc.enabled' => false], 'cache_info' => [], 'sma_info' => []],
         ]));
 
         self::assertTrue($view->available);
         self::assertSame('7.4.2', $view->version);
-        self::assertSame('prod', $view->environment);
-        self::assertFalse($view->debug);
-        self::assertFalse($view->debugInProduction);
-        self::assertSame(['EasyAdminBundle', 'FrameworkBundle', 'TwigBundle'], $view->bundles);
-        self::assertSame('/srv/app', $view->projectDir);
+        self::assertSame('PROD', $view->environment);
+        self::assertSame('Debug: disabled', $view->debug?->label);
+        self::assertSame(['TwigBundle', 'FrameworkBundle', 'EasyAdminBundle'], $view->bundles);
+
+        self::assertTrue($view->recommendationsAvailable);
+        self::assertSame('Enabled', $view->opcache->label);
+        self::assertSame(BadgeStyle::Warning, $view->apcu->style);
+        self::assertSame(4_194_304, $view->realpathCacheSize);
+        self::assertSame(BadgeStyle::Success, $view->realpathCacheSizeStyle);
+        self::assertSame(BadgeStyle::Warning, $view->realpathCacheTtl?->style);
+        self::assertSame('120', $view->realpathCacheTtl->label);
 
         self::assertTrue($view->messengerAvailable);
-        self::assertSame(['async' => 3, 'failed' => 0], $view->messengerTransports);
+        self::assertSame('3', self::badge($view->messengerTransports['async'])->label);
+        self::assertSame(BadgeStyle::Info, self::badge($view->messengerTransports['async'])->style);
+        self::assertSame(BadgeStyle::Danger, self::badge($view->messengerTransports['failed'])->style);
+        self::assertSame(0, $view->messengerTransports['retry']);
         self::assertSame(['sync'], $view->messengerUncountable);
 
         self::assertTrue($view->schedulerAvailable);
         self::assertSame('app:ping', $view->schedulerTasks[0]['command'], 'sorted by next run');
-        self::assertSame('app:ping', $view->nextTask['command'] ?? null);
-        self::assertSame(1_760_000_300, $view->nextTask['next_run']);
+        self::assertSame('every 5 minutes', $view->nextTask['trigger'] ?? null);
+        self::assertSame('0-10 second', $view->nextTask['jitter'] ?? null);
+        self::assertSame(1_760_000_300, $view->nextTask['next_run'] ?? null);
+        self::assertNull($view->schedulerTasks[1]['jitter']);
 
         self::assertTrue($view->flexAvailable);
         self::assertFalse($view->recipesUpToDate);
         self::assertSame(['symfony/framework-bundle', 'symfony/twig-bundle'], $view->outdatedRecipes);
-
-        self::assertEquals([
-            new Recommendation('OPcache enabled', true),
-            new Recommendation('APCu enabled', false),
-            new Recommendation('realpath_cache_size >= 4M', true, '4096K'),
-            new Recommendation('realpath_cache_ttl >= 600', false, '120'),
-        ], $view->recommendations);
+        self::assertSame('Outdated', $view->flex?->label);
     }
 
     public function testAFlexCheckThatCouldNotRunIsNotReportedAsOutdated(): void
@@ -76,28 +66,45 @@ final class SymfonyViewTest extends TestCase
 
         self::assertTrue($view->flexAvailable);
         self::assertTrue($view->flexCheckFailed, 'composer is missing on the server: no verdict, not "0 outdated"');
-        self::assertFalse($view->recipesUpToDate);
-        self::assertSame([], $view->outdatedRecipes);
+        self::assertNull($view->flex);
     }
 
-    public function testDebugInProductionIsFlagged(): void
+    public function testUpToDateRecipesAndDebug(): void
     {
-        $view = new SymfonyView($this->symfony(['env' => 'prod', 'debug' => true, 'bundles' => [], 'components' => []]), $this->php([]));
+        $view = new SymfonyView($this->symfony(['env' => 'dev', 'debug' => true, 'bundles' => [], 'components' => [
+            'flex_recipes' => ['up_to_date' => true, 'outdated_recipes' => []],
+        ]]), $this->php([]));
 
-        self::assertTrue($view->debugInProduction);
+        self::assertSame('Debug: enabled', $view->debug?->label);
+        self::assertSame('Up to date', $view->flex?->label);
         self::assertFalse($view->messengerAvailable);
         self::assertFalse($view->schedulerAvailable);
-        self::assertFalse($view->flexAvailable);
         self::assertNull($view->nextTask);
     }
 
-    public function testUnknownPhpFactsGiveUndecidedRecommendations(): void
+    public function testOpcacheTurnedOffAtRuntimeIsRecommended(): void
+    {
+        $view = new SymfonyView($this->symfony(Payloads::symfony()), $this->php([
+            'opcache' => ['config' => ['directives' => ['opcache.enable' => true]], 'status' => ['opcache_enabled' => false]],
+        ]));
+
+        self::assertSame('Disabled', $view->opcache->label);
+    }
+
+    public function testWithoutPhpMetricsThereAreNoRecommendations(): void
     {
         $view = new SymfonyView($this->symfony(['env' => 'dev', 'debug' => true, 'bundles' => [], 'components' => []]), new ComponentSnapshot(Component::Php, [], 'disabled'));
 
-        foreach ($view->recommendations as $recommendation) {
-            self::assertNull($recommendation->ok, $recommendation->label);
-        }
+        self::assertFalse($view->recommendationsAvailable);
+        self::assertNull($view->realpathCacheSize);
+        self::assertNull($view->realpathCacheTtl);
+    }
+
+    private static function badge(mixed $value): Badge
+    {
+        self::assertInstanceOf(Badge::class, $value);
+
+        return $value;
     }
 
     /**

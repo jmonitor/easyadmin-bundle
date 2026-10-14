@@ -9,9 +9,14 @@ use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
+use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
+use Jmonitor\EasyAdminBundle\View\SymfonyView;
+use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 
@@ -41,46 +46,76 @@ final class ComponentTemplatesTest extends TestCase
 
     public function testTheMysqlFragmentRenders(): void
     {
+        $previous = ['Questions' => '1000', 'Table_locks_waited' => '2', 'Table_locks_immediate' => '998'];
+        $status = Payloads::mysqlStatus();
         $snapshot = new ComponentSnapshot(Component::Mysql, [
-            'mysql.status' => new CollectorResult('mysql.status', ['Uptime' => '86400', 'Threads_connected' => '30', 'Threads_running' => '3', 'Threads_created' => '7', 'Connections' => '1100', 'Questions' => '1150', 'Created_tmp_tables' => '150', 'Created_tmp_disk_tables' => '20', 'Max_used_connections' => '45', 'Slow_queries' => '12', 'Innodb_buffer_pool_read_requests' => '110000', 'Innodb_buffer_pool_reads' => '1100', 'Innodb_buffer_pool_pages_total' => '8192', 'Innodb_buffer_pool_pages_free' => '1024', 'Table_locks_waited' => '3', 'Table_locks_immediate' => '1097'], null, 1_000),
-            'mysql.variables' => new CollectorResult('mysql.variables', ['version' => '8.4.0', 'version_comment' => 'MySQL', 'max_connections' => '100', 'innodb_buffer_pool_size' => '134217728', 'slow_query_log' => 'OFF', 'long_query_time' => '1.000000'], null, 1_000),
+            'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000, new Delta($previous, Delta::flatten($status), 10)),
+            'mysql.variables' => new CollectorResult('mysql.variables', ['slow_query_log' => 'OFF'] + Payloads::mysqlVariables(), null, 1_000),
             'mysql.information_schema' => new CollectorResult('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]], null, 1_000),
-            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', ['slow_queries' => [['query_sample' => 'SELECT 1', 'exec_count' => 120, 'total_time_ms' => 36000, 'avg_time_ms' => 300, 'max_time_ms' => 1200]]], null, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
+            'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
         ]);
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
-        self::assertStringContainsString('8.4.0', $html);
-        self::assertStringContainsString('Connections usage', $html);
-        self::assertStringContainsString('SELECT 1', $html);
-        self::assertStringContainsString('slow query log is disabled', $html);
-        self::assertStringContainsString('innodb_buffer_pool_size', $html);
+        self::assertStringContainsString('MySQL Community Server - GPL', $html);
+        self::assertStringContainsString('Connection usage', $html);
+        self::assertStringContainsString('Current: 30 · Peak: 45', $html);
+        self::assertStringContainsString('15.00 <small class="text-muted">q/s</small>', $html);
+        self::assertStringContainsString('<code class="jm-query">SELECT * FROM `order`', $html);
+        self::assertLessThan(strpos($html, '<span>Total</span>'), strpos($html, '<span>Top slowest queries</span>'), 'the total sits on the right');
+        self::assertMatchesRegularExpression('#<div class="card">\s*<div class="card-header[^"]*">\s*<span>Total</span>#', $html, 'the total card keeps its own height');
+        self::assertStringContainsString('The slow query log is disabled on your side.', $html);
+        self::assertStringContainsString('slow_query_log_file', $html);
+        self::assertStringContainsString('RAM ratio', $html);
+        self::assertStringContainsString('1 / 100', $html, 'lock waits detail from the delta');
+        self::assertStringContainsString('7 / 1100', $html, 'thread cache miss detail since the start');
+        self::assertMatchesRegularExpression('#<dt>Date</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}</dd>#', $html);
+        self::assertStringNotContainsString('time_zone</dt>', $html, 'only the keys of the mysql.config help');
         self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheMysqlFragmentWithoutSlowQueries(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
+        ]);
+
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
+
+        self::assertStringContainsString('Slow queries data are not available.', $html);
+        self::assertStringContainsString('performance_schema table is not readable', $html);
+        self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
+    }
+
+    public function testTheRedisFragmentRendersWithAMemoryLimit(): void
+    {
+        $payload = Payloads::redis();
+        $payload['memory']['max_memory'] = 2_000_000_000;
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', $payload, null, 1_000)]);
+
+        $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Redis informations', $html);
+        self::assertStringContainsString('Memory usage', $html);
+        self::assertStringContainsString('Current: 1.4 GB · Peak: 1.5 GB', $html);
+        self::assertStringContainsString('least recently used keys from the entire dataset', $html);
+        self::assertStringContainsString('Db0', $html);
+        self::assertStringContainsString('1h 0m', $html, 'average TTL in seconds');
     }
 
     public function testTheRedisFragmentRendersWithoutAMemoryLimit(): void
     {
-        $snapshot = new ComponentSnapshot(Component::Redis, [
-            'redis' => new CollectorResult('redis', [
-                'server' => ['version' => '7.2.4', 'mode' => 'standalone', 'port' => 6379, 'uptime' => 360_000],
-                'clients' => ['connected' => 12],
-                'memory' => ['used' => 1_500_000_000, 'used_rss' => 1_550_000_000, 'used_peak' => 1_600_000_000, 'max_memory' => 0, 'max_memory_policy' => 'noeviction'],
-                'persistence' => ['rdb_last_save_time' => 1_760_000_000, 'rdb_changes_since_last_save' => 42, 'rdb_last_bgsave_status' => 'ok', 'aof_enabled' => 0, 'aof_current_size' => 0],
-                'stats' => ['instantaneous_ops_per_sec' => 1234, 'keyspace_hits' => 9950, 'keyspace_misses' => 1050, 'evicted_keys' => 7],
-                'replication' => ['role' => 'master', 'connected_slaves' => 0],
-                'databases' => ['db0' => ['keys' => 1500, 'expires' => 1200, 'avg_ttl' => 3_600_000]],
-                'config' => ['save' => '3600 1'],
-            ], null, 1_000),
-        ]);
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', Payloads::redis(), null, 1_000)]);
 
         $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('7.2.4', $html);
-        self::assertStringContainsString('maxmemory', $html, 'no limit: the memory card replaces the gauge');
-        self::assertStringContainsString('Hit rate', $html);
+        self::assertStringContainsString('Unlimited', $html);
+        self::assertStringContainsString('Memory peak', $html);
+        self::assertStringContainsString('<div class="jm-stat">1.5 GB</div>', $html, 'the peak, without a maximum to draw it against');
+        self::assertStringContainsString('Current: 1.4 GB', $html);
         self::assertStringContainsString('since server start', $html);
-        self::assertStringContainsString('db0', $html);
-        self::assertStringContainsString('1h 0m', $html, 'average TTL in seconds');
     }
 
     public function testAFailedRedisCollectorStillRenders(): void
@@ -90,7 +125,89 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('Connection refused', $html);
-        self::assertStringContainsString('No keys', $html);
+        self::assertStringNotContainsString('Databases', $html);
+    }
+
+    public function testTheSystemFragmentShowsTheCoresUnderTheCpuGaugeAndTheLoadAverageAsTiles(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', [
+            'cpu' => ['cores' => 4, 'load' => 62, 'load1' => 1.25, 'load5' => 1.65, 'load15' => 1.7],
+            'hostname' => 'web-1',
+            'timezone' => 'Europe/Paris',
+        ], null, 1_000)]);
+
+        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('4 cores', $html);
+        self::assertStringNotContainsString('CPU cores', $html);
+        self::assertStringContainsString('System informations', $html);
+        self::assertMatchesRegularExpression('#Hostname.*OS.*Server time.*Timezone.*Uptime.*Load average#s', $html);
+        self::assertStringNotContainsString('<hr>', $html);
+        self::assertSame(3, substr_count($html, 'class="jm-tile"'), 'the 1, 5 and 15-minute load average tiles');
+        self::assertStringContainsString('1.65', $html);
+        self::assertStringContainsString('15 min', $html);
+    }
+
+    public function testTheSystemFragmentHidesAnUnknownLoadAverage(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['hostname' => 'web-1'], null, 1_000)]);
+
+        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('web-1', $html);
+        self::assertStringNotContainsString('jm-tile', $html);
+    }
+
+    public function testThePhpFragmentRendersEverySection(): void
+    {
+        $delta = new Delta(Delta::flatten(['fpm' => ['accepted-conn' => 4950]]), Delta::flatten(['fpm' => ['accepted-conn' => 5000]]), 10);
+        $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000, $delta)]);
+
+        $html = $this->render('php', $snapshot, new PhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('5.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('Execution mode (SAPI)', $html);
+        self::assertStringContainsString('<li>/etc/php/8.4/fpm/php.ini</li>', $html);
+        self::assertStringContainsString('data-bs-target="#jm-php-extensions"', $html);
+        self::assertStringContainsString('FPM informations', $html);
+        self::assertStringContainsString('Max children reached', $html);
+        self::assertStringNotContainsString('interned_strings_buffer', $html, 'only the keys of the php.opcache_config help');
+    }
+
+    public function testThePhpFragmentWithoutOpcacheApcuOrFpm(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [
+            'version' => '8.5.8',
+            'sapi_name' => 'frankenphp',
+            'memory_limit' => '-1',
+            'max_execution_time' => 0,
+            'error_log' => '',
+        ], null, 1_000)]);
+
+        $html = $this->render('php', $snapshot, new PhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('APCu is disabled.', $html);
+        self::assertStringContainsString('PHP-FPM usage not detected.', $html);
+        self::assertMatchesRegularExpression('#memory_limit</dt>\s*<dd[^>]*><span class="badge[^"]*">Unlimited</span>#', $html);
+        self::assertMatchesRegularExpression('#max_execution_time</dt>\s*<dd[^>]*><span class="badge[^"]*">Unlimited</span>#', $html);
+        self::assertMatchesRegularExpression('#error_log</dt>\s*<dd[^>]*><span class="text-muted">—</span>#', $html);
+    }
+
+    public function testTheSymfonyFragmentRenders(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', Payloads::symfony(), null, 1_000)]);
+        $php = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000)]);
+
+        $html = $this->render('symfony', $snapshot, new SymfonyView($snapshot, $php));
+
+        self::assertStringContainsString('PROD', $html);
+        self::assertStringContainsString('Debug: disabled', $html);
+        self::assertStringContainsString('realpath_cache_size', $html);
+        self::assertStringContainsString('Outdated', $html);
+        self::assertStringContainsString('Uncountable', $html);
+        self::assertStringContainsString('Scheduler - Next task', $html);
+        self::assertStringContainsString('0-10 second jitters', $html);
+        self::assertStringContainsString('Every 1 hour', $html);
     }
 
     public function testNoHelpLinkWhenTheHelpIsDisabled(): void

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\View;
 
+use Jmonitor\EasyAdminBundle\Metric\Badge;
+use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
+use Jmonitor\EasyAdminBundle\Metric\Rate;
 use Jmonitor\EasyAdminBundle\Metric\Ratios;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
@@ -14,33 +17,64 @@ final readonly class PhpView
     public bool $available;
     public ?string $version;
     public ?string $sapi;
-    public ?string $iniFile;
+
+    public ?int $memoryLimit;
+    public ?Badge $memoryLimitUnlimited;
+    public ?int $maxExecutionTime;
+    public ?Badge $maxExecutionTimeUnlimited;
+    public Badge|string|null $displayErrors;
+    public ?Badge $logErrors;
+    public ?string $errorLog;
+    public ?string $errorReporting;
+    public ?string $postMaxSize;
+    public ?string $uploadMaxFilesize;
+    public ?string $timezone;
+
     /** @var list<string> */
     public array $iniFiles;
     /** @var list<string> */
     public array $extensions;
-    /** @var array<string, mixed> */
-    public array $baseConfig;
 
-    public ?bool $opcacheEnabled;
-    public ?Gauge $opcacheMemory;
-    public ?Gauge $opcacheHitRate;
-    /** @var array<string, mixed> */
-    public array $opcacheConfig;
-    /** @var array<string, mixed> */
-    public array $opcacheStats;
+    public bool $opcache;
+    public Badge $opcacheEnabled;
+    public Badge $opcacheCli;
+    public Gauge $opcacheMemory;
+    public ?int $opcacheUsed;
+    public ?int $opcacheFree;
+    public ?int $opcacheWasted;
+    public ?int $opcacheTotal;
+    public Gauge $opcacheHitRate;
+    public ?int $opcacheMemoryConsumption;
+    public Badge $opcachePreload;
+    public Badge|string|null $opcacheRevalidateFreq;
+    public ?int $opcacheMaxAcceleratedFiles;
 
-    public ?bool $apcuEnabled;
-    public ?Gauge $apcuMemory;
-    public ?Gauge $apcuHitRate;
-    /** @var array<string, mixed> */
-    public array $apcuStats;
+    public bool $apcu;
+    public Badge $apcuEnabled;
+    public Badge $apcuCli;
+    public Gauge $apcuMemory;
+    public ?int $apcuUsed;
+    public ?int $apcuTotal;
+    public Gauge $apcuHitRate;
+    public int|false|null $apcuShmSize;
+    public ?int $apcuShmSegments;
+    public ?int $apcuTtl;
 
     public bool $fpm;
-    public ?Gauge $fpmActive;
-    public ?Gauge $fpmMemoryPeak;
-    /** @var array<string, mixed> */
-    public array $fpmStats;
+    public Rate $fpmRequestsPerSec;
+    public Gauge $fpmActiveProcesses;
+    public ?int $fpmActive;
+    public ?int $fpmProcesses;
+    public ?int $fpmIdle;
+    public ?int $fpmMaxChildrenReached;
+    public ?Badge $fpmMaxChildrenReachedBadge;
+    public ?int $fpmSlowRequests;
+    public ?Badge $fpmSlowRequestsBadge;
+    public ?Gauge $fpmMemoryPeakPercent;
+    public ?int $fpmMemoryPeak;
+    public ?string $fpmPool;
+    public ?string $fpmProcessManager;
+    public ?int $fpmUptime;
 
     public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
     {
@@ -50,127 +84,145 @@ final readonly class PhpView
         $this->available = $snapshot->has('php');
         $this->version = Values::string($data['version'] ?? null);
         $this->sapi = Values::string($data['sapi_name'] ?? null);
-        $this->iniFile = Values::string($data['ini_file'] ?? null);
-        $this->iniFiles = self::strings($data['ini_files'] ?? []);
 
-        $extensions = self::strings($data['loaded_extensions'] ?? []);
-        sort($extensions, SORT_FLAG_CASE | SORT_STRING);
-        $this->extensions = $extensions;
+        $memoryLimit = Values::iniBytes($data['memory_limit'] ?? null);
+        $maxExecutionTime = Values::int($data['max_execution_time'] ?? null);
+        $this->memoryLimit = is_int($memoryLimit) ? $memoryLimit : null;
+        $this->memoryLimitUnlimited = $memoryLimit === false ? new Badge(BadgeStyle::Warning, 'Unlimited') : null;
+        $this->maxExecutionTime = $maxExecutionTime === 0 ? null : $maxExecutionTime;
+        $this->maxExecutionTimeUnlimited = $maxExecutionTime === 0 ? new Badge(BadgeStyle::Warning, 'Unlimited') : null;
+        $this->displayErrors = self::displayErrors($data['display_errors'] ?? null);
+        $this->logErrors = match (Values::bool($data['log_errors'] ?? null)) {
+            true => new Badge(BadgeStyle::Success, '1'),
+            false => new Badge(BadgeStyle::Warning, '0'),
+            null => null,
+        };
+        $this->errorLog = Values::string($data['error_log'] ?? null);
+        $this->errorReporting = ErrorReporting::describe(Values::int($data['error_reporting'] ?? null));
+        $this->postMaxSize = Values::string($data['post_max_size'] ?? null);
+        $this->uploadMaxFilesize = Values::string($data['upload_max_filesize'] ?? null);
+        $this->timezone = Values::string($data['date.timezone'] ?? null);
 
-        $this->baseConfig = [
-            'memory_limit' => $data['memory_limit'] ?? null,
-            'max_execution_time' => $data['max_execution_time'] ?? null,
-            'max_input_time' => $data['max_input_time'] ?? null,
-            'max_input_vars' => $data['max_input_vars'] ?? null,
-            'post_max_size' => $data['post_max_size'] ?? null,
-            'upload_max_filesize' => $data['upload_max_filesize'] ?? null,
-            'display_errors' => Values::bool($data['display_errors'] ?? null),
-            'display_startup_errors' => Values::bool($data['display_startup_errors'] ?? null),
-            'log_errors' => Values::bool($data['log_errors'] ?? null),
-            'error_log' => $data['error_log'] ?? null,
-            'error_reporting' => $data['error_reporting'] ?? null,
-            'date.timezone' => $data['date.timezone'] ?? null,
-            'expose_php' => Values::bool($data['expose_php'] ?? null),
-            'realpath_cache_size' => $data['realpath_cache_size'] ?? null,
-            'realpath_cache_ttl' => $data['realpath_cache_ttl'] ?? null,
-        ];
+        $iniFile = Values::string($data['ini_file'] ?? null);
+        $this->iniFiles = array_merge($iniFile === null ? [] : [$iniFile], self::strings($data['ini_files'] ?? []));
+        $this->extensions = self::strings($data['loaded_extensions'] ?? []);
 
         $opcache = is_array($data['opcache'] ?? null) ? $data['opcache'] : [];
         $directives = $opcache['config']['directives'] ?? [];
-        $status = $opcache['status'] ?? [];
-        $memory = $status['memory_usage'] ?? [];
-        $statistics = $status['opcache_statistics'] ?? [];
+        $memory = $opcache['status']['memory_usage'] ?? [];
+        $statistics = $opcache['status']['opcache_statistics'] ?? [];
 
-        $used = Values::int($memory['used_memory'] ?? null);
-        $free = Values::int($memory['free_memory'] ?? null);
-        $wasted = Values::int($memory['wasted_memory'] ?? null);
-        $total = $used !== null && $free !== null && $wasted !== null ? $used + $free + $wasted : null;
-
-        $this->opcacheEnabled = $opcache === [] ? null : Values::bool($status['opcache_enabled'] ?? $directives['opcache.enable'] ?? null);
-        $this->opcacheMemory = $opcache === [] ? null : $gauges->create('php.opcache_memory', 'OPcache memory', Values::percent($used, $total));
-        $this->opcacheHitRate = $opcache === [] ? null : $gauges->fromRate('php.opcache_hit_rate', 'OPcache hit rate', Ratios::share(
+        $this->opcache = $opcache !== [];
+        $this->opcacheEnabled = self::opcacheRuns($opcache)
+            ? new Badge(BadgeStyle::Success, 'Enabled')
+            : new Badge(BadgeStyle::Danger, 'Disabled');
+        $this->opcacheCli = Values::bool($directives['opcache.enable_cli'] ?? null) === true
+            ? new Badge(BadgeStyle::Success, 'CLI: enabled')
+            : new Badge(BadgeStyle::Neutral, 'CLI: disabled');
+        $this->opcacheUsed = Values::int($memory['used_memory'] ?? null);
+        $this->opcacheFree = Values::int($memory['free_memory'] ?? null);
+        $this->opcacheWasted = Values::int($memory['wasted_memory'] ?? null);
+        $this->opcacheTotal = $this->opcacheUsed !== null && $this->opcacheFree !== null && $this->opcacheWasted !== null
+            ? $this->opcacheUsed + $this->opcacheFree + $this->opcacheWasted
+            : null;
+        $this->opcacheMemory = $gauges->create('php.opcache_memory', 'Memory usage', Values::percent($this->opcacheUsed, $this->opcacheTotal));
+        $this->opcacheHitRate = $gauges->fromRate('php.opcache_hit_rate', 'Hit rate', Ratios::share(
             $delta,
             'opcache.status.opcache_statistics.hits',
             'opcache.status.opcache_statistics.misses',
             Values::int($statistics['hits'] ?? null),
             Values::int($statistics['misses'] ?? null),
         ));
-        $this->opcacheConfig = [
-            'opcache.memory_consumption' => $directives['opcache.memory_consumption'] ?? null,
-            'opcache.interned_strings_buffer' => $directives['opcache.interned_strings_buffer'] ?? null,
-            'opcache.max_accelerated_files' => $directives['opcache.max_accelerated_files'] ?? null,
-            'opcache.validate_timestamps' => Values::bool($directives['opcache.validate_timestamps'] ?? null),
-            'opcache.revalidate_freq' => $directives['opcache.revalidate_freq'] ?? null,
-            'opcache.jit' => $directives['opcache.jit'] ?? null,
-            'opcache.jit_buffer_size' => $directives['opcache.jit_buffer_size'] ?? null,
-            'opcache.enable_cli' => Values::bool($directives['opcache.enable_cli'] ?? null),
-        ];
-        $this->opcacheStats = [
-            'Cached scripts' => $statistics['num_cached_scripts'] ?? null,
-            'Cached keys' => $statistics['num_cached_keys'] ?? null,
-            'Max cached keys' => $statistics['max_cached_keys'] ?? null,
-            'Hits' => $statistics['hits'] ?? null,
-            'Misses' => $statistics['misses'] ?? null,
-            'Wasted memory' => $wasted,
-            'OOM restarts' => $statistics['oom_restarts'] ?? null,
-            'Hash restarts' => $statistics['hash_restarts'] ?? null,
-            'Manual restarts' => $statistics['manual_restarts'] ?? null,
-        ];
+        $this->opcacheMemoryConsumption = Values::int($directives['opcache.memory_consumption'] ?? null);
+        $this->opcachePreload = Values::string($directives['opcache.preload'] ?? null) === null
+            ? new Badge(BadgeStyle::Neutral, 'Disabled')
+            : new Badge(BadgeStyle::Success, 'Active');
+        $revalidateFreq = Values::int($directives['opcache.revalidate_freq'] ?? null);
+        $this->opcacheRevalidateFreq = match (true) {
+            Values::bool($directives['opcache.validate_timestamps'] ?? null) !== true => new Badge(BadgeStyle::Success, 'Disabled'),
+            $revalidateFreq === null, $revalidateFreq === 0 => null,
+            default => $revalidateFreq . 's',
+        };
+        $this->opcacheMaxAcceleratedFiles = Values::int($directives['opcache.max_accelerated_files'] ?? null);
 
         $apcu = is_array($data['apcu'] ?? null) ? $data['apcu'] : [];
+        $apcuConfig = $apcu['config'] ?? [];
         $cacheInfo = $apcu['cache_info'] ?? [];
         $sma = $apcu['sma_info'] ?? [];
         $segments = Values::int($sma['num_seg'] ?? null);
         $segmentSize = Values::int($sma['seg_size'] ?? null);
-        $apcuTotal = $segments !== null && $segmentSize !== null ? $segments * $segmentSize : null;
-        $apcuAvailable = Values::int($sma['avail_mem'] ?? null);
-        $apcuUsed = $apcuTotal !== null && $apcuAvailable !== null ? $apcuTotal - $apcuAvailable : null;
+        $available = Values::int($sma['avail_mem'] ?? null);
 
-        $this->apcuEnabled = $apcu === [] ? null : Values::bool($apcu['config']['apc.enabled'] ?? null);
-        $this->apcuMemory = $apcu === [] ? null : $gauges->create('php.apcu_memory_usage', 'APCu memory', Values::percent($apcuUsed, $apcuTotal), 1);
-        $this->apcuHitRate = $apcu === [] ? null : $gauges->fromRate('php.apcu_hit_rate', 'APCu hit rate', Ratios::share(
+        $this->apcu = $apcu !== [];
+        $this->apcuEnabled = Values::bool($apcuConfig['apc.enabled'] ?? null) === true
+            ? new Badge(BadgeStyle::Success, 'Enabled')
+            : new Badge(BadgeStyle::Danger, 'Disabled');
+        $this->apcuCli = Values::bool($apcuConfig['apc.enable_cli'] ?? null) === true
+            ? new Badge(BadgeStyle::Warning, 'CLI: enabled')
+            : new Badge(BadgeStyle::Neutral, 'CLI: disabled');
+        $this->apcuTotal = $segments !== null && $segmentSize !== null ? $segments * $segmentSize : null;
+        $this->apcuUsed = $this->apcuTotal !== null && $available !== null ? $this->apcuTotal - $available : null;
+        $this->apcuMemory = $gauges->create('php.apcu_memory_usage', 'Memory usage', Values::percent($this->apcuUsed, $this->apcuTotal), 1);
+        $this->apcuHitRate = $gauges->fromRate('php.apcu_hit_rate', 'Hit rate', Ratios::share(
             $delta,
             'apcu.cache_info.num_hits',
             'apcu.cache_info.num_misses',
             Values::int($cacheInfo['num_hits'] ?? null),
             Values::int($cacheInfo['num_misses'] ?? null),
         ));
-        $this->apcuStats = [
-            'Entries' => $cacheInfo['num_entries'] ?? null,
-            'Hits' => $cacheInfo['num_hits'] ?? null,
-            'Misses' => $cacheInfo['num_misses'] ?? null,
-            'Inserts' => $cacheInfo['num_inserts'] ?? null,
-            'Expunges' => $cacheInfo['expunges'] ?? null,
-            'Used memory' => $apcuUsed,
-            'Total memory' => $apcuTotal,
-        ];
+        $this->apcuShmSize = Values::iniBytes($apcuConfig['apc.shm_size'] ?? null);
+        $this->apcuShmSegments = Values::int($apcuConfig['apc.shm_segments'] ?? null);
+        $this->apcuTtl = Values::int($apcuConfig['apc.ttl'] ?? null);
 
         $fpm = is_array($data['fpm'] ?? null) ? $data['fpm'] : [];
-        $active = Values::int($fpm['active-processes'] ?? null);
-        $idle = Values::int($fpm['idle-processes'] ?? null);
-        $processes = $active !== null && $idle !== null ? $active + $idle : null;
-        $memoryLimit = Values::iniBytes($data['memory_limit'] ?? null);
-        $peak = Values::int($fpm['memory-peak'] ?? null);
-
         $this->fpm = $fpm !== [];
-        $this->fpmActive = $this->fpm ? $gauges->create('php.fpm_active_processes', 'Active processes', Values::percent($active, $processes)) : null;
-        $this->fpmMemoryPeak = $this->fpm && is_int($memoryLimit) && $peak !== null
-            ? $gauges->create('php.fpm_memory_peak_percent', 'Memory peak', Values::percent($peak, $memoryLimit))
-            : null;
-        $this->fpmStats = [
-            'Pool' => $fpm['pool'] ?? null,
-            'Process manager' => $fpm['process-manager'] ?? null,
-            'Uptime' => $fpm['start-since'] ?? null,
-            'Accepted connections' => $fpm['accepted-conn'] ?? null,
-            'Listen queue' => $fpm['listen-queue'] ?? null,
-            'Max listen queue' => $fpm['max-listen-queue'] ?? null,
-            'Idle processes' => $idle,
-            'Active processes' => $active,
-            'Max active processes' => $fpm['max-active-processes'] ?? null,
-            'Max children reached' => $fpm['max-children-reached'] ?? null,
-            'Slow requests' => $fpm['slow-requests'] ?? null,
-            'Memory peak' => $peak,
-        ];
+        $this->fpmActive = Values::int($fpm['active-processes'] ?? null);
+        $this->fpmIdle = Values::int($fpm['idle-processes'] ?? null);
+        $this->fpmProcesses = $this->fpmActive !== null && $this->fpmIdle !== null ? $this->fpmActive + $this->fpmIdle : null;
+        $this->fpmRequestsPerSec = Ratios::perSecond($delta, 'fpm.accepted-conn', 'req/s');
+        $this->fpmActiveProcesses = $gauges->create('php.fpm_active_processes', 'Active processes', Values::percent($this->fpmActive, $this->fpmProcesses), 2);
+        $this->fpmMaxChildrenReached = Values::int($fpm['max-children-reached'] ?? null);
+        $this->fpmMaxChildrenReachedBadge = match (true) {
+            $this->fpmMaxChildrenReached === null => null,
+            $this->fpmMaxChildrenReached === 0 => new Badge(BadgeStyle::Success, 'Never reached'),
+            default => new Badge(BadgeStyle::Danger, 'Reached'),
+        };
+        $this->fpmSlowRequests = Values::int($fpm['slow-requests'] ?? null);
+        $this->fpmSlowRequestsBadge = match (true) {
+            $this->fpmSlowRequests === null => null,
+            $this->fpmSlowRequests === 0 => new Badge(BadgeStyle::Success, 'None'),
+            default => new Badge(BadgeStyle::Danger, 'Detected'),
+        };
+        $this->fpmMemoryPeak = Values::int($fpm['memory-peak'] ?? null);
+        $this->fpmMemoryPeakPercent = $this->fpmMemoryPeak === null || $this->memoryLimit === null
+            ? null
+            : $gauges->create('php.fpm_memory_peak_percent', 'Memory peak', Values::percent($this->fpmMemoryPeak, $this->memoryLimit));
+        $this->fpmPool = Values::string($fpm['pool'] ?? null);
+        $this->fpmProcessManager = Values::string($fpm['process-manager'] ?? null);
+        $this->fpmUptime = Values::int($fpm['start-since'] ?? null);
+    }
+
+    /**
+     * The directive can be on while the accelerator is off at runtime; the status tells.
+     *
+     * @param array<mixed> $opcache
+     */
+    public static function opcacheRuns(array $opcache): bool
+    {
+        return Values::bool($opcache['status']['opcache_enabled'] ?? $opcache['config']['directives']['opcache.enable'] ?? null) === true;
+    }
+
+    private static function displayErrors(mixed $value): Badge|string|null
+    {
+        if (is_string($value) && strtolower($value) === 'stderr') {
+            return $value;
+        }
+
+        return match (Values::bool($value)) {
+            true => new Badge(BadgeStyle::Warning, '1'),
+            false => new Badge(BadgeStyle::Success, '0'),
+            null => null,
+        };
     }
 
     /**

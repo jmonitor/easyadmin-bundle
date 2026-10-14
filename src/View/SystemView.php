@@ -17,6 +17,7 @@ final readonly class SystemView
     public ?string $os;
     public ?string $hostname;
     public ?string $timezone;
+    public ?int $time;
     public ?int $uptime;
     public ?int $cores;
     public ?int $ramTotal;
@@ -45,6 +46,7 @@ final readonly class SystemView
         $this->os = Values::string($data['os']['pretty_name'] ?? null);
         $this->uptime = Values::int($data['os']['uptime'] ?? null);
         $this->timezone = Values::string($data['timezone'] ?? null);
+        $this->time = Values::int($data['time'] ?? null);
         $this->hostname = Values::string($data['hostname'] ?? null);
 
         $this->ramUsed = $this->ramTotal !== null && $this->ramAvailable !== null ? $this->ramTotal - $this->ramAvailable : null;

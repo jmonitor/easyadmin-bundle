@@ -158,10 +158,10 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'PHP');
         self::assertSelectorTextContains('body', PHP_VERSION);
-        self::assertSelectorTextContains('body', 'OPcache');
+        self::assertSelectorTextContains('body', 'OpCache');
         self::assertSelectorTextContains('body', 'APCu');
         self::assertSelectorTextContains('body', 'memory_limit');
-        self::assertSelectorExists('details.jm-extensions');
+        self::assertSelectorExists('#jm-php-extensions');
     }
 
     public function testTheSymfonyTabShowsTheKernelAndTheRecommendations(): void
@@ -174,7 +174,7 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'Symfony');
         self::assertSelectorTextContains('body', 'JmonitorEasyAdminBundle');
         self::assertSelectorTextContains('body', 'Recommendations');
-        self::assertSelectorTextContains('body', 'OPcache enabled');
+        self::assertSelectorTextContains('body', 'realpath_cache_size');
         self::assertSelectorTextContains('body', 'Messenger');
         self::assertSelectorTextContains('body', 'not collected');
     }

@@ -10,6 +10,7 @@ enum BadgeStyle: string
     case Info = 'info';
     case Warning = 'warning';
     case Danger = 'danger';
+    case Neutral = 'secondary';
 
     public function cssClass(): string
     {

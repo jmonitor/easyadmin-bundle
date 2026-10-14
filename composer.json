@@ -25,7 +25,8 @@
     "prefer-stable": true,
     "require": {
         "php": "^8.2",
-        "easycorp/easyadmin-bundle": "^5.0",
+        "easycorp/easyadmin-bundle": "^5.2",
+        "jmonitor/collector": "^2.2.2",
         "jmonitor/jmonitor-bundle": "^2.1",
         "psr/cache": "^1.0|^2.0|^3.0",
         "psr/container": "^1.1|^2.0",
