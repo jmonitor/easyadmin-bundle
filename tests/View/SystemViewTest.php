@@ -40,6 +40,8 @@ final class SystemViewTest extends TestCase
         self::assertSame('Europe/Paris', $view->timezone);
         self::assertSame(1_760_000_000, $view->time);
         self::assertSame(2.48, $view->load1);
+        self::assertSame(1.1, $view->load5);
+        self::assertSame(0.9, $view->load15);
         self::assertSame(8_000_000_000, $view->ramTotal);
         self::assertSame(2_000_000_000, $view->ramAvailable);
         self::assertSame(100_000_000_000, $view->diskTotal);

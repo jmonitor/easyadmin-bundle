@@ -135,7 +135,19 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Load average 1.25', $html);
         self::assertStringContainsString('System informations', $html);
         self::assertStringContainsString('CPU cores', $html);
-        self::assertStringNotContainsString('1.65', $html);
+        self::assertSame(3, substr_count($html, 'class="jm-tile"'), 'the 1, 5 and 15-minute load average tiles');
+        self::assertStringContainsString('1.65', $html);
+        self::assertStringContainsString('15 min', $html);
+    }
+
+    public function testTheSystemFragmentHidesAnUnknownLoadAverage(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['hostname' => 'web-1'], null, 1_000)]);
+
+        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('web-1', $html);
+        self::assertStringNotContainsString('jm-tile', $html);
     }
 
     public function testThePhpFragmentRendersEverySection(): void

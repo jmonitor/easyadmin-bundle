@@ -27,6 +27,19 @@
                         'OS': view.os,
                         'CPU cores': view.cores,
                     }}) }}
+                    {% if view.load1 is not null %}
+                        <div class="text-muted mt-3 mb-2">Load average</div>
+                        <div class="row g-2 text-center">
+                            {% for minutes, load in {1: view.load1, 5: view.load5, 15: view.load15} %}
+                                <div class="col-4">
+                                    <div class="jm-tile">
+                                        <div class="jm-tile-value">{{ load|jm_number(2) }}</div>
+                                        <div class="jm-tile-label">{{ minutes }} min</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 {% endblock %}
             {% endembed %}
         </div>

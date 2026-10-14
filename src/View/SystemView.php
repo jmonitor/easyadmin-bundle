@@ -27,6 +27,8 @@ final readonly class SystemView
     public ?int $ramUsed;
     public ?int $diskUsed;
     public ?float $load1;
+    public ?float $load5;
+    public ?float $load15;
 
     public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
     {
@@ -39,6 +41,8 @@ final readonly class SystemView
         $this->diskFree = Values::int($data['disk']['free'] ?? null);
         $this->cores = Values::int($data['cpu']['cores'] ?? null);
         $this->load1 = Values::float($data['cpu']['load1'] ?? null);
+        $this->load5 = Values::float($data['cpu']['load5'] ?? null);
+        $this->load15 = Values::float($data['cpu']['load15'] ?? null);
         $this->os = Values::string($data['os']['pretty_name'] ?? null);
         $this->uptime = Values::int($data['os']['uptime'] ?? null);
         $this->timezone = Values::string($data['timezone'] ?? null);
