@@ -31,13 +31,13 @@ The pages live under your dashboard, at `/admin/jmonitor`, behind the same firew
 
 One tab per detected component:
 
-- **System**: RAM, CPU and disk gauges, OS, uptime, load average.
-- **PHP**: version and configuration of the PHP process serving the page, OPcache memory and hit rate, APCu memory and hit rate, PHP-FPM processes and memory peak, loaded extensions.
-- **MySQL** (or MariaDB): connections, InnoDB buffer pool usage and hit rate, temporary tables on disk, thread cache misses, table lock waits, queries and InnoDB reads/writes per second, slow queries from the performance schema, key variables.
-- **Redis**: memory, hit rate, operations per second, clients, persistence, keyspaces.
-- **Symfony**: version, environment, bundles, Messenger transports, Scheduler tasks, outdated Flex recipes, and a few recommendations.
+- **System**: RAM, CPU (with the 1-minute load average) and disk gauges; server time, timezone, uptime, hostname, OS, CPU cores.
+- **PHP**: version, SAPI and configuration of the PHP process serving the page, INI files and extensions; OpCache and APCu memory, hit rate and configuration; PHP-FPM requests per second, active and idle processes, max children reached, slow requests, memory peak and pool.
+- **MySQL** (or MariaDB): version, server informations and configuration; connection usage, max connections reached, queries per second; slow queries from the performance schema; InnoDB buffer pool usage and hit rate, RAM ratio, disk operations; table lock waits, threads, thread cache misses, temporary tables on disk; data and index size.
+- **Redis**: version, mode, server and replication, RDB and AOF persistence, memory usage or peak, eviction policy, operations per second, hit rate, evictions and errors, keys per database.
+- **Symfony**: version, environment and debug mode, OPcache / APCu / realpath cache recommendations, bundles, outdated Flex recipes, Messenger transports, Scheduler tasks.
 
-Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
+The cards are those of the jmonitor.io dashboard, without the history. Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
 
 ## Configuration
 
