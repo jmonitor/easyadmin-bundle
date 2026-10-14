@@ -83,23 +83,25 @@
                     {% if not view.messengerAvailable %}
                         <p class="text-muted mb-0">Messenger stats are not collected.</p>
                     {% else %}
-                        <table class="table table-sm mb-0">
-                            <thead><tr><th>Transport</th><th class="text-end">Messages</th></tr></thead>
-                            <tbody>
-                                {% for name, count in view.messengerTransports %}
-                                    <tr>
-                                        <td>{{ name }}</td>
-                                        <td class="text-end">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</td>
-                                    </tr>
-                                {% endfor %}
-                                {% for name in view.messengerUncountable %}
-                                    <tr>
-                                        <td>{{ name }}</td>
-                                        <td class="text-end text-muted">Uncountable</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Transport</th><th class="text-end">Messages</th></tr></thead>
+                                <tbody>
+                                    {% for name, count in view.messengerTransports %}
+                                        <tr>
+                                            <td>{{ name }}</td>
+                                            <td class="text-end">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    {% for name in view.messengerUncountable %}
+                                        <tr>
+                                            <td>{{ name }}</td>
+                                            <td class="text-end text-muted">Uncountable</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% endif %}
                 {% endblock %}
             {% endembed %}
