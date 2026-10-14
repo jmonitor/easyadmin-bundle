@@ -11,7 +11,7 @@ permissions:
 
 jobs:
     build:
-        name: PHP ${{ matrix.php }} + Symfony ${{ matrix.symfony }}
+        name: PHP ${{ matrix.php }} + Symfony ${{ matrix.symfony }}${{ matrix.lowest && ' (lowest)' || '' }}
         runs-on: ubuntu-latest
 
         strategy:
@@ -20,12 +20,14 @@ jobs:
             fail-fast: false
             matrix:
                 # Explicit include-list. EasyAdmin 5 requires PHP >= 8.2 and Symfony 6.4.33+, 7.x or 8.x.
-                # Symfony 7.0-7.3 are EOL, so the 7.x line is covered by 7.4.
+                # Only maintained Symfony lines are tested: 7.x is covered by 7.4, 8.x by its latest minor.
                 include:
-                    - { php: '8.2', symfony: '6.4.*' }   # bundle PHP floor + Symfony LTS floor
-                    - { php: '8.4', symfony: '6.4.*' }   # LTS on a recent PHP (catches deprecations)
-                    - { php: '8.3', symfony: '7.4.*' }   # lowest maintained 7.x
-                    - { php: '8.4', symfony: '8.0.*' }   # newest + newest
+                    - { php: '8.2', symfony: '6.4.*', lowest: true }   # the floors declared in composer.json
+                    - { php: '8.2', symfony: '6.4.*' }                 # bundle PHP floor + Symfony LTS floor
+                    - { php: '8.5', symfony: '6.4.*' }                 # LTS on the newest PHP (catches deprecations)
+                    - { php: '8.3', symfony: '7.4.*' }
+                    - { php: '8.4', symfony: '8.1.*' }
+                    - { php: '8.5', symfony: '8.1.*', lint: true }     # newest + newest
 
         steps:
             - uses: actions/checkout@v4
@@ -47,7 +49,7 @@ jobs:
                   # Cache Composer's download cache (not vendor/): each matrix job
                   # installs a different Symfony set, so vendor/ must not be shared.
                   path: ${{ steps.composer-cache.outputs.dir }}
-                  key: ${{ runner.os }}-php${{ matrix.php }}-sf${{ matrix.symfony }}-${{ hashFiles('composer.json') }}
+                  key: ${{ runner.os }}-php${{ matrix.php }}-sf${{ matrix.symfony }}${{ matrix.lowest && '-lowest' || '' }}-${{ hashFiles('composer.json') }}
                   restore-keys: |
                       ${{ runner.os }}-php${{ matrix.php }}-sf${{ matrix.symfony }}-
 
@@ -61,9 +63,10 @@ jobs:
             - name: Install dependencies (Symfony ${{ matrix.symfony }})
               env:
                   SYMFONY_REQUIRE: ${{ matrix.symfony }}
-              run: composer update --prefer-dist --no-progress
+              run: composer update --prefer-dist --no-progress ${{ matrix.lowest && '--prefer-lowest' || '' }}
 
             - name: lint
+              if: matrix.lint
               run: composer run-script lint:check
 
             - name: phpstan
