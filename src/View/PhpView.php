@@ -68,7 +68,7 @@ final readonly class PhpView
             'display_startup_errors' => Values::bool($data['display_startup_errors'] ?? null),
             'log_errors' => Values::bool($data['log_errors'] ?? null),
             'error_log' => $data['error_log'] ?? null,
-            'error_reporting' => $data['error_reporting'] ?? null,
+            'error_reporting' => ErrorReporting::describe(Values::int($data['error_reporting'] ?? null)),
             'date.timezone' => $data['date.timezone'] ?? null,
             'expose_php' => Values::bool($data['expose_php'] ?? null),
             'realpath_cache_size' => $data['realpath_cache_size'] ?? null,

@@ -33,6 +33,7 @@ final class PhpViewTest extends TestCase
         self::assertSame('128M', $view->baseConfig['memory_limit']);
         self::assertSame(30, $view->baseConfig['max_execution_time']);
         self::assertFalse($view->baseConfig['display_errors']);
+        self::assertSame('E_ALL', $view->baseConfig['error_reporting']);
 
         self::assertTrue($view->opcacheEnabled);
         self::assertSame(60.0, $view->opcacheMemory?->value);
