@@ -9,6 +9,8 @@ use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
+use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
@@ -111,21 +113,34 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('1.65', $html);
     }
 
-    public function testThePhpFragmentListsTheIniFilesAndSplitsTheConfiguration(): void
+    public function testThePhpFragmentRendersEverySection(): void
+    {
+        $delta = new Delta(Delta::flatten(['fpm' => ['accepted-conn' => 4950]]), Delta::flatten(['fpm' => ['accepted-conn' => 5000]]), 10);
+        $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000, $delta)]);
+
+        $html = $this->render('php', $snapshot, new PhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('5.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('Execution mode (SAPI)', $html);
+        self::assertStringContainsString('<li>/etc/php/8.4/fpm/php.ini</li>', $html);
+        self::assertStringContainsString('data-bs-target="#jm-php-extensions"', $html);
+        self::assertStringContainsString('FPM informations', $html);
+        self::assertStringContainsString('Max children reached', $html);
+        self::assertStringNotContainsString('interned_strings_buffer', $html, 'only the keys of the php.opcache_config help');
+    }
+
+    public function testThePhpFragmentWithoutOpcacheApcuOrFpm(): void
     {
         $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [
             'version' => '8.5.8',
             'sapi_name' => 'frankenphp',
-            'ini_file' => '/usr/local/etc/php/php.ini',
-            'ini_files' => ['/usr/local/etc/php/conf.d/app-timezone.ini', '/usr/local/etc/php/conf.d/docker-php-ext-apcu.ini'],
-            'memory_limit' => '128M',
             'error_log' => '',
         ], null, 1_000)]);
 
         $html = $this->render('php', $snapshot, new PhpView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('<li>/usr/local/etc/php/conf.d/docker-php-ext-apcu.ini</li>', $html);
-        self::assertSame(2, substr_count($html, '<div class="col-md-6">'), 'the configuration keys are split in two columns');
+        self::assertStringContainsString('APCu is disabled.', $html);
+        self::assertStringContainsString('PHP-FPM usage not detected.', $html);
         self::assertMatchesRegularExpression('#error_log</dt>\s*<dd[^>]*><span class="text-muted">—</span>#', $html);
     }
 

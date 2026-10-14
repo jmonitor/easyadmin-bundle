@@ -158,10 +158,10 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'PHP');
         self::assertSelectorTextContains('body', PHP_VERSION);
-        self::assertSelectorTextContains('body', 'OPcache');
+        self::assertSelectorTextContains('body', 'OpCache');
         self::assertSelectorTextContains('body', 'APCu');
         self::assertSelectorTextContains('body', 'memory_limit');
-        self::assertSelectorExists('details.jm-extensions');
+        self::assertSelectorExists('#jm-php-extensions');
     }
 
     public function testTheSymfonyTabShowsTheKernelAndTheRecommendations(): void

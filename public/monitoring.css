@@ -61,14 +61,39 @@
     vertical-align: middle;
 }
 
+.jm-stat {
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
 .jm-rate {
     font-size: 1.25rem;
     font-weight: 600;
 }
 
-.jm-kv dt,
-.jm-kv dd {
-    word-break: break-word;
+.jm-stat .jm-rate {
+    font-size: inherit;
+}
+
+.jm-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: .125rem 0;
+}
+
+.jm-kv-row dt {
+    font-weight: normal;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+}
+
+.jm-kv-row dd {
+    min-width: 0;
+    margin: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
 }
 
 .jm-scroll {

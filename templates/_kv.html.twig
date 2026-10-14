@@ -1,6 +1,8 @@
-<dl class="row mb-0 jm-kv">
+<dl class="jm-kv mb-0">
     {% for label, value in rows %}
-        <dt class="col-sm-6 text-muted fw-normal">{{ label }}</dt>
-        <dd class="col-sm-6 mb-1">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: value}) }}</dd>
+        <div class="jm-kv-row">
+            <dt>{{ label }}</dt>
+            <dd>{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: value}) }}</dd>
+        </div>
     {% endfor %}
 </dl>
