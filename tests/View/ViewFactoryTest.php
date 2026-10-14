@@ -46,6 +46,7 @@ final class ViewFactoryTest extends TestCase
 
         $symfony = $factory->create(Component::Symfony, $snapshots->get(Component::Symfony));
         self::assertInstanceOf(SymfonyView::class, $symfony);
-        self::assertSame('test', $symfony->environment);
+        self::assertSame('TEST', $symfony->environment);
+        self::assertTrue($symfony->recommendationsAvailable, 'the Symfony view reads the PHP snapshot');
     }
 }
