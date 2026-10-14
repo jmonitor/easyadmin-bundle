@@ -21,7 +21,7 @@ final readonly class ViewFactory
         return match ($component) {
             Component::System => new SystemView($snapshot, $this->gauges),
             Component::Php => new PhpView($snapshot, $this->gauges),
-            Component::Mysql => new MysqlView($snapshot, $this->gauges),
+            Component::Mysql => new MysqlView($snapshot, $this->gauges, $this->snapshots->get(Component::System)),
             Component::Redis => new RedisView($snapshot, $this->gauges),
             Component::Symfony => new SymfonyView($snapshot, $this->snapshots->get(Component::Php)),
         };

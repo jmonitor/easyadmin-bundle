@@ -1,8 +1,9 @@
 {# @var gauge \Jmonitor\EasyAdminBundle\Metric\Gauge #}
 {% set detailText = detail|default(gauge.detail) %}
 {% set rows = rows|default(null) %}
-<div class="card h-100 jm-gauge-card">
-    <div class="card-body{{ rows ? '' : ' text-center' }}">
+{% set bare = bare|default(false) %}
+<div class="{{ bare ? '' : 'card h-100 jm-gauge-card' }}">
+    <div class="{{ bare ? '' : 'card-body' }}{{ rows ? '' : ' text-center' }}">
         <div class="{{ rows ? 'row align-items-center g-3' }}">
             <div class="{{ rows ? 'col-md-6 text-center' }}">
                 {% if gauge.available %}

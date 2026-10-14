@@ -45,21 +45,42 @@ final class ComponentTemplatesTest extends TestCase
 
     public function testTheMysqlFragmentRenders(): void
     {
+        $previous = ['Questions' => '1000', 'Table_locks_waited' => '2', 'Table_locks_immediate' => '998'];
+        $status = Payloads::mysqlStatus();
         $snapshot = new ComponentSnapshot(Component::Mysql, [
-            'mysql.status' => new CollectorResult('mysql.status', ['Uptime' => '86400', 'Threads_connected' => '30', 'Threads_running' => '3', 'Threads_created' => '7', 'Connections' => '1100', 'Questions' => '1150', 'Created_tmp_tables' => '150', 'Created_tmp_disk_tables' => '20', 'Max_used_connections' => '45', 'Slow_queries' => '12', 'Innodb_buffer_pool_read_requests' => '110000', 'Innodb_buffer_pool_reads' => '1100', 'Innodb_buffer_pool_pages_total' => '8192', 'Innodb_buffer_pool_pages_free' => '1024', 'Table_locks_waited' => '3', 'Table_locks_immediate' => '1097'], null, 1_000),
-            'mysql.variables' => new CollectorResult('mysql.variables', ['version' => '8.4.0', 'version_comment' => 'MySQL', 'max_connections' => '100', 'innodb_buffer_pool_size' => '134217728', 'slow_query_log' => 'OFF', 'long_query_time' => '1.000000'], null, 1_000),
+            'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000, new Delta($previous, Delta::flatten($status), 10)),
+            'mysql.variables' => new CollectorResult('mysql.variables', ['slow_query_log' => 'OFF'] + Payloads::mysqlVariables(), null, 1_000),
             'mysql.information_schema' => new CollectorResult('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]], null, 1_000),
-            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', ['slow_queries' => [['query_sample' => 'SELECT 1', 'exec_count' => 120, 'total_time_ms' => 36000, 'avg_time_ms' => 300, 'max_time_ms' => 1200]]], null, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
         ]);
+        $system = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['ram' => ['total' => 1_073_741_824]], null, 1_000)]);
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), $system));
 
-        self::assertStringContainsString('8.4.0', $html);
-        self::assertStringContainsString('Connections usage', $html);
-        self::assertStringContainsString('SELECT 1', $html);
-        self::assertStringContainsString('slow query log is disabled', $html);
-        self::assertStringContainsString('innodb_buffer_pool_size', $html);
+        self::assertStringContainsString('MySQL Community Server - GPL', $html);
+        self::assertStringContainsString('Connection usage', $html);
+        self::assertStringContainsString('Current: 30 · Peak: 45', $html);
+        self::assertStringContainsString('15.00 <small class="text-muted">q/s</small>', $html);
+        self::assertStringContainsString('SELECT * FROM `order`', $html);
+        self::assertStringContainsString('The slow query log is disabled on your side.', $html);
+        self::assertStringContainsString('slow_query_log_file', $html);
+        self::assertStringContainsString('RAM ratio', $html);
+        self::assertStringNotContainsString('time_zone</dt>', $html, 'only the keys of the mysql.config help');
         self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheMysqlFragmentWithoutSlowQueries(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
+        ]);
+        $system = new ComponentSnapshot(Component::System, [], 'This component is not available.');
+
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), $system));
+
+        self::assertStringContainsString('Slow queries data are not available.', $html);
+        self::assertStringContainsString('performance_schema table is not readable', $html);
     }
 
     public function testTheRedisFragmentRendersWithoutAMemoryLimit(): void

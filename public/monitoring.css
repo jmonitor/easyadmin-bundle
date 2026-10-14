@@ -96,6 +96,24 @@
     overflow-wrap: anywhere;
 }
 
+.jm-peak svg {
+    display: block;
+    width: 100%;
+    height: .75rem;
+}
+
+.jm-peak-track {
+    fill: var(--bs-secondary-bg, #e9ecef);
+}
+
+.jm-peak-value {
+    fill: var(--bs-primary, #0d6efd);
+}
+
+.jm-peak-marker {
+    fill: var(--bs-danger, #dc3545);
+}
+
 .jm-scroll {
     max-height: 20rem;
     overflow-y: auto;

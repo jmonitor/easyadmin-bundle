@@ -6,55 +6,70 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
+use Jmonitor\EasyAdminBundle\Metric\Peak;
 use Jmonitor\EasyAdminBundle\Metric\Rate;
 use Jmonitor\EasyAdminBundle\Metric\Ratios;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class MysqlView
 {
-    private const VARIABLES = [
-        'innodb_buffer_pool_size', 'max_connections', 'tmp_table_size', 'max_heap_table_size', 'sort_buffer_size',
-        'join_buffer_size', 'thread_cache_size', 'table_open_cache', 'wait_timeout', 'log_bin', 'slow_query_log',
-        'long_query_time', 'character_set_server', 'collation_server', 'time_zone',
-    ];
-
     public bool $available;
     public ?string $version;
     public ?string $versionComment;
-    public ?string $schema;
-    public ?int $uptime;
-    public ?int $threadsConnected;
-    public ?int $threadsRunning;
-    public ?int $maxUsedConnections;
-    public ?int $maxConnections;
-    public ?int $connectionsTotal;
-    public ?int $abortedConnects;
-    public ?int $abortedClients;
-    public ?int $slowQueriesTotal;
-    public ?int $dataLength;
-    public ?int $indexLength;
-    public ?bool $slowQueryLog;
+
+    /** @var array<string, mixed> */
+    private array $variables;
+    public ?int $timestamp;
     public ?float $longQueryTime;
+    public ?string $timeZone;
+    public ?string $systemTimeZone;
+    public ?int $uptime;
 
-    public Gauge $connections;
-    public ?Gauge $bufferPoolUsage;
-    public ?Gauge $bufferPoolHitRate;
-    public ?Gauge $tmpDiskTables;
-    public ?Gauge $threadCacheMiss;
-    public ?Gauge $lockWaits;
+    public ?int $threadsConnected;
+    public ?int $maxConnections;
+    public Gauge $connectionsUsage;
+    public ?int $maxUsedConnections;
+    public ?Peak $maxConnectionsReached;
+    public Rate $queriesPerSec;
 
-    public Rate $questionsPerSec;
+    public bool $slowQueriesAvailable;
+    public bool $slowQueryLogDisabled;
+    public ?int $slowQueriesCount;
+    /** @var list<array<string, mixed>> */
+    public array $slowQueries;
+    public ?int $slowQueriesMinAvgTimeMs;
+    public ?int $slowQueriesMinExecCount;
+    public ?string $slowQueriesOrderBy;
+
+    public Gauge $bufferPoolUsage;
+    public ?int $bufferPoolUsed;
+    public ?int $bufferPoolTotal;
+    public Gauge $bufferPoolHitRate;
+    public Gauge $ramRatio;
+    public ?int $bufferPoolSize;
+    public ?int $ramTotal;
     public Rate $innodbReadsPerSec;
     public Rate $innodbWritesPerSec;
 
-    public bool $slowQueriesAvailable;
-    public ?string $slowQueriesError;
-    /** @var list<array{query_sample: string, exec_count: int, total_time_ms: int, avg_time_ms: int, max_time_ms: int}> */
-    public array $slowQueries;
-    /** @var array<string, mixed> */
-    public array $variables;
+    public Rate $tableLocksWaitedPerSec;
+    public Gauge $tableLocksWaitsPercent;
+    public ?int $tableLocksWaitedDelta;
+    public ?int $tableLocksTotalDelta;
+    public ?float $tableLocksWaitsPercentDelta;
+    public ?float $tableLocksWaitsPercentSinceStart;
+    public ?int $threadsRunning;
+    public Gauge $threadCacheMiss;
+    public ?int $threadsCreated;
+    public ?int $connections;
+    public Gauge $tmpTables;
+    public ?int $tmpDiskTables;
+    public ?int $tmpTablesCreated;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
+    public ?int $dataLength;
+    public ?int $indexLength;
+    public ?int $totalLength;
+
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ComponentSnapshot $system)
     {
         $status = $snapshot->data('mysql.status');
         $variables = $snapshot->data('mysql.variables');
@@ -65,92 +80,99 @@ final readonly class MysqlView
         $this->available = $snapshot->has('mysql.status');
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
-        $this->schema = Values::string($schema['schema_name'] ?? null);
-        $this->uptime = Values::int($status['Uptime'] ?? null);
-        $this->threadsConnected = Values::int($status['Threads_connected'] ?? null);
-        $this->threadsRunning = Values::int($status['Threads_running'] ?? null);
-        $this->maxUsedConnections = Values::int($status['Max_used_connections'] ?? null);
-        $this->maxConnections = Values::int($variables['max_connections'] ?? null);
-        $this->connectionsTotal = Values::int($status['Connections'] ?? null);
-        $this->abortedConnects = Values::int($status['Aborted_connects'] ?? null);
-        $this->abortedClients = Values::int($status['Aborted_clients'] ?? null);
-        $this->slowQueriesTotal = Values::int($status['Slow_queries'] ?? null);
-        $this->dataLength = Values::int($schema['data_weight']['data_length'] ?? null);
-        $this->indexLength = Values::int($schema['data_weight']['index_length'] ?? null);
-        $this->slowQueryLog = Values::bool($variables['slow_query_log'] ?? null);
+        $this->variables = $variables;
+        $this->timestamp = Values::int($variables['timestamp'] ?? null);
         $this->longQueryTime = Values::float($variables['long_query_time'] ?? null);
+        $this->timeZone = Values::string($variables['time_zone'] ?? null);
+        $this->systemTimeZone = Values::string($variables['system_time_zone'] ?? null);
+        $this->uptime = Values::int($status['Uptime'] ?? null);
 
-        $this->connections = $gauges->create('mysql.connections_usage', 'Connections usage', Values::percent($this->threadsConnected, $this->maxConnections));
-        $this->bufferPoolUsage = $status === [] ? null : $gauges->create('mysql.innodb_buffer_pool_usage', 'Buffer pool usage', $this->bufferPoolUsage($status, Values::int($variables['innodb_buffer_pool_size'] ?? null)), 1);
-        $this->bufferPoolHitRate = $status === [] ? null : $gauges->fromRate('mysql.innodb_buffer_pool_hit_rate', 'Buffer pool hit rate', Ratios::complement(
+        $this->threadsConnected = Values::int($status['Threads_connected'] ?? null);
+        $this->maxConnections = Values::int($variables['max_connections'] ?? null);
+        $this->connectionsUsage = $gauges->create('mysql.connections_usage', 'Connection usage', Values::percent($this->threadsConnected, $this->maxConnections));
+        $this->maxUsedConnections = Values::int($status['Max_used_connections'] ?? null);
+        $this->maxConnectionsReached = Peak::of($this->threadsConnected, $this->maxUsedConnections, $this->maxConnections);
+        $this->queriesPerSec = Ratios::perSecond($delta, 'Questions', 'q/s');
+
+        $this->slowQueriesAvailable = $snapshot->has('mysql.slow_queries');
+        $slowQueryLog = $variables['slow_query_log'] ?? null;
+        $this->slowQueryLogDisabled = $this->slowQueriesAvailable && $variables !== [] && !in_array($slowQueryLog, ['ON', 'on', '1', 1, true], true);
+        $this->slowQueriesCount = Values::int($status['Slow_queries'] ?? null);
+        $this->slowQueries = array_values(array_filter(
+            is_array($slow['slow_queries'] ?? null) ? $slow['slow_queries'] : [],
+            static fn(mixed $row): bool => is_array($row) && isset($row['query_sample']),
+        ));
+        $this->slowQueriesMinAvgTimeMs = Values::int($slow['min_avg_time_ms'] ?? null);
+        $this->slowQueriesMinExecCount = Values::int($slow['min_exec_count'] ?? null);
+        $this->slowQueriesOrderBy = Values::string($slow['order_by'] ?? null);
+
+        $this->bufferPoolSize = Values::int($variables['innodb_buffer_pool_size'] ?? null);
+        [$this->bufferPoolUsed, $this->bufferPoolTotal] = self::bufferPool($status, $this->bufferPoolSize);
+        $this->bufferPoolUsage = $gauges->create('mysql.innodb_buffer_pool_usage', 'Buffer Pool usage', Values::percent($this->bufferPoolUsed, $this->bufferPoolTotal));
+        $this->bufferPoolHitRate = $gauges->fromRate('mysql.innodb_buffer_pool_hit_rate', 'Buffer Pool Hit rate', Ratios::complement(
             $delta,
             'Innodb_buffer_pool_reads',
             'Innodb_buffer_pool_read_requests',
             Values::int($status['Innodb_buffer_pool_reads'] ?? null),
             Values::int($status['Innodb_buffer_pool_read_requests'] ?? null),
-        ));
-        $this->tmpDiskTables = $status === [] ? null : $gauges->fromRate('mysql.tmp_tables', 'Temporary tables on disk', Ratios::percent(
-            $delta,
-            'Created_tmp_disk_tables',
-            'Created_tmp_tables',
-            Values::int($status['Created_tmp_disk_tables'] ?? null),
-            Values::int($status['Created_tmp_tables'] ?? null),
         ), 2);
-        $this->threadCacheMiss = $status === [] ? null : $gauges->fromRate('mysql.thread_cache_miss', 'Thread cache miss', Ratios::percent(
-            $delta,
-            'Threads_created',
-            'Connections',
-            Values::int($status['Threads_created'] ?? null),
-            $this->connectionsTotal,
-        ), 2);
-        $this->lockWaits = $status === [] ? null : $gauges->fromRate('mysql.tables_lock_waits_percent', 'Table lock waits', Ratios::share(
-            $delta,
-            'Table_locks_waited',
-            'Table_locks_immediate',
-            Values::int($status['Table_locks_waited'] ?? null),
-            Values::int($status['Table_locks_immediate'] ?? null),
-        ), 2);
-
-        $this->questionsPerSec = Ratios::perSecond($delta, 'Questions', 'q/s');
+        $this->ramTotal = Values::int($system->data('system')['ram']['total'] ?? null);
+        $this->ramRatio = $gauges->create('mysql.innodb_ram_ratio', 'RAM ratio', Values::percent($this->bufferPoolSize, $this->ramTotal));
         $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s');
         $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s');
 
-        $this->slowQueriesAvailable = $snapshot->has('mysql.slow_queries');
-        $this->slowQueriesError = $snapshot->result('mysql.slow_queries')?->error;
-        $this->slowQueries = array_values(array_filter(
-            is_array($slow['slow_queries'] ?? null) ? $slow['slow_queries'] : [],
-            static fn(mixed $row): bool => is_array($row) && isset($row['query_sample']),
-        ));
+        $waited = Values::int($status['Table_locks_waited'] ?? null);
+        $immediate = Values::int($status['Table_locks_immediate'] ?? null);
+        $waitedDelta = $delta?->getValue('Table_locks_waited');
+        $immediateDelta = $delta?->getValue('Table_locks_immediate');
+        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '');
+        $this->tableLocksWaitedDelta = $waitedDelta === null ? null : (int) $waitedDelta;
+        $this->tableLocksTotalDelta = $waitedDelta === null || $immediateDelta === null ? null : (int) ($waitedDelta + $immediateDelta);
+        $this->tableLocksWaitsPercentDelta = $this->tableLocksTotalDelta !== null && $this->tableLocksTotalDelta > 0 ? round($this->tableLocksWaitedDelta / $this->tableLocksTotalDelta * 100, 2) : null;
+        $this->tableLocksWaitsPercent = $gauges->fromRate('mysql.tables_lock_waits_percent', 'Ratio', Ratios::share($delta, 'Table_locks_waited', 'Table_locks_immediate', $waited, $immediate), 2);
+        $this->tableLocksWaitsPercentSinceStart = $waited !== null && $immediate !== null && $immediate > 0 ? round($waited / ($waited + $immediate) * 100, 2) : null;
 
-        $exposed = [];
-        foreach (self::VARIABLES as $name) {
-            if (array_key_exists($name, $variables)) {
-                $exposed[$name] = $variables[$name];
-            }
-        }
-        $this->variables = $exposed;
+        $this->threadsRunning = Values::int($status['Threads_running'] ?? null);
+        $this->threadsCreated = Values::int($status['Threads_created'] ?? null);
+        $this->connections = Values::int($status['Connections'] ?? null);
+        $this->threadCacheMiss = $gauges->create('mysql.thread_cache_miss', 'Cache miss', Values::percent($this->threadsCreated, $this->connections), 1);
+        $this->tmpDiskTables = Values::int($status['Created_tmp_disk_tables'] ?? null);
+        $this->tmpTablesCreated = Values::int($status['Created_tmp_tables'] ?? null);
+        $this->tmpTables = $gauges->create('mysql.tmp_tables', 'Temporary tables', Values::percent($this->tmpDiskTables, $this->tmpTablesCreated), 2);
+
+        $this->dataLength = Values::int($schema['data_weight']['data_length'] ?? null);
+        $this->indexLength = Values::int($schema['data_weight']['index_length'] ?? null);
+        $this->totalLength = $this->dataLength !== null && $this->indexLength !== null ? $this->dataLength + $this->indexLength : null;
+    }
+
+    public function variable(string $name): mixed
+    {
+        return $this->variables[$name] ?? null;
     }
 
     /**
      * MariaDB reports the free bytes of the pool; MySQL only the pages.
      *
      * @param array<string, mixed> $status
+     *
+     * @return array{?int, ?int} used and total bytes
      */
-    private function bufferPoolUsage(array $status, ?int $poolSize): ?float
+    private static function bufferPool(array $status, ?int $poolSize): array
     {
         $bytesFree = Values::int($status['Innodb_buffer_pool_bytes_free'] ?? null);
 
         if ($bytesFree !== null && $poolSize !== null && $poolSize > 0) {
-            return ($poolSize - $bytesFree) / $poolSize * 100;
+            return [$poolSize - $bytesFree, $poolSize];
         }
 
         $pagesTotal = Values::int($status['Innodb_buffer_pool_pages_total'] ?? null);
         $pagesFree = Values::int($status['Innodb_buffer_pool_pages_free'] ?? null);
+        $pageSize = Values::int($status['Innodb_page_size'] ?? null);
 
-        if ($pagesTotal === null || $pagesFree === null || $pagesTotal <= 0) {
-            return null;
+        if ($pagesTotal === null || $pagesFree === null || $pageSize === null || $pagesTotal <= 0) {
+            return [null, null];
         }
 
-        return ($pagesTotal - $pagesFree) / $pagesTotal * 100;
+        return [($pagesTotal - $pagesFree) * $pageSize, $pagesTotal * $pageSize];
     }
 }

@@ -78,4 +78,80 @@ final class Payloads
             ],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function mysqlStatus(): array
+    {
+        return [
+            'Uptime' => '86400',
+            'Threads_connected' => '30',
+            'Threads_running' => '3',
+            'Threads_created' => '7',
+            'Connections' => '1100',
+            'Questions' => '1150',
+            'Aborted_connects' => '2',
+            'Aborted_clients' => '1',
+            'Created_tmp_tables' => '150',
+            'Created_tmp_disk_tables' => '20',
+            'Max_used_connections' => '45',
+            'Slow_queries' => '12',
+            'Innodb_buffer_pool_read_requests' => '110000',
+            'Innodb_buffer_pool_reads' => '1100',
+            'Innodb_buffer_pool_pages_total' => '8192',
+            'Innodb_buffer_pool_pages_free' => '1024',
+            'Innodb_page_size' => '16384',
+            'Innodb_data_reads' => '550',
+            'Innodb_data_writes' => '220',
+            'Table_locks_waited' => '3',
+            'Table_locks_immediate' => '1097',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function mysqlVariables(): array
+    {
+        return [
+            'version' => '8.4.0',
+            'version_comment' => 'MySQL Community Server - GPL',
+            'max_connections' => '100',
+            'innodb_buffer_pool_size' => '134217728',
+            'slow_query_log' => 'ON',
+            'long_query_time' => '1.000000',
+            'tmp_table_size' => '16777216',
+            'max_heap_table_size' => '16777216',
+            'thread_cache_size' => '9',
+            'table_open_cache' => '4000',
+            'wait_timeout' => '28800',
+            'log_bin' => 'ON',
+            'character_set_server' => 'utf8mb4',
+            'collation_server' => 'utf8mb4_0900_ai_ci',
+            'time_zone' => 'SYSTEM',
+            'system_time_zone' => 'UTC',
+            'timestamp' => '1760000000.000000',
+            'slow_query_log_file' => '/var/lib/mysql/slow.log',
+            'join_buffer_size' => '262144',
+            'sort_buffer_size' => '262144',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function mysqlSlowQueries(): array
+    {
+        return [
+            'schema_name' => 'app',
+            'min_exec_count' => 1,
+            'min_avg_time_ms' => 0,
+            'limit' => 10,
+            'order_by' => 'avg',
+            'slow_queries' => [
+                ['query_sample' => 'SELECT * FROM `order` WHERE `status` = ?', 'exec_count' => 120, 'total_time_ms' => 36000, 'avg_time_ms' => 300, 'max_time_ms' => 1200],
+            ],
+        ];
+    }
 }
