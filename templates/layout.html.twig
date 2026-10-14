@@ -43,7 +43,7 @@
                                 <twig:ea:Switch id="jm-live-toggle" checked data-live-toggle />
                                 Live <span class="text-muted">· every {{ polling_interval }} s</span>
                             </label>
-                            <div class="small text-muted">Updated <time class="jm-live-updated" data-live-updated></time></div>
+                            <div class="small text-muted">Last update: <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span></div>
                         </div>
                     {% endif %}
                     <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">

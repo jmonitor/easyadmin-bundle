@@ -100,10 +100,17 @@
     cursor: pointer;
 }
 
-.jm-live-updated {
-    display: inline-block;
-    min-width: 8ch;
+.jm-live-ago {
+    display: inline-grid;
     font-variant-numeric: tabular-nums;
+}
+
+.jm-live-ago > * {
+    grid-area: 1 / 1;
+}
+
+.jm-live-ago-widest {
+    visibility: hidden;
 }
 
 .jm-help-panel {

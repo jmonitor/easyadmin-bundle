@@ -16,6 +16,7 @@
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
+    var updatedAt = Date.now();
 
     function readPreference() {
         try {
@@ -41,14 +42,42 @@
         toggle.checked = enabled;
     }
 
-    function markUpdated() {
-        if (!updated) {
-            return;
+    function ago(milliseconds) {
+        var seconds = Math.floor(milliseconds / 1000);
+
+        if (seconds < 5) {
+            return 'just now';
         }
 
-        var now = new Date();
-        updated.dateTime = now.toISOString();
-        updated.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if (seconds < 60) {
+            return seconds + ' s ago';
+        }
+
+        if (seconds < 3600) {
+            return Math.floor(seconds / 60) + ' min ago';
+        }
+
+        if (seconds < 86400) {
+            return Math.floor(seconds / 3600) + ' h ago';
+        }
+
+        return Math.floor(seconds / 86400) + ' d ago';
+    }
+
+    function renderUpdated() {
+        if (updated) {
+            updated.textContent = ago(Date.now() - updatedAt);
+        }
+    }
+
+    function markUpdated() {
+        updatedAt = Date.now();
+
+        if (updated) {
+            updated.dateTime = new Date(updatedAt).toISOString();
+        }
+
+        renderUpdated();
     }
 
     function refresh() {
@@ -125,5 +154,6 @@
 
     renderToggle();
     markUpdated();
+    window.setInterval(renderUpdated, 1000);
     start();
 })();
