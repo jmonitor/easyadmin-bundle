@@ -83,29 +83,32 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('performance_schema table is not readable', $html);
     }
 
-    public function testTheRedisFragmentRendersWithoutAMemoryLimit(): void
+    public function testTheRedisFragmentRendersWithAMemoryLimit(): void
     {
-        $snapshot = new ComponentSnapshot(Component::Redis, [
-            'redis' => new CollectorResult('redis', [
-                'server' => ['version' => '7.2.4', 'mode' => 'standalone', 'port' => 6379, 'uptime' => 360_000],
-                'clients' => ['connected' => 12],
-                'memory' => ['used' => 1_500_000_000, 'used_rss' => 1_550_000_000, 'used_peak' => 1_600_000_000, 'max_memory' => 0, 'max_memory_policy' => 'noeviction'],
-                'persistence' => ['rdb_last_save_time' => 1_760_000_000, 'rdb_changes_since_last_save' => 42, 'rdb_last_bgsave_status' => 'ok', 'aof_enabled' => 0, 'aof_current_size' => 0],
-                'stats' => ['instantaneous_ops_per_sec' => 1234, 'keyspace_hits' => 9950, 'keyspace_misses' => 1050, 'evicted_keys' => 7],
-                'replication' => ['role' => 'master', 'connected_slaves' => 0],
-                'databases' => ['db0' => ['keys' => 1500, 'expires' => 1200, 'avg_ttl' => 3_600_000]],
-                'config' => ['save' => '3600 1'],
-            ], null, 1_000),
-        ]);
+        $payload = Payloads::redis();
+        $payload['memory']['max_memory'] = 2_000_000_000;
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', $payload, null, 1_000)]);
 
         $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('7.2.4', $html);
-        self::assertStringContainsString('maxmemory', $html, 'no limit: the memory card replaces the gauge');
-        self::assertStringContainsString('Hit rate', $html);
-        self::assertStringContainsString('since server start', $html);
-        self::assertStringContainsString('db0', $html);
+        self::assertStringContainsString('Redis informations', $html);
+        self::assertStringContainsString('Memory usage', $html);
+        self::assertStringContainsString('Current: 1.4 GB · Peak: 1.5 GB', $html);
+        self::assertStringContainsString('least recently used keys from the entire dataset', $html);
+        self::assertStringContainsString('Db0', $html);
         self::assertStringContainsString('1h 0m', $html, 'average TTL in seconds');
+    }
+
+    public function testTheRedisFragmentRendersWithoutAMemoryLimit(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', Payloads::redis(), null, 1_000)]);
+
+        $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Unlimited', $html);
+        self::assertStringContainsString('Memory peak', $html);
+        self::assertStringNotContainsString('Current:', $html, 'no maximum to draw the peak against');
+        self::assertStringContainsString('since server start', $html);
     }
 
     public function testAFailedRedisCollectorStillRenders(): void
@@ -115,7 +118,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('Connection refused', $html);
-        self::assertStringContainsString('No keys', $html);
+        self::assertStringNotContainsString('Databases', $html);
     }
 
     public function testTheSystemFragmentShowsTheLoadAverageUnderTheCpuGauge(): void

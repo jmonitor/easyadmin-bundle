@@ -4,98 +4,137 @@
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
 
     <div class="row g-3">
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">Server {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'redis.informations'}) }}</div>
-                <div class="card-body">
+        <div class="col-md-4 col-xl-2">
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Version', metric: 'redis.version', value: view.version}) }}</div>
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Execution mode', metric: 'redis.mode', value: view.mode}) }}</div>
+            </div>
+        </div>
+        <div class="col-md-8 col-xl-5">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Redis informations', metric: 'redis.informations'} %}
+                {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                        'Version': view.version,
-                        'Mode': view.mode,
-                        'Role': view.role is null ? null : view.role ~ (view.connectedReplicas ? ', ' ~ view.connectedReplicas ~ ' replica(s)' : ''),
+                        'Max memory': view.maxMemoryUnlimited ?? (view.maxMemoryBytes is null ? null : view.maxMemoryBytes|jm_bytes),
+                        'Max memory policy': view.maxMemoryPolicy,
                         'Port': view.port,
                         'Uptime': view.uptime|jm_duration,
-                        'Connected clients': view.clients,
-                        'Save policy': view.saveConfig,
                     }}) }}
-                </div>
-            </div>
+                    <hr>
+                    <h6 class="text-muted small">Replication</h6>
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Role': view.role,
+                        'Connected slaves': view.connectedSlaves,
+                    }}) }}
+                {% endblock %}
+            {% endembed %}
         </div>
-        <div class="col-md-6 col-lg-4">
-            {% if view.memory %}
-                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.memory, detail: view.usedMemory|jm_bytes ~ ' / ' ~ view.maxMemory|jm_bytes}) }}
-            {% else %}
-                <div class="card h-100">
-                    <div class="card-header">Memory {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'redis.memory_usage'}) }}</div>
-                    <div class="card-body">
-                        <p class="small text-muted">No <code>maxmemory</code> is set: Redis can grow until the system runs out of memory.</p>
+        <div class="col-xl-5">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Persistence', metric: 'redis.persistence'} %}
+                {% block body %}
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'RDB': view.rdb}}) }}
+                    {% if view.rdbActive %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                            'Used': view.usedMemory|jm_bytes,
-                            'Peak': view.peakMemory|jm_bytes,
-                            'RSS': view.rssMemory|jm_bytes,
-                            'Eviction policy': view.maxMemoryPolicy,
+                            'Last save': view.rdbLastSave|jm_ago,
+                            'Unsaved changes': view.rdbUnsavedChanges,
+                            'Last save status': view.rdbLastSaveStatus,
                         }}) }}
-                    </div>
-                </div>
+                    {% endif %}
+                    <hr>
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'AOF': view.aof}}) }}
+                    {% if view.aofEnabled %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Last rewrite status': view.aofLastRewriteStatus,
+                            'Last rewrite duration': view.aofLastRewriteDuration|jm_duration,
+                            'AOF file size': view.aofFileSize|jm_bytes,
+                            'Growth since last rewrite': view.aofGrowth,
+                        }}) }}
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Memory</h2>
+    <div class="row g-3">
+        <div class="col-md-6">
+            {% if view.memoryUsage %}
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.memoryUsage, detail: view.usedMemory ? view.usedMemory|jm_bytes ~ ' / ' ~ view.maxMemoryBytes|jm_bytes : null}) }}
+            {% else %}
+                {{ block('memory_peak') }}
             {% endif %}
         </div>
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Max memory policy', metric: 'redis.max_memory_policy'} %}
+                {% block body %}
+                    {% if view.maxMemoryPolicy %}
+                        <div class="fs-5 mb-2">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.maxMemoryPolicy}) }}</div>
+                        {% if view.maxMemoryPolicyDescription %}<p class="text-muted mb-0">{{ view.maxMemoryPolicyDescription }}</p>{% endif %}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        {% if view.memoryUsage and view.peakMemory is not null %}
+            <div class="col-12">{{ block('memory_peak') }}</div>
+        {% endif %}
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Performances</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Operations per second', metric: 'redis.requests_per_second', rate: view.requestsPerSec}) }}
+        </div>
+        <div class="col-md-6 col-xl-4">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.hitRate}) }}
         </div>
-    </div>
-
-    <div class="row g-3 mt-1">
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">Activity {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'redis.stats'}) }}</div>
-                <div class="card-body">
+        <div class="col-xl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Stats', metric: 'redis.stats'} %}
+                {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                        'Operations per second': view.opsPerSec|jm_number,
-                        'Total commands': view.totalCommands|jm_number,
-                        'Total connections': view.totalConnections|jm_number,
-                        'Rejected connections': view.rejectedConnections|jm_number,
-                        'Evicted keys': view.evictedKeys|jm_number,
-                        'Expired keys': view.expiredKeys|jm_number,
-                        'Evicted clients': view.evictedClients|jm_number,
-                        'Error replies': view.errorReplies|jm_number,
-                        'Peak memory': view.peakMemory|jm_bytes,
-                        'Eviction policy': view.maxMemoryPolicy,
+                        'Evicted keys': view.evictedKeys,
+                        'Rejected connections': view.rejectedConnections,
+                        'Total errors': view.totalErrors,
+                        'Clients connected': view.clients,
                     }}) }}
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">Persistence {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'redis.persistence'}) }}</div>
-                <div class="card-body">
-                    {% if view.persistence is empty %}
-                        <p class="text-muted mb-0">Not collected.</p>
-                    {% else %}
-                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.persistence|merge({
-                            'RDB last save': view.persistence['RDB last save'] is null ? null : view.persistence['RDB last save']|date('Y-m-d H:i:s'),
-                            'AOF current size': view.persistence['AOF current size']|jm_bytes,
-                        })}) }}
-                    {% endif %}
-                </div>
-            </div>
+                {% endblock %}
+            {% endembed %}
         </div>
     </div>
 
-    <h2 class="h5 mt-4">Keyspaces {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'redis.db_keys'}) }}</h2>
-    {% if view.databases is empty %}
-        <p class="text-muted">No keys.</p>
-    {% else %}
-        <table class="table table-sm w-auto">
-            <thead><tr><th>Database</th><th class="text-end">Keys</th><th class="text-end">Expiring</th><th class="text-end">Average TTL</th></tr></thead>
-            <tbody>
-                {% for database in view.databases %}
-                    <tr>
-                        <td>{{ database.name }}</td>
-                        <td class="text-end">{{ database.keys|jm_number }}</td>
-                        <td class="text-end">{{ database.expires|jm_number }}</td>
-                        <td class="text-end">{{ database.avg_ttl is null ? '—' : (database.avg_ttl // 1000)|jm_duration }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% if view.databases is not empty %}
+        <h2 class="h5 mt-4 mb-2">Databases</h2>
+        <div class="row g-3">
+            {% for database in view.databases %}
+                <div class="col-md-6 col-xl-4">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: database.name} %}
+                        {% block body %}
+                            <div class="row g-3">
+                                <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Keys', metric: 'redis.db_keys', value: database.keys}) }}</div>
+                                <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Expiring keys', metric: 'redis.db_expiring_keys', value: database.expiring is null ? null : database.expiring ~ '%'}) }}</div>
+                                <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Average TTL', metric: 'redis.db_avg_ttl', value: database.avg_ttl is null ? null : database.avg_ttl|jm_duration}) }}</div>
+                            </div>
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
+{% endblock %}
+
+{% block memory_peak %}
+    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Memory peak', metric: 'redis.memory_peak'} %}
+        {% block body %}
+            {% if view.memoryPeak %}
+                {{ include('@JmonitorEasyAdmin/_peak.html.twig', {
+                    peak: view.memoryPeak,
+                    currentLabel: view.usedMemory|jm_bytes,
+                    peakLabel: view.peakMemory|jm_bytes,
+                    maxLabel: view.maxMemoryBytes|jm_bytes,
+                }) }}
+            {% else %}
+                <div class="jm-stat">{{ view.usedMemory|jm_bytes }}</div>
+            {% endif %}
+        {% endblock %}
+    {% endembed %}
 {% endblock %}

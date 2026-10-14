@@ -154,4 +154,22 @@ final class Payloads
             ],
         ];
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function redis(): array
+    {
+        return [
+            'server' => ['version' => '7.2.4', 'mode' => 'standalone', 'port' => 6379, 'uptime' => 360_000],
+            'clients' => ['connected' => 12],
+            'memory' => ['used' => 1_500_000_000, 'used_rss' => 1_550_000_000, 'used_peak' => 1_600_000_000, 'max_memory' => 0, 'max_memory_policy' => 'allkeys-lru'],
+            'persistence' => ['rdb_bgsave_in_progress' => 0, 'rdb_last_save_time' => 1_760_000_000, 'rdb_changes_since_last_save' => 42, 'rdb_last_bgsave_status' => 'ok', 'rdb_last_bgsave_time' => 1, 'aof_enabled' => 0, 'aof_rewrite_in_progress' => 0, 'aof_last_rewrite_time_sec' => -1, 'aof_last_bgrewrite_status' => 'ok', 'aof_last_cow_size' => 0, 'aof_current_size' => 0, 'aof_rewrite_base_size' => 0],
+            'stats' => ['total_connections_received' => 5000, 'total_commands_processed' => 900_000, 'instantaneous_ops_per_sec' => 1234, 'rejected_connections' => 0, 'expired_keys' => 300, 'evicted_keys' => 7, 'evicted_clients' => 0, 'keyspace_hits' => 9950, 'keyspace_misses' => 1050, 'tracking_total_keys' => 0, 'total_error_replies' => 3, 'total_reads_processed' => 1, 'total_writes_processed' => 1, 'acl_access_denied_auth' => 0],
+            'replication' => ['role' => 'master', 'connected_slaves' => 0],
+            'cpu' => ['used_sys' => 12.5, 'used_user' => 30.2],
+            'databases' => ['db0' => ['keys' => 1500, 'expires' => 1200, 'avg_ttl' => 3_600_000], 'db1' => ['keys' => '10', 'expires' => '0', 'avg_ttl' => '0']],
+            'config' => ['save' => '3600 1 300 100 60 10000'],
+        ];
+    }
 }
