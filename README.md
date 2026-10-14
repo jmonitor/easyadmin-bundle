@@ -8,7 +8,7 @@ It reuses the collectors of [jmonitor/collector](https://github.com/jmonitor/col
 
 - PHP 8.2+
 - Symfony 6.4+
-- EasyAdmin 5
+- EasyAdmin 5.2+
 
 ## Installation
 
@@ -72,7 +72,7 @@ jmonitor_easyadmin:
 
 ## How it works
 
-Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. Every admin looking at the page shares that cache, so a tab left open costs one collection per interval. The **Refresh** button drops the component's cache, for instance after a server restart. The **Live** switch pauses the polling; the choice is remembered in the browser, and the line under it gives the interval and the time of the last update.
+Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. Every admin looking at the page shares that cache, so a tab left open costs one collection per interval. The **Refresh** button drops the component's cache, for instance after a server restart. The **Live** switch pauses the polling; the choice is remembered in the browser, and it shows the interval and the time of the last update.
 
 The Symfony tab runs console commands (`messenger:stats`, `debug:scheduler`, `composer recipes`) and is cached for `static_ttl`; disable the ones you do not want.
 

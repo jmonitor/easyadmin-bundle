@@ -39,11 +39,11 @@
                 <div class="d-flex align-items-center gap-3">
                     {% if polling_interval > 0 %}
                         <div class="jm-live">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" role="switch" id="jm-live-toggle" checked data-live-toggle>
-                                <label class="form-check-label" for="jm-live-toggle">Live</label>
-                            </div>
-                            <div class="small text-muted" data-live-status>Every {{ polling_interval }} s</div>
+                            <label class="jm-live-switch" for="jm-live-toggle">
+                                <twig:ea:Switch id="jm-live-toggle" checked data-live-toggle />
+                                Live <span class="text-muted">· every {{ polling_interval }} s</span>
+                            </label>
+                            <div class="small text-muted">Updated <time class="jm-live-updated" data-live-updated></time></div>
                         </div>
                     {% endif %}
                     <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">

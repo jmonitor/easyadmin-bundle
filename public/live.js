@@ -12,11 +12,10 @@
     var interval = Math.max(1, parseInt(root.getAttribute('data-live-interval'), 10) || 10) * 1000;
     var content = root.querySelector('[data-live-content]');
     var toggle = root.querySelector('[data-live-toggle]');
-    var status = root.querySelector('[data-live-status]');
+    var updated = root.querySelector('[data-live-updated]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
-    var updatedAt = Date.now();
 
     function readPreference() {
         try {
@@ -42,30 +41,14 @@
         toggle.checked = enabled;
     }
 
-    function ago(milliseconds) {
-        var seconds = Math.floor(milliseconds / 1000);
-
-        if (seconds < 5) {
-            return 'just now';
-        }
-
-        if (seconds < 60) {
-            return seconds + ' s ago';
-        }
-
-        if (seconds < 3600) {
-            return Math.floor(seconds / 60) + ' min ago';
-        }
-
-        return Math.floor(seconds / 3600) + ' h ago';
-    }
-
-    function renderStatus() {
-        if (!status) {
+    function markUpdated() {
+        if (!updated) {
             return;
         }
 
-        status.textContent = (enabled ? 'Every ' + interval / 1000 + ' s' : 'Paused') + ' · updated ' + ago(Date.now() - updatedAt);
+        var now = new Date();
+        updated.dateTime = now.toISOString();
+        updated.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
     function refresh() {
@@ -93,8 +76,7 @@
             .then(function (html) {
                 if (html !== null) {
                     content.innerHTML = html;
-                    updatedAt = Date.now();
-                    renderStatus();
+                    markUpdated();
                 }
             })
             .catch(function () {
@@ -128,7 +110,6 @@
         toggle.addEventListener('change', function () {
             enabled = toggle.checked;
             writePreference(enabled);
-            renderStatus();
             start();
         });
     }
@@ -143,7 +124,6 @@
     });
 
     renderToggle();
-    renderStatus();
-    window.setInterval(renderStatus, 1000);
+    markUpdated();
     start();
 })();
