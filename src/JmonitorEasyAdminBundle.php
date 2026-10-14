@@ -42,6 +42,9 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $builder->setParameter('jmonitor_easyadmin.config', $config);

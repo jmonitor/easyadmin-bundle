@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests;
 
+use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use PHPUnit\Framework\TestCase;
 
@@ -40,6 +41,20 @@ final class BundleBootTest extends TestCase
 
         self::assertSame(0, $config['polling_interval']);
         self::assertFalse($config['components']['redis']['enabled']);
+
+        $kernel->shutdown();
+    }
+
+    public function testALongPollingIntervalStillGivesDeltas(): void
+    {
+        $kernel = new TestKernel(['polling_interval' => 600]);
+        $kernel->boot();
+
+        /** @var DeltaCalculator $deltas */
+        $deltas = $kernel->getContainer()->get('test.service_container')->get(DeltaCalculator::class);
+        $deltas->track('test.long_polling', ['count' => 1], 1_000);
+
+        self::assertSame(2, $deltas->track('test.long_polling', ['count' => 3], 1_600)?->getValue('count'));
 
         $kernel->shutdown();
     }

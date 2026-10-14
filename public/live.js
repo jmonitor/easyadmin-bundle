@@ -2,6 +2,7 @@
     'use strict';
 
     var STORAGE_KEY = 'jmonitor_easyadmin.live';
+    var SCROLLABLE = '.jm-scroll, .jm-query, .table-responsive';
     var root = document.querySelector('[data-live]');
 
     if (!root) {
@@ -13,6 +14,9 @@
     var content = root.querySelector('[data-live-content]');
     var toggle = root.querySelector('[data-live-toggle]');
     var updated = root.querySelector('[data-live-updated]');
+    var indexUrl = root.getAttribute('data-live-index-url');
+    var status = root.querySelector('[data-live-status]');
+    var failedLabel = root.querySelector('[data-live-failed]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
@@ -80,12 +84,31 @@
         renderUpdated();
     }
 
+    function markFailed(failed) {
+        if (!status) {
+            return;
+        }
+
+        status.classList.toggle('text-muted', !failed);
+        status.classList.toggle('text-warning-emphasis', failed);
+
+        if (failedLabel) {
+            failedLabel.hidden = !failed;
+        }
+    }
+
+    function hasSelectionInside(element) {
+        var selection = window.getSelection ? window.getSelection() : null;
+
+        return selection !== null && !selection.isCollapsed && selection.containsNode(element, true);
+    }
+
     function replaceContent(html) {
         var activeTabs = Array.prototype.map.call(content.querySelectorAll('[data-bs-toggle="tab"].active'), function (tab) {
             return tab.getAttribute('data-bs-target');
         });
-        var scrolls = Array.prototype.map.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element) {
-            return element.scrollTop;
+        var scrolls = Array.prototype.map.call(content.querySelectorAll(SCROLLABLE), function (element) {
+            return { top: element.scrollTop, left: element.scrollLeft };
         });
 
         content.innerHTML = html;
@@ -110,15 +133,21 @@
             pane.classList.add('active');
         });
 
-        Array.prototype.forEach.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element, index) {
-            if (scrolls[index]) {
-                element.scrollTop = scrolls[index];
-            }
+        var scrollables = content.querySelectorAll(SCROLLABLE);
+
+        // positions are matched by rank: a block that appeared or vanished would shift them all
+        if (scrollables.length !== scrolls.length) {
+            return;
+        }
+
+        Array.prototype.forEach.call(scrollables, function (element, index) {
+            element.scrollTop = scrolls[index].top;
+            element.scrollLeft = scrolls[index].left;
         });
     }
 
     function refresh() {
-        if (inFlight || document.hidden) {
+        if (!enabled || inFlight || document.hidden || hasSelectionInside(content)) {
             return;
         }
 
@@ -127,26 +156,37 @@
         var controller = typeof AbortController === 'function' ? new AbortController() : null;
         var deadline = controller ? window.setTimeout(function () { controller.abort(); }, interval * 2) : null;
 
-        fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' }, signal: controller ? controller.signal : undefined })
+        fetch(url, { credentials: 'same-origin', redirect: 'manual', signal: controller ? controller.signal : undefined })
             .then(function (response) {
-                if (response.redirected || response.status === 401 || response.status === 403) {
-                    // the session is gone: let the firewall show its login page instead of injecting it here
+                // a redirect or a denial means the session is gone: the firewall shows its login page on reload
+                if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403) {
                     stop();
                     window.location.reload();
 
                     return null;
                 }
 
+                if (response.status === 404) {
+                    stop();
+                    window.location.assign(indexUrl || window.location.href);
+
+                    return null;
+                }
+
+                markFailed(!response.ok);
+
                 return response.ok ? response.text() : null;
             })
             .then(function (html) {
-                if (html !== null) {
-                    replaceContent(html);
-                    markUpdated();
+                if (html === null || !enabled || hasSelectionInside(content)) {
+                    return;
                 }
+
+                replaceContent(html);
+                markUpdated();
             })
             .catch(function () {
-                // network hiccup or timeout: keep the current content, try again next tick
+                markFailed(true);
             })
             .then(function () {
                 if (deadline !== null) {
@@ -177,6 +217,7 @@
             enabled = toggle.checked;
             writePreference(enabled);
             start();
+            refresh();
         });
     }
 

@@ -13,7 +13,6 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class MysqlView
 {
-    public bool $available;
     public ?string $version;
     public ?string $versionComment;
 
@@ -73,7 +72,6 @@ final readonly class MysqlView
         $slow = $snapshot->data('mysql.slow_queries');
         $delta = $snapshot->delta('mysql.status');
 
-        $this->available = $snapshot->has('mysql.status');
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
         $this->variables = $variables;

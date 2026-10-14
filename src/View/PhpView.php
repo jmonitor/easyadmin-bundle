@@ -14,7 +14,6 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class PhpView
 {
-    public bool $available;
     public ?string $version;
     public ?string $sapi;
 
@@ -81,7 +80,6 @@ final readonly class PhpView
         $data = $snapshot->data('php');
         $delta = $snapshot->delta('php');
 
-        $this->available = $snapshot->has('php');
         $this->version = Values::string($data['version'] ?? null);
         $this->sapi = Values::string($data['sapi_name'] ?? null);
 

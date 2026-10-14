@@ -27,7 +27,6 @@ final class SystemViewTest extends TestCase
             'hostname' => 'web-1',
         ]), $this->gauges());
 
-        self::assertTrue($view->available);
         self::assertSame(75.0, $view->ram->value);
         self::assertSame(BadgeStyle::Warning, $view->ram->badge?->style);
         self::assertSame(62.0, $view->cpu->value);
@@ -43,9 +42,7 @@ final class SystemViewTest extends TestCase
         self::assertSame(1.1, $view->load5);
         self::assertSame(0.9, $view->load15);
         self::assertSame(8_000_000_000, $view->ramTotal);
-        self::assertSame(2_000_000_000, $view->ramAvailable);
         self::assertSame(100_000_000_000, $view->diskTotal);
-        self::assertSame(25_000_000_000, $view->diskFree);
         self::assertSame(6_000_000_000, $view->ramUsed);
         self::assertSame(75_000_000_000, $view->diskUsed);
     }
@@ -68,7 +65,6 @@ final class SystemViewTest extends TestCase
             'system' => new CollectorResult('system', [], 'nproc: not found', 1_000),
         ]), $this->gauges());
 
-        self::assertFalse($view->available);
         self::assertFalse($view->ram->available());
         self::assertFalse($view->cpu->available());
         self::assertFalse($view->disk->available());

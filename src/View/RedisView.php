@@ -26,7 +26,6 @@ final readonly class RedisView
         'volatile-ttl' => 'When memory is full and a new write is attempted, Redis evicts keys with an expiration set, prioritizing those with the shortest remaining TTL.',
     ];
 
-    public bool $available;
     public ?string $version;
     public ?string $mode;
 
@@ -76,7 +75,6 @@ final readonly class RedisView
         $persistence = $data['persistence'] ?? [];
         $replication = $data['replication'] ?? [];
 
-        $this->available = $snapshot->has('redis');
         $this->version = Values::string($server['version'] ?? null);
         $this->mode = Values::string($server['mode'] ?? null);
 

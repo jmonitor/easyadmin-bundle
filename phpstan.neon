@@ -1,5 +1,5 @@
 parameters:
-    level: 5
+    level: 8
     paths:
         - src
     # Some ignores only match on certain Symfony versions. Don't fail when an ignore is unmatched.

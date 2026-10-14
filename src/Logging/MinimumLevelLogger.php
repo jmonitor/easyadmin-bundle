@@ -19,6 +19,9 @@ final class MinimumLevelLogger extends AbstractLogger
         private readonly LoggerInterface $inner,
     ) {}
 
+    /**
+     * @param array<mixed> $context
+     */
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         if (in_array(strtolower((string) $level), self::KEPT, true)) {

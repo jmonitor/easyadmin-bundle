@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Snapshot;
 
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 
 /**
- * Keeps the previous sample of each collector in the cache and compares it with the new one.
- * A delta is only meaningful when the two samples are neither too close nor too far apart.
+ * Keeps a reference sample of each collector in the cache and compares each new sample with it.
+ * A sample taken less than $minElapsed after the reference, such as a Refresh, is compared with
+ * it but does not replace it, so the next poll still spans a full interval.
  */
 final readonly class DeltaCalculator
 {
@@ -27,20 +29,32 @@ final readonly class DeltaCalculator
         $previous = $item->get();
         $current = Delta::flatten($data);
 
-        $item->set(['timestamp' => $now, 'values' => $current]);
-        $item->expiresAfter($this->maxElapsed * 2);
-        $this->cache->save($item);
+        if (!is_array($previous) || !is_int($previous['timestamp'] ?? null) || !is_array($previous['values'] ?? null)) {
+            $this->save($item, $current, $now);
 
-        if (!is_array($previous) || !isset($previous['timestamp'], $previous['values'])) {
             return null;
         }
 
         $elapsed = $now - $previous['timestamp'];
 
-        if ($elapsed < $this->minElapsed || $elapsed > $this->maxElapsed) {
+        if ($elapsed < 0 || $elapsed >= $this->minElapsed) {
+            $this->save($item, $current, $now);
+        }
+
+        if ($elapsed < 1 || $elapsed > $this->maxElapsed) {
             return null;
         }
 
         return new Delta($previous['values'], $current, $elapsed);
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function save(CacheItemInterface $item, array $values, int $now): void
+    {
+        $item->set(['timestamp' => $now, 'values' => $values]);
+        $item->expiresAfter($this->maxElapsed * 2);
+        $this->cache->save($item);
     }
 }
