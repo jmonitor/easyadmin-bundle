@@ -22,6 +22,7 @@ final class MonitoringExtension extends AbstractExtension
             new TwigFilter('jm_bytes', $this->bytes(...)),
             new TwigFilter('jm_duration', $this->duration(...)),
             new TwigFilter('jm_number', $this->number(...)),
+            new TwigFilter('jm_ago', $this->ago(...)),
         ];
     }
 
@@ -93,6 +94,29 @@ final class MonitoringExtension extends AbstractExtension
         }
 
         return number_format($value, $precision, '.', ' ');
+    }
+
+    public function ago(?int $timestamp, ?int $now = null): string
+    {
+        if ($timestamp === null) {
+            return self::EMPTY;
+        }
+
+        $elapsed = ($now ?? time()) - $timestamp;
+        $seconds = abs($elapsed);
+
+        if ($seconds < 5) {
+            return 'just now';
+        }
+
+        $distance = match (true) {
+            $seconds < 60 => $seconds . ' s',
+            $seconds < 3_600 => intdiv($seconds, 60) . ' min',
+            $seconds < 86_400 => intdiv($seconds, 3_600) . ' h',
+            default => intdiv($seconds, 86_400) . ' d',
+        };
+
+        return $elapsed > 0 ? $distance . ' ago' : 'in ' . $distance;
     }
 
     public function helpUrl(string $metric): ?string

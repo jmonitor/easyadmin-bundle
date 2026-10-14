@@ -80,23 +80,6 @@
     overflow-wrap: anywhere;
 }
 
-.jm-tile {
-    padding: .5rem .25rem;
-    border-radius: var(--bs-border-radius, .375rem);
-    background: var(--bs-tertiary-bg, #f8f9fa);
-}
-
-.jm-tile-value {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.jm-tile-label {
-    font-size: .75rem;
-    text-transform: uppercase;
-    color: var(--bs-secondary-color, #6c757d);
-}
-
 .jm-live {
     white-space: nowrap;
 }

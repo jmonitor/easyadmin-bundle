@@ -95,28 +95,20 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('No keys', $html);
     }
 
-    public function testTheSystemFragmentShowsTheLoadAverageAsTiles(): void
+    public function testTheSystemFragmentShowsTheLoadAverageUnderTheCpuGauge(): void
     {
         $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', [
             'cpu' => ['cores' => 4, 'load' => 62, 'load1' => 1.25, 'load5' => 1.65, 'load15' => 1.7],
             'hostname' => 'web-1',
+            'timezone' => 'Europe/Paris',
         ], null, 1_000)]);
 
         $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
 
-        self::assertSame(3, substr_count($html, 'class="jm-tile"'));
-        self::assertStringContainsString('1.65', $html);
-        self::assertStringContainsString('15 min', $html);
-    }
-
-    public function testTheSystemFragmentHidesAnUnknownLoadAverage(): void
-    {
-        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['hostname' => 'web-1'], null, 1_000)]);
-
-        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
-
-        self::assertStringContainsString('web-1', $html);
-        self::assertStringNotContainsString('Load average', $html);
+        self::assertStringContainsString('Load average 1.25', $html);
+        self::assertStringContainsString('System informations', $html);
+        self::assertStringContainsString('CPU cores', $html);
+        self::assertStringNotContainsString('1.65', $html);
     }
 
     public function testThePhpFragmentListsTheIniFilesAndSplitsTheConfiguration(): void
