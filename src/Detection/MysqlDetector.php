@@ -10,8 +10,11 @@ use Jmonitor\Collector\Mysql\MysqlInformationSchemaCollector;
 use Jmonitor\Collector\Mysql\MysqlSlowQueriesCollector;
 use Jmonitor\Collector\Mysql\MysqlStatusCollector;
 use Jmonitor\Collector\Mysql\MysqlVariablesCollector;
+use Jmonitor\Collector\System\Adapter\AdapterInterface;
+use Jmonitor\Collector\System\Adapter\LinuxAdapter;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
+use Jmonitor\EasyAdminBundle\Collector\HostRamCollector;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\Utils\DatabaseAdapter\DoctrineAdapter;
@@ -24,6 +27,7 @@ use Psr\Container\ContainerInterface;
 final readonly class MysqlDetector implements ComponentDetectorInterface
 {
     private const DRIVERS = ['pdo_mysql', 'mysqli'];
+    private const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
     /**
      * @param ContainerInterface $connections     Doctrine connections, keyed by connection name
@@ -34,6 +38,8 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         private ContainerInterface $connections,
         private array $connectionNames,
         private ?string $connection,
+        private string $osFamily = PHP_OS_FAMILY,
+        private ?AdapterInterface $systemAdapter = null,
     ) {}
 
     public function component(): Component
@@ -68,7 +74,7 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
 
             $database = $params['dbname'] ?? null;
 
-            return Detection::found($this->collectors($connection, is_string($database) ? $database : ''));
+            return Detection::found($this->collectors($connection, is_string($database) ? $database : '', self::isLocal($params)));
         }
 
         return Detection::unavailable('No MySQL or MariaDB Doctrine connection found.');
@@ -88,15 +94,38 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         return in_array($params['driver'] ?? null, self::DRIVERS, true);
     }
 
-    private function collectors(Connection $connection, string $database): CollectorSet
+    /**
+     * Without a host, the drivers connect to localhost.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function isLocal(array $params): bool
+    {
+        $params = is_array($params['primary'] ?? null) ? $params['primary'] : $params;
+
+        if (is_string($params['unix_socket'] ?? null) && $params['unix_socket'] !== '') {
+            return true;
+        }
+
+        $host = $params['host'] ?? null;
+
+        return $host === null || $host === '' || (is_string($host) && in_array(strtolower($host), self::LOCAL_HOSTS, true));
+    }
+
+    private function collectors(Connection $connection, string $database, bool $local): CollectorSet
     {
         $adapter = new DoctrineAdapter($connection);
-
-        return new CollectorSet(Component::Mysql, [
+        $specs = [
             new CollectorSpec(new MysqlStatusCollector($adapter), Lifetime::Dynamic, trackDelta: true),
             new CollectorSpec(new MysqlVariablesCollector($adapter), Lifetime::Static),
             new CollectorSpec(new MysqlInformationSchemaCollector($adapter, $database), Lifetime::Static),
             new CollectorSpec(new MysqlSlowQueriesCollector($adapter, $database, 10, 1, 0, MysqlSlowQueriesCollector::ORDER_BY_AVG_TIME), Lifetime::Minute),
-        ]);
+        ];
+
+        if ($local && ($this->systemAdapter !== null || $this->osFamily === 'Linux')) {
+            $specs[] = new CollectorSpec(new HostRamCollector($this->systemAdapter ?? new LinuxAdapter()), Lifetime::Static);
+        }
+
+        return new CollectorSet(Component::Mysql, $specs);
     }
 }

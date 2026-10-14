@@ -84,7 +84,7 @@ final readonly class RedisView
         $this->maxMemoryUnlimited = $this->maxMemoryBytes === 0 ? new Badge(BadgeStyle::Danger, 'Unlimited') : null;
         $policy = Values::string($memory['max_memory_policy'] ?? null);
         $this->maxMemoryPolicy = $policy === null ? null : new Badge(BadgeStyle::Info, $policy);
-        $this->maxMemoryPolicyDescription = self::POLICIES[$policy] ?? null;
+        $this->maxMemoryPolicyDescription = $policy === null ? null : self::POLICIES[$policy] ?? null;
         $this->port = Values::int($server['port'] ?? null);
         $this->uptime = Values::int($server['uptime'] ?? null);
         $role = Values::string($replication['role'] ?? null);

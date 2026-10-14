@@ -34,6 +34,8 @@ final class PhpViewTest extends TestCase
 
         self::assertSame(134_217_728, $view->memoryLimit);
         self::assertSame(30, $view->maxExecutionTime);
+        self::assertNull($view->memoryLimitUnlimited);
+        self::assertNull($view->maxExecutionTimeUnlimited);
         self::assertSame(BadgeStyle::Success, self::badge($view->displayErrors)->style);
         self::assertSame('0', self::badge($view->displayErrors)->label);
         self::assertSame(BadgeStyle::Success, $view->logErrors?->style);
@@ -95,6 +97,7 @@ final class PhpViewTest extends TestCase
         self::assertFalse($view->apcu);
         self::assertFalse($view->fpm);
         self::assertNull($view->memoryLimit, 'no limit');
+        self::assertSame('Unlimited', $view->memoryLimitUnlimited?->label);
         self::assertSame('stderr', $view->displayErrors);
         self::assertSame([], $view->iniFiles);
     }
@@ -108,6 +111,34 @@ final class PhpViewTest extends TestCase
 
         self::assertNull($view->fpmMemoryPeakPercent);
         self::assertSame(67_108_864, $view->fpmMemoryPeak);
+    }
+
+    public function testNoMemoryPeakGaugeWithoutThePeak(): void
+    {
+        $payload = Payloads::php();
+        unset($payload['fpm']['memory-peak']);
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertNull($view->fpmMemoryPeakPercent, 'PHP-FPM before 8.2 reports no memory peak');
+    }
+
+    public function testNoExecutionTimeLimitIsUnlimited(): void
+    {
+        $view = new PhpView($this->snapshot(['max_execution_time' => 0] + Payloads::php()), $this->gauges());
+
+        self::assertNull($view->maxExecutionTime);
+        self::assertSame('Unlimited', $view->maxExecutionTimeUnlimited?->label);
+    }
+
+    public function testOpcacheTurnedOffAtRuntimeIsDisabled(): void
+    {
+        $payload = Payloads::php();
+        $payload['opcache']['status']['opcache_enabled'] = false;
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertSame('Disabled', $view->opcacheEnabled->label, 'opcache.enable is on but the accelerator is not');
     }
 
     public function testFailedCollectorIsUnavailable(): void

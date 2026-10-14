@@ -6,9 +6,11 @@ namespace Jmonitor\EasyAdminBundle\Tests\Detection;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Jmonitor\Collector\System\Adapter\AdapterInterface;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 
@@ -64,6 +66,48 @@ final class MysqlDetectorTest extends TestCase
         self::assertStringContainsString('not a MySQL or MariaDB connection', (string) $forcedSqlite->error);
     }
 
+    /**
+     * @return iterable<string, array{array<string, mixed>, bool}>
+     */
+    public static function hosts(): iterable
+    {
+        yield 'no host' => [[], true];
+        yield 'localhost' => [['host' => 'localhost'], true];
+        yield 'loopback' => [['host' => '127.0.0.1'], true];
+        yield 'IPv6 loopback' => [['host' => '::1'], true];
+        yield 'socket' => [['host' => 'db.internal', 'unix_socket' => '/run/mysqld/mysqld.sock'], true];
+        yield 'remote host' => [['host' => 'db.internal'], false];
+        yield 'compose service' => [['host' => 'database'], false];
+        yield 'remote primary' => [['primary' => ['host' => 'db.internal']], false];
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('hosts')]
+    public function testTheHostRamIsCollectedOnlyForALocalServer(array $params, bool $local): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => 'app'] + $params);
+        $system = $this->createMock(AdapterInterface::class);
+
+        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'Linux', $system))->detect();
+
+        self::assertSame($local, \in_array('system.ram_total', $detection->collectors?->names() ?? [], true));
+        if ($local) {
+            self::assertSame(Lifetime::Static, $detection->collectors?->get('system.ram_total')?->lifetime);
+        }
+    }
+
+    public function testNoHostRamOutsideLinux(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'localhost', 'dbname' => 'app']);
+        $detector = new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'Windows');
+
+        self::assertNotContains('system.ram_total', $detector->detect()->collectors?->names() ?? []);
+    }
+
     public function testUnknownConfiguredConnection(): void
     {
         $detection = (new MysqlDetector(new ServiceLocator([]), ['default'], 'missing'))->detect();
@@ -116,7 +160,7 @@ final class MysqlDetectorTest extends TestCase
     private function mysqlConnection(string $database): Connection
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => $database]);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'db.internal', 'dbname' => $database]);
 
         return $connection;
     }

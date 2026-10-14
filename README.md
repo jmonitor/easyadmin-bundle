@@ -33,11 +33,11 @@ One tab per detected component:
 
 - **System**: RAM, CPU (with the number of cores) and disk gauges; hostname, OS, server time, timezone, uptime and the 1, 5 and 15-minute load average.
 - **PHP**: version, SAPI and configuration of the PHP process serving the page, INI files and extensions; OpCache and APCu memory, hit rate and configuration; PHP-FPM requests per second, active and idle processes, max children reached, slow requests, memory peak and pool.
-- **MySQL** (or MariaDB): version, server informations and configuration; connection usage, max connections reached, queries per second; slow queries from the performance schema; InnoDB buffer pool usage and hit rate, RAM ratio, disk operations; table lock waits, threads, thread cache misses, temporary tables on disk; data and index size.
+- **MySQL** (or MariaDB): version, server informations and configuration; connection usage, max connections reached, queries per second; slow queries from the performance schema; InnoDB buffer pool usage and hit rate, RAM ratio when the server runs on the same host, disk operations; table lock waits, threads, thread cache misses, temporary tables on disk; data and index size.
 - **Redis**: version, mode, server and replication, RDB and AOF persistence, memory usage or peak, eviction policy, operations per second, hit rate, evictions and errors, keys per database.
 - **Symfony**: version, environment and debug mode, OPcache / APCu / realpath cache recommendations, bundles, outdated Flex recipes, Messenger transports, Scheduler tasks.
 
-The cards are those of the jmonitor.io dashboard, without the history. Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
+The cards are those of the jmonitor.io dashboard, without the history. Gauges carry a badge computed from typical thresholds. Rates and ratios are computed between two refreshes; before the second one, or when nothing happened in between, ratios fall back to the values cumulated since the server started. Each metric has a `?` that opens its help page from jmonitor in a side panel.
 
 ## Configuration
 

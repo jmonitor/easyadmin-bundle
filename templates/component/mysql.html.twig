@@ -16,7 +16,6 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'MySQL informations', metric: 'mysql.informations'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                        'Date': view.timestamp is null ? null : view.timestamp|date('Y-m-d H:i'),
                         'Timezone': view.timeZone,
                         'System Timezone': view.systemTimeZone,
                         'Uptime': view.uptime|jm_duration,
@@ -155,16 +154,18 @@
 
     <h2 class="h5 mt-4 mb-2">InnoDB engine</h2>
     <div class="row g-3">
-        <div class="col-md-6 col-xl-3">
+        <div class="col-md-6 col-xl">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.bufferPoolUsage, detail: view.bufferPoolTotal is null ? null : view.bufferPoolUsed|jm_bytes ~ ' / ' ~ view.bufferPoolTotal|jm_bytes}) }}
         </div>
-        <div class="col-md-6 col-xl-3">
+        <div class="col-md-6 col-xl">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.bufferPoolHitRate}) }}
         </div>
-        <div class="col-md-6 col-xl-3">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ramRatio, detail: view.bufferPoolSize is null or view.ramTotal is null ? null : view.bufferPoolSize|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
-        </div>
-        <div class="col-md-6 col-xl-3">
+        {% if view.ramRatio %}
+            <div class="col-md-6 col-xl">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ramRatio, detail: view.bufferPoolSize is null or view.ramTotal is null ? null : view.bufferPoolSize|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
+            </div>
+        {% endif %}
+        <div class="col-md-6 col-xl">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Disk operations'} %}
                 {% block body %}
                     <div class="mb-3">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Reads', metric: 'mysql.innodb_reads_per_sec', rate: view.innodbReadsPerSec}) }}</div>
@@ -182,7 +183,7 @@
                     <div class="row g-3 align-items-center">
                         <div class="col-md-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Lock Waits / sec', metric: 'mysql.tables_lock_waits_per_sec', rate: view.tableLocksWaitedPerSec}) }}</div>
                         <div class="col-md-4">
-                            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.tableLocksWaitsPercent, bare: true, detail: view.tableLocksTotalDelta is null ? null : view.tableLocksWaitedDelta ~ ' / ' ~ view.tableLocksTotalDelta}) }}
+                            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.tableLocksWaitsPercent, bare: true}) }}
                         </div>
                         <div class="col-md-4">
                             <h6 class="text-muted small">Since last refresh</h6>
@@ -210,14 +211,14 @@
                             {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Running', metric: 'mysql.threads_running', value: view.threadsRunning}) }}
                         </div>
                         <div class="col-md-8">
-                            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.threadCacheMiss, bare: true, detail: view.connections is null ? null : view.threadsCreated ~ ' / ' ~ view.connections}) }}
+                            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.threadCacheMiss, bare: true}) }}
                         </div>
                     </div>
                 {% endblock %}
             {% endembed %}
         </div>
         <div class="col-md-6 col-xl-4">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.tmpTables, detail: view.tmpTablesCreated is null ? null : view.tmpDiskTables ~ ' / ' ~ view.tmpTablesCreated}) }}
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.tmpTables}) }}
         </div>
     </div>
 

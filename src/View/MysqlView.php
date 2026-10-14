@@ -19,7 +19,6 @@ final readonly class MysqlView
 
     /** @var array<string, mixed> */
     private array $variables;
-    public ?int $timestamp;
     public ?float $longQueryTime;
     public ?string $timeZone;
     public ?string $systemTimeZone;
@@ -45,7 +44,7 @@ final readonly class MysqlView
     public ?int $bufferPoolUsed;
     public ?int $bufferPoolTotal;
     public Gauge $bufferPoolHitRate;
-    public Gauge $ramRatio;
+    public ?Gauge $ramRatio;
     public ?int $bufferPoolSize;
     public ?int $ramTotal;
     public Rate $innodbReadsPerSec;
@@ -59,17 +58,13 @@ final readonly class MysqlView
     public ?float $tableLocksWaitsPercentSinceStart;
     public ?int $threadsRunning;
     public Gauge $threadCacheMiss;
-    public ?int $threadsCreated;
-    public ?int $connections;
     public Gauge $tmpTables;
-    public ?int $tmpDiskTables;
-    public ?int $tmpTablesCreated;
 
     public ?int $dataLength;
     public ?int $indexLength;
     public ?int $totalLength;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ComponentSnapshot $system)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
     {
         $status = $snapshot->data('mysql.status');
         $variables = $snapshot->data('mysql.variables');
@@ -81,7 +76,6 @@ final readonly class MysqlView
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
         $this->variables = $variables;
-        $this->timestamp = Values::int($variables['timestamp'] ?? null);
         $this->longQueryTime = Values::float($variables['long_query_time'] ?? null);
         $this->timeZone = Values::string($variables['time_zone'] ?? null);
         $this->systemTimeZone = Values::string($variables['system_time_zone'] ?? null);
@@ -116,29 +110,30 @@ final readonly class MysqlView
             Values::int($status['Innodb_buffer_pool_reads'] ?? null),
             Values::int($status['Innodb_buffer_pool_read_requests'] ?? null),
         ), 2);
-        $this->ramTotal = Values::int($system->data('system')['ram']['total'] ?? null);
-        $this->ramRatio = $gauges->create('mysql.innodb_ram_ratio', 'RAM ratio', Values::percent($this->bufferPoolSize, $this->ramTotal));
+        $this->ramTotal = Values::int($snapshot->data('system.ram_total')['total'] ?? null);
+        $this->ramRatio = $snapshot->result('system.ram_total') === null
+            ? null
+            : $gauges->create('mysql.innodb_ram_ratio', 'RAM ratio', Values::percent($this->bufferPoolSize, $this->ramTotal));
         $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s');
         $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s');
 
         $waited = Values::int($status['Table_locks_waited'] ?? null);
         $immediate = Values::int($status['Table_locks_immediate'] ?? null);
+        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '');
         $waitedDelta = $delta?->getValue('Table_locks_waited');
         $immediateDelta = $delta?->getValue('Table_locks_immediate');
-        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '');
         $this->tableLocksWaitedDelta = $waitedDelta === null ? null : (int) $waitedDelta;
         $this->tableLocksTotalDelta = $waitedDelta === null || $immediateDelta === null ? null : (int) ($waitedDelta + $immediateDelta);
-        $this->tableLocksWaitsPercentDelta = $this->tableLocksTotalDelta !== null && $this->tableLocksTotalDelta > 0 ? round($this->tableLocksWaitedDelta / $this->tableLocksTotalDelta * 100, 2) : null;
-        $this->tableLocksWaitsPercent = $gauges->fromRate('mysql.tables_lock_waits_percent', 'Ratio', Ratios::share($delta, 'Table_locks_waited', 'Table_locks_immediate', $waited, $immediate), 2);
-        $this->tableLocksWaitsPercentSinceStart = $waited !== null && $immediate !== null && $immediate > 0 ? round($waited / ($waited + $immediate) * 100, 2) : null;
+        $this->tableLocksWaitsPercentDelta = Ratios::share($delta, 'Table_locks_waited', 'Table_locks_immediate', null, null)->value;
+        $this->tableLocksWaitsPercentSinceStart = Ratios::share(null, 'Table_locks_waited', 'Table_locks_immediate', $waited, $immediate)->value;
+        $locks = Ratios::share($delta, 'Table_locks_waited', 'Table_locks_immediate', $waited, $immediate);
+        $this->tableLocksWaitsPercent = $gauges->fromRate('mysql.tables_lock_waits_percent', 'Ratio', $locks, 2, $locks->fraction());
 
         $this->threadsRunning = Values::int($status['Threads_running'] ?? null);
-        $this->threadsCreated = Values::int($status['Threads_created'] ?? null);
-        $this->connections = Values::int($status['Connections'] ?? null);
-        $this->threadCacheMiss = $gauges->create('mysql.thread_cache_miss', 'Cache miss', Values::percent($this->threadsCreated, $this->connections), 1);
-        $this->tmpDiskTables = Values::int($status['Created_tmp_disk_tables'] ?? null);
-        $this->tmpTablesCreated = Values::int($status['Created_tmp_tables'] ?? null);
-        $this->tmpTables = $gauges->create('mysql.tmp_tables', 'Temporary tables', Values::percent($this->tmpDiskTables, $this->tmpTablesCreated), 2);
+        $threadCacheMiss = Ratios::percent($delta, 'Threads_created', 'Connections', Values::int($status['Threads_created'] ?? null), Values::int($status['Connections'] ?? null));
+        $this->threadCacheMiss = $gauges->fromRate('mysql.thread_cache_miss', 'Cache miss', $threadCacheMiss, 1, $threadCacheMiss->fraction());
+        $tmpTables = Ratios::percent($delta, 'Created_tmp_disk_tables', 'Created_tmp_tables', Values::int($status['Created_tmp_disk_tables'] ?? null), Values::int($status['Created_tmp_tables'] ?? null));
+        $this->tmpTables = $gauges->fromRate('mysql.tmp_tables', 'Temporary tables', $tmpTables, 2, $tmpTables->fraction());
 
         $this->dataLength = Values::int($schema['data_weight']['data_length'] ?? null);
         $this->indexLength = Values::int($schema['data_weight']['index_length'] ?? null);

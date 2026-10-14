@@ -19,7 +19,9 @@ final readonly class PhpView
     public ?string $sapi;
 
     public ?int $memoryLimit;
+    public ?Badge $memoryLimitUnlimited;
     public ?int $maxExecutionTime;
+    public ?Badge $maxExecutionTimeUnlimited;
     public Badge|string|null $displayErrors;
     public ?Badge $logErrors;
     public ?string $errorLog;
@@ -86,7 +88,9 @@ final readonly class PhpView
         $memoryLimit = Values::iniBytes($data['memory_limit'] ?? null);
         $maxExecutionTime = Values::int($data['max_execution_time'] ?? null);
         $this->memoryLimit = is_int($memoryLimit) ? $memoryLimit : null;
+        $this->memoryLimitUnlimited = $memoryLimit === false ? new Badge(BadgeStyle::Warning, 'Unlimited') : null;
         $this->maxExecutionTime = $maxExecutionTime === 0 ? null : $maxExecutionTime;
+        $this->maxExecutionTimeUnlimited = $maxExecutionTime === 0 ? new Badge(BadgeStyle::Warning, 'Unlimited') : null;
         $this->displayErrors = self::displayErrors($data['display_errors'] ?? null);
         $this->logErrors = match (Values::bool($data['log_errors'] ?? null)) {
             true => new Badge(BadgeStyle::Success, '1'),
@@ -109,7 +113,7 @@ final readonly class PhpView
         $statistics = $opcache['status']['opcache_statistics'] ?? [];
 
         $this->opcache = $opcache !== [];
-        $this->opcacheEnabled = Values::bool($directives['opcache.enable'] ?? null) === true
+        $this->opcacheEnabled = self::opcacheRuns($opcache)
             ? new Badge(BadgeStyle::Success, 'Enabled')
             : new Badge(BadgeStyle::Danger, 'Disabled');
         $this->opcacheCli = Values::bool($directives['opcache.enable_cli'] ?? null) === true
@@ -190,12 +194,22 @@ final readonly class PhpView
             default => new Badge(BadgeStyle::Danger, 'Detected'),
         };
         $this->fpmMemoryPeak = Values::int($fpm['memory-peak'] ?? null);
-        $this->fpmMemoryPeakPercent = $memoryLimit === false
+        $this->fpmMemoryPeakPercent = $this->fpmMemoryPeak === null || $this->memoryLimit === null
             ? null
             : $gauges->create('php.fpm_memory_peak_percent', 'Memory peak', Values::percent($this->fpmMemoryPeak, $this->memoryLimit));
         $this->fpmPool = Values::string($fpm['pool'] ?? null);
         $this->fpmProcessManager = Values::string($fpm['process-manager'] ?? null);
         $this->fpmUptime = Values::int($fpm['start-since'] ?? null);
+    }
+
+    /**
+     * The directive can be on while the accelerator is off at runtime; the status tells.
+     *
+     * @param array<mixed> $opcache
+     */
+    public static function opcacheRuns(array $opcache): bool
+    {
+        return Values::bool($opcache['status']['opcache_enabled'] ?? $opcache['config']['directives']['opcache.enable'] ?? null) === true;
     }
 
     private static function displayErrors(mixed $value): Badge|string|null

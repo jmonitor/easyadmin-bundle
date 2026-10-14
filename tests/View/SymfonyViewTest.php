@@ -82,6 +82,15 @@ final class SymfonyViewTest extends TestCase
         self::assertNull($view->nextTask);
     }
 
+    public function testOpcacheTurnedOffAtRuntimeIsRecommended(): void
+    {
+        $view = new SymfonyView($this->symfony(Payloads::symfony()), $this->php([
+            'opcache' => ['config' => ['directives' => ['opcache.enable' => true]], 'status' => ['opcache_enabled' => false]],
+        ]));
+
+        self::assertSame('Disabled', $view->opcache->label);
+    }
+
     public function testWithoutPhpMetricsThereAreNoRecommendations(): void
     {
         $view = new SymfonyView($this->symfony(['env' => 'dev', 'debug' => true, 'bundles' => [], 'components' => []]), new ComponentSnapshot(Component::Php, [], 'disabled'));

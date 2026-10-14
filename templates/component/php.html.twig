@@ -17,8 +17,8 @@
                     <div class="row">
                         <div class="col-md-6">
                             {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                                'memory_limit': view.memoryLimit is null ? null : view.memoryLimit|jm_bytes,
-                                'max_execution_time': view.maxExecutionTime is null ? null : view.maxExecutionTime|jm_duration,
+                                'memory_limit': view.memoryLimitUnlimited ?? (view.memoryLimit is null ? null : view.memoryLimit|jm_bytes),
+                                'max_execution_time': view.maxExecutionTimeUnlimited ?? (view.maxExecutionTime is null ? null : view.maxExecutionTime|jm_duration),
                                 'display_errors': view.displayErrors,
                                 'log_errors': view.logErrors,
                             }}) }}

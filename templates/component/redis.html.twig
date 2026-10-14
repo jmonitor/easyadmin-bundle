@@ -133,7 +133,8 @@
                     maxLabel: view.maxMemoryBytes|jm_bytes,
                 }) }}
             {% else %}
-                <div class="jm-stat">{{ view.usedMemory|jm_bytes }}</div>
+                <div class="jm-stat">{{ view.peakMemory|jm_bytes }}</div>
+                <div class="small text-muted">Current: {{ view.usedMemory|jm_bytes }}</div>
             {% endif %}
         {% endblock %}
     {% endembed %}

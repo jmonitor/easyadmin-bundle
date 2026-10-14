@@ -60,7 +60,7 @@ final readonly class SymfonyView
 
         $phpData = $php->data('php');
         $this->recommendationsAvailable = $php->has('php');
-        $this->opcache = Values::bool($phpData['opcache']['config']['directives']['opcache.enable'] ?? null) === true
+        $this->opcache = PhpView::opcacheRuns(is_array($phpData['opcache'] ?? null) ? $phpData['opcache'] : [])
             ? new Badge(BadgeStyle::Success, 'Enabled')
             : new Badge(BadgeStyle::Danger, 'Disabled');
         $this->apcu = Values::bool($phpData['apcu']['config']['apc.enabled'] ?? null) === true

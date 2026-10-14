@@ -53,10 +53,10 @@ final class ComponentTemplatesTest extends TestCase
             'mysql.variables' => new CollectorResult('mysql.variables', ['slow_query_log' => 'OFF'] + Payloads::mysqlVariables(), null, 1_000),
             'mysql.information_schema' => new CollectorResult('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]], null, 1_000),
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
+            'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
         ]);
-        $system = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['ram' => ['total' => 1_073_741_824]], null, 1_000)]);
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), $system));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('MySQL Community Server - GPL', $html);
         self::assertStringContainsString('Connection usage', $html);
@@ -66,6 +66,9 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('The slow query log is disabled on your side.', $html);
         self::assertStringContainsString('slow_query_log_file', $html);
         self::assertStringContainsString('RAM ratio', $html);
+        self::assertStringContainsString('1 / 100', $html, 'lock waits detail from the delta');
+        self::assertStringContainsString('7 / 1100', $html, 'thread cache miss detail since the start');
+        self::assertStringNotContainsString('<dt>Date</dt>', $html, 'SHOW GLOBAL VARIABLES has no timestamp');
         self::assertStringNotContainsString('time_zone</dt>', $html, 'only the keys of the mysql.config help');
         self::assertStringNotContainsString('<html', $html);
     }
@@ -76,12 +79,12 @@ final class ComponentTemplatesTest extends TestCase
             'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
         ]);
-        $system = new ComponentSnapshot(Component::System, [], 'This component is not available.');
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), $system));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
         self::assertStringContainsString('performance_schema table is not readable', $html);
+        self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
     }
 
     public function testTheRedisFragmentRendersWithAMemoryLimit(): void
@@ -108,7 +111,8 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Unlimited', $html);
         self::assertStringContainsString('Memory peak', $html);
-        self::assertStringNotContainsString('Current:', $html, 'no maximum to draw the peak against');
+        self::assertStringContainsString('<div class="jm-stat">1.5 GB</div>', $html, 'the peak, without a maximum to draw it against');
+        self::assertStringContainsString('Current: 1.4 GB', $html);
         self::assertStringContainsString('since server start', $html);
     }
 
@@ -173,6 +177,8 @@ final class ComponentTemplatesTest extends TestCase
         $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [
             'version' => '8.5.8',
             'sapi_name' => 'frankenphp',
+            'memory_limit' => '-1',
+            'max_execution_time' => 0,
             'error_log' => '',
         ], null, 1_000)]);
 
@@ -180,6 +186,8 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('APCu is disabled.', $html);
         self::assertStringContainsString('PHP-FPM usage not detected.', $html);
+        self::assertMatchesRegularExpression('#memory_limit</dt>\s*<dd[^>]*><span class="badge[^"]*">Unlimited</span>#', $html);
+        self::assertMatchesRegularExpression('#max_execution_time</dt>\s*<dd[^>]*><span class="badge[^"]*">Unlimited</span>#', $html);
         self::assertMatchesRegularExpression('#error_log</dt>\s*<dd[^>]*><span class="text-muted">—</span>#', $html);
     }
 
