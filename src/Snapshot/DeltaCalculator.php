@@ -8,9 +8,9 @@ use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 
 /**
- * Keeps the previous sample of each collector in the cache and compares it with the new one.
- * A delta is only meaningful when the two samples are neither too close nor too far apart;
- * a sample too close to the previous one is dropped so the next one can still be compared.
+ * Keeps a reference sample of each collector in the cache and compares each new sample with it.
+ * A sample taken less than $minElapsed after the reference, such as a Refresh, is compared with
+ * it but does not replace it, so the next poll still spans a full interval.
  */
 final readonly class DeltaCalculator
 {
@@ -37,13 +37,11 @@ final readonly class DeltaCalculator
 
         $elapsed = $now - $previous['timestamp'];
 
-        if ($elapsed >= 0 && $elapsed < $this->minElapsed) {
-            return null;
+        if ($elapsed < 0 || $elapsed >= $this->minElapsed) {
+            $this->save($item, $current, $now);
         }
 
-        $this->save($item, $current, $now);
-
-        if ($elapsed < $this->minElapsed || $elapsed > $this->maxElapsed) {
+        if ($elapsed < 1 || $elapsed > $this->maxElapsed) {
             return null;
         }
 

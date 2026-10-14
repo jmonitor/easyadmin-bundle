@@ -39,20 +39,23 @@ final class DeltaCalculatorTest extends TestCase
         self::assertSame(20, $delta?->getValue('stats.keyspace_hits'));
     }
 
-    public function testSamplesTooCloseOrTooOldGiveNoDelta(): void
+    public function testSamplesOfTheSameSecondOrTooOldGiveNoDelta(): void
     {
         $calculator = new DeltaCalculator(new ArrayAdapter(), minElapsed: 5, maxElapsed: 300);
         $calculator->track('mysql.status', ['Questions' => 100], 1_000);
 
-        self::assertNull($calculator->track('mysql.status', ['Questions' => 120], 1_003), 'too close');
+        self::assertNull($calculator->track('mysql.status', ['Questions' => 120], 1_000), 'same second');
         self::assertNull($calculator->track('mysql.status', ['Questions' => 900], 2_000), 'too old');
     }
 
-    public function testASampleTooCloseKeepsThePreviousOne(): void
+    public function testASampleTooCloseIsComparedWithTheReferenceWithoutReplacingIt(): void
     {
         $calculator = new DeltaCalculator(new ArrayAdapter(), minElapsed: 5);
         $calculator->track('mysql.status', ['Questions' => 100], 1_000);
-        $calculator->track('mysql.status', ['Questions' => 120], 1_003);
+
+        $close = $calculator->track('mysql.status', ['Questions' => 120], 1_002);
+        self::assertSame(20, $close?->getValue('Questions'));
+        self::assertSame(10.0, $close->getPerSec('Questions'));
 
         $delta = $calculator->track('mysql.status', ['Questions' => 250], 1_010);
 

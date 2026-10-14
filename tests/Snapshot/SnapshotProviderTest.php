@@ -73,6 +73,26 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame(11, $snapshot->delta('mysql.status')->elapsed);
     }
 
+    public function testARefreshRightAfterACollectKeepsItsRates(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $provider = $this->provider(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic, trackDelta: true)]);
+
+        $provider->get(Component::Mysql);
+        $this->clock->sleep(2);
+        $status->setData(['Questions' => 120]);
+        $provider->refresh(Component::Mysql);
+        $refreshed = $provider->get(Component::Mysql);
+
+        self::assertSame(10.0, $refreshed->delta('mysql.status')?->getPerSec('Questions'));
+
+        $this->cache->deleteItem(SnapshotProvider::cacheKey('mysql.status'));
+        $this->clock->sleep(9);
+        $status->setData(['Questions' => 210]);
+
+        self::assertSame(11, $provider->get(Component::Mysql)->delta('mysql.status')?->elapsed, 'the next poll spans a full interval');
+    }
+
     public function testCollectorFailureIsCapturedAndCachedForTheDynamicLifetime(): void
     {
         $slow = new FakeCollector('mysql.slow_queries', collectFailure: new \RuntimeException('performance_schema table is not readable'));
