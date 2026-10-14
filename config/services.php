@@ -114,6 +114,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             service($config['cache_pool']),
             max(1, intdiv($config['polling_interval'], 2)),
+            max(300, 2 * $config['polling_interval']),
         ])
     ;
 
