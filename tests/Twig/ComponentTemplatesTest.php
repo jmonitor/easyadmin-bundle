@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
+use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 
@@ -91,6 +92,30 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Connection refused', $html);
         self::assertStringContainsString('No keys', $html);
+    }
+
+    public function testTheSystemFragmentShowsTheLoadAverageAsTiles(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', [
+            'cpu' => ['cores' => 4, 'load' => 62, 'load1' => 1.25, 'load5' => 1.65, 'load15' => 1.7],
+            'hostname' => 'web-1',
+        ], null, 1_000)]);
+
+        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
+
+        self::assertSame(3, substr_count($html, 'class="jm-tile"'));
+        self::assertStringContainsString('1.65', $html);
+        self::assertStringContainsString('15 min', $html);
+    }
+
+    public function testTheSystemFragmentHidesAnUnknownLoadAverage(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', ['hostname' => 'web-1'], null, 1_000)]);
+
+        $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('web-1', $html);
+        self::assertStringNotContainsString('Load average', $html);
     }
 
     public function testNoHelpLinkWhenTheHelpIsDisabled(): void

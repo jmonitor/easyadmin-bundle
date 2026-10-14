@@ -12,9 +12,11 @@
     var interval = Math.max(1, parseInt(root.getAttribute('data-live-interval'), 10) || 10) * 1000;
     var content = root.querySelector('[data-live-content]');
     var toggle = root.querySelector('[data-live-toggle]');
+    var status = root.querySelector('[data-live-status]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
+    var updatedAt = Date.now();
 
     function readPreference() {
         try {
@@ -37,9 +39,33 @@
             return;
         }
 
-        toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-        toggle.classList.toggle('active', enabled);
-        toggle.textContent = enabled ? 'Live' : 'Live (paused)';
+        toggle.checked = enabled;
+    }
+
+    function ago(milliseconds) {
+        var seconds = Math.floor(milliseconds / 1000);
+
+        if (seconds < 5) {
+            return 'just now';
+        }
+
+        if (seconds < 60) {
+            return seconds + ' s ago';
+        }
+
+        if (seconds < 3600) {
+            return Math.floor(seconds / 60) + ' min ago';
+        }
+
+        return Math.floor(seconds / 3600) + ' h ago';
+    }
+
+    function renderStatus() {
+        if (!status) {
+            return;
+        }
+
+        status.textContent = (enabled ? 'Every ' + interval / 1000 + ' s' : 'Paused') + ' · updated ' + ago(Date.now() - updatedAt);
     }
 
     function refresh() {
@@ -67,6 +93,8 @@
             .then(function (html) {
                 if (html !== null) {
                     content.innerHTML = html;
+                    updatedAt = Date.now();
+                    renderStatus();
                 }
             })
             .catch(function () {
@@ -97,10 +125,10 @@
     }
 
     if (toggle) {
-        toggle.addEventListener('click', function () {
-            enabled = !enabled;
+        toggle.addEventListener('change', function () {
+            enabled = toggle.checked;
             writePreference(enabled);
-            renderToggle();
+            renderStatus();
             start();
         });
     }
@@ -115,5 +143,7 @@
     });
 
     renderToggle();
+    renderStatus();
+    window.setInterval(renderStatus, 1000);
     start();
 })();
