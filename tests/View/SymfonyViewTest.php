@@ -24,7 +24,6 @@ final class SymfonyViewTest extends TestCase
             'apcu' => ['config' => ['apc.enabled' => false], 'cache_info' => [], 'sma_info' => []],
         ]));
 
-        self::assertTrue($view->available);
         self::assertSame('7.4.2', $view->version);
         self::assertSame('PROD', $view->environment);
         self::assertSame('Debug: disabled', $view->debug?->label);

@@ -22,7 +22,6 @@
 
 .jm-gauge-value {
     stroke: var(--bs-primary, #0d6efd);
-    transition: stroke-dasharray .4s ease;
 }
 
 .jm-gauge-success .jm-gauge-value { stroke: var(--bs-success, #198754); }

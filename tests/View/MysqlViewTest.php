@@ -31,7 +31,6 @@ final class MysqlViewTest extends TestCase
             'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
         ]), $this->gauges(), 1_000);
 
-        self::assertTrue($view->available);
         self::assertSame('8.4.0', $view->version);
         self::assertSame('MySQL Community Server - GPL', $view->versionComment);
         self::assertSame(1_760_000_000, $view->serverTime);

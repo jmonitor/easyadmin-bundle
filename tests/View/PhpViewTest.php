@@ -26,7 +26,6 @@ final class PhpViewTest extends TestCase
 
         $view = new PhpView($this->snapshot(Payloads::php(), $delta), $this->gauges());
 
-        self::assertTrue($view->available);
         self::assertSame('8.4.23', $view->version);
         self::assertSame('fpm-fcgi', $view->sapi);
         self::assertSame(['/etc/php/8.4/fpm/php.ini', '/etc/php/8.4/fpm/conf.d/10-opcache.ini'], $view->iniFiles, 'the loaded ini file comes first');
@@ -145,7 +144,6 @@ final class PhpViewTest extends TestCase
     {
         $view = new PhpView(new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [], 'boom', 1)]), $this->gauges());
 
-        self::assertFalse($view->available);
         self::assertNull($view->version);
         self::assertSame([], $view->extensions);
     }

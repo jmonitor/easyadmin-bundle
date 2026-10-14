@@ -10,7 +10,6 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class SymfonyView
 {
-    public bool $available;
     public ?string $version;
     public ?string $environment;
     public ?Badge $debug;
@@ -48,7 +47,6 @@ final readonly class SymfonyView
         $data = $symfony->data('symfony');
         $components = is_array($data['components'] ?? null) ? $data['components'] : [];
 
-        $this->available = $symfony->has('symfony');
         $this->version = Values::string($data['version'] ?? null);
         $environment = Values::string($data['env'] ?? null);
         $this->environment = $environment === null ? null : strtoupper($environment);

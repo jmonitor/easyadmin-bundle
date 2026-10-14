@@ -29,7 +29,6 @@ final class RedisViewTest extends TestCase
 
         $view = new RedisView($this->snapshot($payload, $delta), $this->gauges());
 
-        self::assertTrue($view->available);
         self::assertSame('7.2.4', $view->version);
         self::assertSame('standalone', $view->mode);
         self::assertSame(2_000_000_000, $view->maxMemoryBytes);
@@ -91,7 +90,6 @@ final class RedisViewTest extends TestCase
     {
         $view = new RedisView(new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', [], 'Redis exception: Connection refused', 1)]), $this->gauges());
 
-        self::assertFalse($view->available);
         self::assertNull($view->memoryUsage);
         self::assertFalse($view->hitRate->available());
         self::assertSame([], $view->databases);
