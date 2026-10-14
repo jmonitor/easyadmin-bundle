@@ -122,7 +122,7 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('Databases', $html);
     }
 
-    public function testTheSystemFragmentShowsTheLoadAverageUnderTheCpuGauge(): void
+    public function testTheSystemFragmentShowsTheCoresUnderTheCpuGaugeAndTheLoadAverageAsTiles(): void
     {
         $snapshot = new ComponentSnapshot(Component::System, ['system' => new CollectorResult('system', [
             'cpu' => ['cores' => 4, 'load' => 62, 'load1' => 1.25, 'load5' => 1.65, 'load15' => 1.7],
@@ -132,9 +132,11 @@ final class ComponentTemplatesTest extends TestCase
 
         $html = $this->render('system', $snapshot, new SystemView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('Load average 1.25', $html);
+        self::assertStringContainsString('4 cores', $html);
+        self::assertStringNotContainsString('CPU cores', $html);
         self::assertStringContainsString('System informations', $html);
-        self::assertStringContainsString('CPU cores', $html);
+        self::assertMatchesRegularExpression('#Hostname.*OS.*Server time.*Timezone.*Uptime.*Load average#s', $html);
+        self::assertStringNotContainsString('<hr>', $html);
         self::assertSame(3, substr_count($html, 'class="jm-tile"'), 'the 1, 5 and 15-minute load average tiles');
         self::assertStringContainsString('1.65', $html);
         self::assertStringContainsString('15 min', $html);

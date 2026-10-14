@@ -8,7 +8,7 @@
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ram, detail: view.ramUsed is null ? null : view.ramUsed|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
         </div>
         <div class="col-md-4 col-xl-3">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cpu, detail: view.load1 is null ? null : 'Load average ' ~ view.load1|jm_number(2)}) }}
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cpu, detail: view.cores is null ? null : view.cores ~ ' cores'}) }}
         </div>
         <div class="col-md-4 col-xl-3">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.disk, detail: view.diskUsed is null ? null : view.diskUsed|jm_bytes ~ ' / ' ~ view.diskTotal|jm_bytes}) }}
@@ -17,15 +17,11 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'System informations', metric: 'system.informations'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Hostname': view.hostname,
+                        'OS': view.os,
                         'Server time': view.time is null ? null : view.time|date('Y-m-d H:i'),
                         'Timezone': view.timezone,
                         'Uptime': view.uptime|jm_duration,
-                    }}) }}
-                    <hr>
-                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                        'Hostname': view.hostname,
-                        'OS': view.os,
-                        'CPU cores': view.cores,
                     }}) }}
                     {% if view.load1 is not null %}
                         <div class="text-muted mt-3 mb-2">Load average</div>

@@ -31,7 +31,7 @@ The pages live under your dashboard, at `/admin/jmonitor`, behind the same firew
 
 One tab per detected component:
 
-- **System**: RAM, CPU (with the 1-minute load average) and disk gauges; server time, timezone, uptime, hostname, OS, CPU cores.
+- **System**: RAM, CPU (with the number of cores) and disk gauges; hostname, OS, server time, timezone, uptime and the 1, 5 and 15-minute load average.
 - **PHP**: version, SAPI and configuration of the PHP process serving the page, INI files and extensions; OpCache and APCu memory, hit rate and configuration; PHP-FPM requests per second, active and idle processes, max children reached, slow requests, memory peak and pool.
 - **MySQL** (or MariaDB): version, server informations and configuration; connection usage, max connections reached, queries per second; slow queries from the performance schema; InnoDB buffer pool usage and hit rate, RAM ratio, disk operations; table lock waits, threads, thread cache misses, temporary tables on disk; data and index size.
 - **Redis**: version, mode, server and replication, RDB and AOF persistence, memory usage or peak, eviction policy, operations per second, hit rate, evictions and errors, keys per database.
