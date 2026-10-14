@@ -131,6 +131,7 @@ final class Payloads
             'collation_server' => 'utf8mb4_0900_ai_ci',
             'time_zone' => 'SYSTEM',
             'system_time_zone' => 'UTC',
+            'timestamp' => 1760000000,
             'slow_query_log_file' => '/var/lib/mysql/slow.log',
             'join_buffer_size' => '262144',
             'sort_buffer_size' => '262144',

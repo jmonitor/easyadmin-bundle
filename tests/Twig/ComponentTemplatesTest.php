@@ -56,7 +56,7 @@ final class ComponentTemplatesTest extends TestCase
             'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
         ]);
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
         self::assertStringContainsString('MySQL Community Server - GPL', $html);
         self::assertStringContainsString('Connection usage', $html);
@@ -68,7 +68,7 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('RAM ratio', $html);
         self::assertStringContainsString('1 / 100', $html, 'lock waits detail from the delta');
         self::assertStringContainsString('7 / 1100', $html, 'thread cache miss detail since the start');
-        self::assertStringNotContainsString('<dt>Date</dt>', $html, 'SHOW GLOBAL VARIABLES has no timestamp');
+        self::assertMatchesRegularExpression('#<dt>Date</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}</dd>#', $html);
         self::assertStringNotContainsString('time_zone</dt>', $html, 'only the keys of the mysql.config help');
         self::assertStringNotContainsString('<html', $html);
     }
@@ -80,7 +80,7 @@ final class ComponentTemplatesTest extends TestCase
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
         ]);
 
-        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges()));
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
         self::assertStringContainsString('performance_schema table is not readable', $html);

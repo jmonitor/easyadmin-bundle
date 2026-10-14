@@ -29,11 +29,12 @@ final class MysqlViewTest extends TestCase
             'mysql.information_schema' => new CollectorResult('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]], null, 1_000),
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
             'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertTrue($view->available);
         self::assertSame('8.4.0', $view->version);
         self::assertSame('MySQL Community Server - GPL', $view->versionComment);
+        self::assertSame(1_760_000_000, $view->serverTime);
         self::assertSame('SYSTEM', $view->timeZone);
         self::assertSame('UTC', $view->systemTimeZone);
         self::assertSame(86_400, $view->uptime);
@@ -91,7 +92,7 @@ final class MysqlViewTest extends TestCase
         $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
             'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000),
             'mysql.variables' => new CollectorResult('mysql.variables', Payloads::mysqlVariables(), null, 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertSame(88.0, $view->bufferPoolUsage->value, '(128 MB - 16 MB) / 128 MB');
         self::assertSame(117_440_512, $view->bufferPoolUsed);
@@ -104,7 +105,7 @@ final class MysqlViewTest extends TestCase
             'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
             'mysql.variables' => new CollectorResult('mysql.variables', ['slow_query_log' => 'OFF'] + Payloads::mysqlVariables(), null, 1_000),
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertSame(99.0, $view->bufferPoolHitRate->value);
         self::assertSame('since server start', $view->bufferPoolHitRate->hint);
@@ -126,7 +127,7 @@ final class MysqlViewTest extends TestCase
 
         $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
             'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000, $delta),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertSame(0, $view->tableLocksWaitedDelta);
         self::assertSame(0, $view->tableLocksTotalDelta);
@@ -142,7 +143,7 @@ final class MysqlViewTest extends TestCase
 
         $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
             'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertSame(100.0, $view->tableLocksWaitsPercentSinceStart);
     }
@@ -152,7 +153,7 @@ final class MysqlViewTest extends TestCase
         $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
             'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
             'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertFalse($view->slowQueriesAvailable);
         self::assertFalse($view->slowQueryLogDisabled, 'nothing to warn about without slow queries');
@@ -161,13 +162,36 @@ final class MysqlViewTest extends TestCase
         self::assertNull($view->maxConnectionsReached);
     }
 
+    public function testTheServerTimeMovesOnWhileTheVariablesStayCached(): void
+    {
+        $variables = ['timestamp' => '1760000005'] + Payloads::mysqlVariables();
+
+        $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
+            'mysql.variables' => new CollectorResult('mysql.variables', $variables, null, 1_760_000_000),
+        ]), $this->gauges(), 1_760_000_600);
+
+        self::assertSame(1_760_000_605, $view->serverTime, 'MySQL runs 5 seconds ahead, collected 10 minutes ago');
+    }
+
+    public function testNoServerTimeWithoutTheTimestamp(): void
+    {
+        $variables = Payloads::mysqlVariables();
+        unset($variables['timestamp']);
+
+        $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
+            'mysql.variables' => new CollectorResult('mysql.variables', $variables, null, 1_000),
+        ]), $this->gauges(), 1_000);
+
+        self::assertNull($view->serverTime, 'jmonitor/collector before 2.2.2');
+    }
+
     public function testAnUnknownHostRamGivesAnEmptyGauge(): void
     {
         $view = new MysqlView(new ComponentSnapshot(Component::Mysql, [
             'mysql.status' => new CollectorResult('mysql.status', Payloads::mysqlStatus(), null, 1_000),
             'mysql.variables' => new CollectorResult('mysql.variables', Payloads::mysqlVariables(), null, 1_000),
             'system.ram_total' => new CollectorResult('system.ram_total', [], null, 1_000),
-        ]), $this->gauges());
+        ]), $this->gauges(), 1_000);
 
         self::assertNotNull($view->ramRatio);
         self::assertFalse($view->ramRatio->available());

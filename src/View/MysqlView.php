@@ -19,6 +19,7 @@ final readonly class MysqlView
 
     /** @var array<string, mixed> */
     private array $variables;
+    public ?int $serverTime;
     public ?float $longQueryTime;
     public ?string $timeZone;
     public ?string $systemTimeZone;
@@ -64,7 +65,7 @@ final readonly class MysqlView
     public ?int $indexLength;
     public ?int $totalLength;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, int $now)
     {
         $status = $snapshot->data('mysql.status');
         $variables = $snapshot->data('mysql.variables');
@@ -76,6 +77,7 @@ final readonly class MysqlView
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
         $this->variables = $variables;
+        $this->serverTime = self::serverTime($snapshot, $now);
         $this->longQueryTime = Values::float($variables['long_query_time'] ?? null);
         $this->timeZone = Values::string($variables['time_zone'] ?? null);
         $this->systemTimeZone = Values::string($variables['system_time_zone'] ?? null);
@@ -143,6 +145,17 @@ final readonly class MysqlView
     public function variable(string $name): mixed
     {
         return $this->variables[$name] ?? null;
+    }
+
+    /**
+     * The variables are cached for long, so the server clock is replayed from its offset at collect time.
+     */
+    private static function serverTime(ComponentSnapshot $snapshot, int $now): ?int
+    {
+        $result = $snapshot->result('mysql.variables');
+        $timestamp = Values::int($result?->data['timestamp'] ?? null);
+
+        return $result === null || $timestamp === null ? null : $now + $timestamp - $result->collectedAt;
     }
 
     /**

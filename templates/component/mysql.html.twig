@@ -16,6 +16,7 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'MySQL informations', metric: 'mysql.informations'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Date': view.serverTime is null ? null : view.serverTime|date('Y-m-d H:i'),
                         'Timezone': view.timeZone,
                         'System Timezone': view.systemTimeZone,
                         'Uptime': view.uptime|jm_duration,

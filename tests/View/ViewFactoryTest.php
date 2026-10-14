@@ -37,7 +37,7 @@ final class ViewFactoryTest extends TestCase
         ], ['php' => ['enabled' => 'auto'], 'symfony' => ['enabled' => 'auto']]);
         $cache = new ArrayAdapter();
         $snapshots = new SnapshotProvider($registry, new CollectorRunner(), new DeltaCalculator($cache, 5), $cache, new MockClock(), 10, 3600);
-        $factory = new ViewFactory(new GaugeFactory(Ranges::fromFile(\dirname(__DIR__, 2) . '/config/ranges.php')), $snapshots);
+        $factory = new ViewFactory(new GaugeFactory(Ranges::fromFile(\dirname(__DIR__, 2) . '/config/ranges.php')), $snapshots, new MockClock());
 
         self::assertInstanceOf(SystemView::class, $factory->create(Component::System, $snapshots->get(Component::System)));
         self::assertInstanceOf(PhpView::class, $factory->create(Component::Php, $snapshots->get(Component::Php)));
