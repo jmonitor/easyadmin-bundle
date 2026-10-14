@@ -119,6 +119,14 @@
     overflow-y: auto;
 }
 
+.jm-query {
+    display: block;
+    max-height: 4.5em;
+    overflow-y: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .jm-files li {
     overflow-wrap: anywhere;
 }

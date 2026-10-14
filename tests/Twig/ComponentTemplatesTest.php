@@ -62,7 +62,9 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Connection usage', $html);
         self::assertStringContainsString('Current: 30 · Peak: 45', $html);
         self::assertStringContainsString('15.00 <small class="text-muted">q/s</small>', $html);
-        self::assertStringContainsString('SELECT * FROM `order`', $html);
+        self::assertStringContainsString('<code class="jm-query">SELECT * FROM `order`', $html);
+        self::assertLessThan(strpos($html, '<span>Total</span>'), strpos($html, '<span>Top slowest queries</span>'), 'the total sits on the right');
+        self::assertMatchesRegularExpression('#<div class="card">\s*<div class="card-header[^"]*">\s*<span>Total</span>#', $html, 'the total card keeps its own height');
         self::assertStringContainsString('The slow query log is disabled on your side.', $html);
         self::assertStringContainsString('slow_query_log_file', $html);
         self::assertStringContainsString('RAM ratio', $html);

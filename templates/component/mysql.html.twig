@@ -106,18 +106,6 @@
         <p class="text-muted">Slow queries data are not available.</p>
     {% else %}
         <div class="row g-3">
-            <div class="col-lg-3">
-                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Total', metric: 'mysql.slow_queries_count'} %}
-                    {% block body %}
-                        <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.slowQueriesCount}) }}</div>
-                        <hr>
-                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
-                            'slow_query_log': view.variable('slow_query_log'),
-                            'long_query_time': view.longQueryTime is null ? null : view.longQueryTime ~ 's',
-                        }}) }}
-                    {% endblock %}
-                {% endembed %}
-            </div>
             <div class="col-lg-9">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Top slowest queries', metric: 'mysql.slow_queries_top'} %}
                     {% block body %}
@@ -130,11 +118,11 @@
                                     <tbody>
                                         {% for query in view.slowQueries %}
                                             <tr>
-                                                <td><code class="text-wrap">{{ query.query_sample }}</code></td>
-                                                <td class="text-end">{{ query.exec_count|default(null)|jm_number }}</td>
-                                                <td class="text-end">{{ query.avg_time_ms|default(null)|jm_number }} ms</td>
-                                                <td class="text-end">{{ query.max_time_ms|default(null)|jm_number }} ms</td>
-                                                <td class="text-end">{{ query.total_time_ms|default(null) is null ? '—' : (query.total_time_ms // 1000)|jm_duration }}</td>
+                                                <td><code class="jm-query">{{ query.query_sample }}</code></td>
+                                                <td class="text-end text-nowrap">{{ query.exec_count|default(null)|jm_number }}</td>
+                                                <td class="text-end text-nowrap">{{ query.avg_time_ms|default(null)|jm_number }} ms</td>
+                                                <td class="text-end text-nowrap">{{ query.max_time_ms|default(null)|jm_number }} ms</td>
+                                                <td class="text-end text-nowrap">{{ query.total_time_ms|default(null) is null ? '—' : (query.total_time_ms // 1000)|jm_duration }}</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
@@ -147,6 +135,18 @@
                             · Min exec count: {{ view.slowQueriesMinExecCount ?? '—' }}
                             · Sort: {{ view.slowQueriesOrderBy ?? '—' }}
                         </div>
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-lg-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Total', metric: 'mysql.slow_queries_count', fill: false} %}
+                    {% block body %}
+                        <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.slowQueriesCount}) }}</div>
+                        <hr>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'slow_query_log': view.variable('slow_query_log'),
+                            'long_query_time': view.longQueryTime is null ? null : view.longQueryTime ~ 's',
+                        }}) }}
                     {% endblock %}
                 {% endembed %}
             </div>

@@ -1,4 +1,4 @@
-<div class="card h-100">
+<div class="card{{ (fill ?? true) ? ' h-100' }}">
     <div class="card-header d-flex align-items-center gap-2">
         <span>{{ title }}</span>
         {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric}) }}{% endif %}

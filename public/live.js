@@ -84,7 +84,7 @@
         var activeTabs = Array.prototype.map.call(content.querySelectorAll('[data-bs-toggle="tab"].active'), function (tab) {
             return tab.getAttribute('data-bs-target');
         });
-        var scrolls = Array.prototype.map.call(content.querySelectorAll('.jm-scroll'), function (element) {
+        var scrolls = Array.prototype.map.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element) {
             return element.scrollTop;
         });
 
@@ -110,7 +110,7 @@
             pane.classList.add('active');
         });
 
-        Array.prototype.forEach.call(content.querySelectorAll('.jm-scroll'), function (element, index) {
+        Array.prototype.forEach.call(content.querySelectorAll('.jm-scroll, .jm-query'), function (element, index) {
             if (scrolls[index]) {
                 element.scrollTop = scrolls[index];
             }
