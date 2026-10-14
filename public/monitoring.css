@@ -71,6 +71,15 @@
     word-break: break-word;
 }
 
+.jm-scroll {
+    max-height: 20rem;
+    overflow-y: auto;
+}
+
+.jm-files li {
+    overflow-wrap: anywhere;
+}
+
 .jm-tile {
     padding: .5rem .25rem;
     border-radius: var(--bs-border-radius, .375rem);

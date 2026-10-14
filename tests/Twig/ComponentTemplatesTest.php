@@ -11,6 +11,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
 use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
@@ -116,6 +117,24 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('web-1', $html);
         self::assertStringNotContainsString('Load average', $html);
+    }
+
+    public function testThePhpFragmentListsTheIniFilesAndSplitsTheConfiguration(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [
+            'version' => '8.5.8',
+            'sapi_name' => 'frankenphp',
+            'ini_file' => '/usr/local/etc/php/php.ini',
+            'ini_files' => ['/usr/local/etc/php/conf.d/app-timezone.ini', '/usr/local/etc/php/conf.d/docker-php-ext-apcu.ini'],
+            'memory_limit' => '128M',
+            'error_log' => '',
+        ], null, 1_000)]);
+
+        $html = $this->render('php', $snapshot, new PhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('<li>/usr/local/etc/php/conf.d/docker-php-ext-apcu.ini</li>', $html);
+        self::assertSame(2, substr_count($html, '<div class="col-md-6">'), 'the configuration keys are split in two columns');
+        self::assertMatchesRegularExpression('#error_log</dt>\s*<dd[^>]*><span class="text-muted">—</span>#', $html);
     }
 
     public function testNoHelpLinkWhenTheHelpIsDisabled(): void

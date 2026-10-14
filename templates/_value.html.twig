@@ -1,4 +1,4 @@
-{%- if value is null -%}
+{%- if value is null or value is same as('') -%}
     <span class="text-muted">—</span>
 {%- elseif value is same as(true) -%}
     <span class="badge text-bg-success">On</span>

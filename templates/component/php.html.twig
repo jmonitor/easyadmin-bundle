@@ -7,21 +7,34 @@
         <div class="col-lg-4">
             <div class="card h-100">
                 <div class="card-header">PHP {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.version'}) }}</div>
-                <div class="card-body">
+                <div class="card-body jm-scroll">
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
                         'Version': view.version,
                         'SAPI': view.sapi,
                         'Loaded ini file': view.iniFile,
-                        'Additional ini files': view.iniFiles|length ? view.iniFiles|join(', ') : null,
-                    }}) }}
+                    }|merge(view.iniFiles|length ? {} : {'Additional ini files': null})}) }}
+                    {% if view.iniFiles|length %}
+                        <div class="text-muted mt-2 mb-1">Additional ini files</div>
+                        <ul class="list-unstyled small mb-0 jm-files">
+                            {% for file in view.iniFiles %}
+                                <li>{{ file }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-8">
             <div class="card h-100">
                 <div class="card-header">Configuration {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'php.base_config'}) }}</div>
-                <div class="card-body">
-                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.baseConfig}) }}
+                <div class="card-body jm-scroll">
+                    <div class="row">
+                        {% for half in view.baseConfig|batch((view.baseConfig|length / 2)|round(0, 'ceil') ?: 1) %}
+                            <div class="col-md-6">
+                                {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: half}) }}
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
