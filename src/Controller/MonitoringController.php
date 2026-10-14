@@ -109,6 +109,7 @@ final class MonitoringController
             'current' => $current,
             'polling_interval' => $this->pollingInterval,
             'routes' => [
+                'index' => $this->routeName('index'),
                 'component' => $this->routeName('component'),
                 'fragment' => $this->routeName('fragment'),
                 'refresh' => $this->routeName('refresh'),

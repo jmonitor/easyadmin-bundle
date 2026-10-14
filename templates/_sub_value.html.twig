@@ -1,4 +1,4 @@
-<div class="small text-muted">{{ label }} {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric}) }}{% endif %}</div>
+<div class="small text-muted">{{ label }} {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric, label: label}) }}{% endif %}</div>
 <div class="jm-rate">
     {%- if rate|default(null) -%}
         {{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: rate}) }}

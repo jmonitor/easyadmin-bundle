@@ -24,6 +24,7 @@
         {% if current and polling_interval > 0 %}
             data-live
             data-live-url="{{ path(routes.fragment, {component: current.value}) }}"
+            data-live-index-url="{{ path(routes.index) }}"
             data-live-interval="{{ polling_interval }}"
         {% endif %}
     >
@@ -43,7 +44,7 @@
                                 <twig:ea:Switch id="jm-live-toggle" checked data-live-toggle />
                                 Live <span class="text-muted">· every {{ polling_interval }} s</span>
                             </label>
-                            <div class="small text-muted" data-live-status>Last update: <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span></div>
+                            <div class="small text-muted" data-live-status>Last update: <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span><span data-live-failed hidden> · refresh failed</span></div>
                         </div>
                     {% endif %}
                     <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">

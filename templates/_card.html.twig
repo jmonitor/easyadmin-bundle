@@ -1,7 +1,7 @@
 <div class="card{{ (fill ?? true) ? ' h-100' }}">
     <div class="card-header d-flex align-items-center gap-2">
         <span>{{ title }}</span>
-        {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric}) }}{% endif %}
+        {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric, label: title}) }}{% endif %}
         {% if badge|default(null) %}<span class="ms-auto">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: badge}) }}</span>{% endif %}
     </div>
     <div class="card-body{{ scroll|default(false) ? ' jm-scroll' }}">

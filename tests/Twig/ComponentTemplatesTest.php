@@ -60,6 +60,8 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('MySQL Community Server - GPL', $html);
         self::assertStringContainsString('Connection usage', $html);
+        self::assertStringContainsString('aria-label="Help: Connection usage"', $html, 'help links are named after their visible label');
+        self::assertStringContainsString('aria-label="Help: MySQL configuration"', $html);
         self::assertStringContainsString('Current: 30 · Peak: 45', $html);
         self::assertStringContainsString('15.00 <small class="text-muted">q/s</small>', $html);
         self::assertStringContainsString('<code class="jm-query">SELECT * FROM `order`', $html);
@@ -231,7 +233,7 @@ final class ComponentTemplatesTest extends TestCase
             'components' => [Component::from($component)],
             'current' => Component::from($component),
             'polling_interval' => 10,
-            'routes' => ['component' => 'admin_jmonitor_component', 'fragment' => 'admin_jmonitor_fragment', 'refresh' => 'admin_jmonitor_refresh'],
+            'routes' => ['index' => 'admin_jmonitor_index', 'component' => 'admin_jmonitor_component', 'fragment' => 'admin_jmonitor_fragment', 'refresh' => 'admin_jmonitor_refresh'],
             'snapshot' => $snapshot,
             'view' => $view,
             'fragment' => true,

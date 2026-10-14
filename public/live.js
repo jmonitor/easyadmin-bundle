@@ -14,7 +14,9 @@
     var content = root.querySelector('[data-live-content]');
     var toggle = root.querySelector('[data-live-toggle]');
     var updated = root.querySelector('[data-live-updated]');
+    var indexUrl = root.getAttribute('data-live-index-url');
     var status = root.querySelector('[data-live-status]');
+    var failedLabel = root.querySelector('[data-live-failed]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
@@ -90,17 +92,15 @@
         status.classList.toggle('text-muted', !failed);
         status.classList.toggle('text-warning-emphasis', failed);
 
-        if (failed) {
-            status.title = 'The last refresh failed';
-        } else {
-            status.removeAttribute('title');
+        if (failedLabel) {
+            failedLabel.hidden = !failed;
         }
     }
 
     function hasSelectionInside(element) {
         var selection = window.getSelection ? window.getSelection() : null;
 
-        return selection !== null && !selection.isCollapsed && selection.rangeCount > 0 && element.contains(selection.getRangeAt(0).commonAncestorContainer);
+        return selection !== null && !selection.isCollapsed && selection.containsNode(element, true);
     }
 
     function replaceContent(html) {
@@ -133,16 +133,21 @@
             pane.classList.add('active');
         });
 
-        Array.prototype.forEach.call(content.querySelectorAll(SCROLLABLE), function (element, index) {
-            if (scrolls[index]) {
-                element.scrollTop = scrolls[index].top;
-                element.scrollLeft = scrolls[index].left;
-            }
+        var scrollables = content.querySelectorAll(SCROLLABLE);
+
+        // positions are matched by rank: a block that appeared or vanished would shift them all
+        if (scrollables.length !== scrolls.length) {
+            return;
+        }
+
+        Array.prototype.forEach.call(scrollables, function (element, index) {
+            element.scrollTop = scrolls[index].top;
+            element.scrollLeft = scrolls[index].left;
         });
     }
 
     function refresh() {
-        if (!enabled || inFlight || document.hidden) {
+        if (!enabled || inFlight || document.hidden || hasSelectionInside(content)) {
             return;
         }
 
@@ -153,22 +158,24 @@
 
         fetch(url, { credentials: 'same-origin', redirect: 'manual', signal: controller ? controller.signal : undefined })
             .then(function (response) {
-                // a redirect or a denial means the session is gone, a 404 that the component disappeared:
-                // the whole page shows it better than the fragment
-                if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403 || response.status === 404) {
+                // a redirect or a denial means the session is gone: the firewall shows its login page on reload
+                if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403) {
                     stop();
                     window.location.reload();
 
                     return null;
                 }
 
-                if (!response.ok) {
-                    markFailed(true);
+                if (response.status === 404) {
+                    stop();
+                    window.location.assign(indexUrl || window.location.href);
 
                     return null;
                 }
 
-                return response.text();
+                markFailed(!response.ok);
+
+                return response.ok ? response.text() : null;
             })
             .then(function (html) {
                 if (html === null || !enabled || hasSelectionInside(content)) {
@@ -176,7 +183,6 @@
                 }
 
                 replaceContent(html);
-                markFailed(false);
                 markUpdated();
             })
             .catch(function () {
