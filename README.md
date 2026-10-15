@@ -145,3 +145,4 @@ Several web servers behind a load balancer are not well handled yet: the System 
 - Anything about this bundle — installation, configuration, the pages in EasyAdmin: open an issue on this repo https://github.com/jmonitor/easyadmin-bundle/issues
 - Anything about a metric — a missing or wrong value, a collector that does not gather what you expect: open an issue on https://github.com/jmonitor/collector/issues
 - Anything about the help pages or jmonitor.io itself: open an issue on https://github.com/jmonitor/jmonitor/issues
+- To report a vulnerability, see [SECURITY.md](SECURITY.md).
