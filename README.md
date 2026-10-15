@@ -125,7 +125,7 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
 - **MySQL**: the slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
-- **Symfony**: the commands run in the web process. The Flex recipes check needs `composer` in the `PATH` of the web server.
+- **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats` in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`.
 
 ## How it works
 

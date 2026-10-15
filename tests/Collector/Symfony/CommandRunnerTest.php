@@ -35,23 +35,18 @@ final class CommandRunnerTest extends TestCase
         self::assertNull($this->runner->run('non:existent:command'));
     }
 
-    public function testItRunsACommandWithItsInput(): void
+    public function testItRunsACommand(): void
     {
-        $this->register(new class ('test:input') extends Command {
-            protected function configure(): void
-            {
-                $this->addArgument('arg');
-            }
-
+        $this->register(new class ('test:output') extends Command {
             protected function execute(InputInterface $input, OutputInterface $output): int
             {
-                $output->write((string) $input->getArgument('arg'));
+                $output->write('hello');
 
                 return Command::SUCCESS;
             }
         });
 
-        self::assertSame(['exit_code' => 0, 'output' => 'hello'], $this->runner->run('test:input', ['arg' => 'hello']));
+        self::assertSame(['exit_code' => 0, 'output' => 'hello'], $this->runner->run('test:output'));
     }
 
     public function testItRunsAProcessFromTheProjectDirectory(): void

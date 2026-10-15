@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\Collector\Symfony;
 
 use Jmonitor\Exceptions\BootFailedException;
 use Jmonitor\Exceptions\CollectorException;
+use Symfony\Component\Process\Exception\RuntimeException;
 
 /**
  * Reads `messenger:stats` in a separate process: run in the web process, the command can leave
@@ -45,7 +46,11 @@ final class MessengerStatsCollector implements ComponentCollectorInterface
             return $output;
         }
 
-        $run = $this->commandRunner->runPhpProcess(['bin/console', 'messenger:stats', '--format=json'], self::TIMEOUT);
+        try {
+            $run = $this->commandRunner->runPhpProcess(['bin/console', 'messenger:stats', '--format=json'], self::TIMEOUT);
+        } catch (RuntimeException $e) {
+            throw new CollectorException($e->getMessage(), self::class, $e);
+        }
 
         if ($run['exit_code'] !== 0) {
             throw new CollectorException('messenger:stats command failed (exit code: ' . var_export($run['exit_code'], true) . ')', self::class);

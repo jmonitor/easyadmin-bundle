@@ -10,6 +10,7 @@ use Jmonitor\Exceptions\BootFailedException;
 use Jmonitor\Exceptions\CollectorException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 final class SymfonyCollectorTest extends TestCase
@@ -44,8 +45,8 @@ final class SymfonyCollectorTest extends TestCase
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())
-            ->method('error')
-            ->with(self::anything(), self::callback(
+            ->method('log')
+            ->with(LogLevel::WARNING, self::anything(), self::callback(
                 static fn(array $context): bool => $context['component'] === 'broken' && $context['exception'] instanceof CollectorException,
             ));
 
@@ -57,6 +58,23 @@ final class SymfonyCollectorTest extends TestCase
         $collector->boot();
 
         self::assertSame(['healthy' => ['foo' => 'bar']], $collector->collect()['components']);
+    }
+
+    public function testAnUnexpectedBootFailureIsAnError(): void
+    {
+        $broken = $this->createStub(ComponentCollectorInterface::class);
+        $broken->method('boot')->willThrowException(new \RuntimeException('boom'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('log')
+            ->with(LogLevel::ERROR, self::anything(), self::callback(static fn(array $context): bool => $context['message'] === 'boom'));
+
+        $collector = new SymfonyCollector($this->createStub(KernelInterface::class), ['broken' => $broken]);
+        $collector->setLogger($logger);
+        $collector->boot();
+
+        self::assertSame([], $collector->collect()['components']);
     }
 
     public function testAComponentThatFailsToCollectDoesNotBreakTheOthers(): void

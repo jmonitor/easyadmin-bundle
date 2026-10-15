@@ -15,8 +15,8 @@ final class FlexRecipesCollector implements ComponentCollectorInterface
 {
     private const TIMEOUT = 5;
 
-    /** @var array<string, array{up_to_date: true}|array{up_to_date: false, outdated_recipes: list<string>}> */
-    private array $cache = [];
+    /** @var array{up_to_date: true}|array{up_to_date: false, outdated_recipes: list<string>}|null */
+    private ?array $bootCollect = null;
 
     public function __construct(
         private readonly CommandRunner $commandRunner,
@@ -25,7 +25,7 @@ final class FlexRecipesCollector implements ComponentCollectorInterface
     public function boot(): void
     {
         try {
-            $this->collect();
+            $this->bootCollect = $this->collect();
         } catch (CollectorException $e) {
             throw new BootFailedException($e->getMessage(), $e);
         }
@@ -36,10 +36,11 @@ final class FlexRecipesCollector implements ComponentCollectorInterface
      */
     public function collect(): array
     {
-        $day = date('Y-m-d');
+        if ($this->bootCollect !== null) {
+            $output = $this->bootCollect;
+            $this->bootCollect = null;
 
-        if (isset($this->cache[$day])) {
-            return $this->cache[$day];
+            return $output;
         }
 
         try {
@@ -48,17 +49,19 @@ final class FlexRecipesCollector implements ComponentCollectorInterface
             throw new CollectorException($e->getMessage(), self::class, $e);
         }
 
-        if ($run['exit_code'] === null) {
-            throw new CollectorException('Unable to run flex recipe command', self::class);
+        if ($run['exit_code'] === 0) {
+            return ['up_to_date' => true];
         }
 
-        $this->cache = [
-            $day => $run['exit_code'] === 0
-                ? ['up_to_date' => true]
-                : ['up_to_date' => false, 'outdated_recipes' => $this->parseOutput($run['output'])],
-        ];
+        // Flex also exits with 1 when it lists outdated recipes.
+        if (!str_contains($run['output'], 'Outdated recipes.')) {
+            throw new CollectorException(
+                sprintf('composer recipes failed (exit code: %s): %s', var_export($run['exit_code'], true), trim($run['error_output'])),
+                self::class,
+            );
+        }
 
-        return $this->cache[$day];
+        return ['up_to_date' => false, 'outdated_recipes' => $this->parseOutput($run['output'])];
     }
 
     /**

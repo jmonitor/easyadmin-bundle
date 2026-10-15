@@ -33,11 +33,9 @@ class CommandRunner
     }
 
     /**
-     * @param array<string, mixed> $input
-     *
      * @return array{exit_code: int, output: string}|null null when the command does not exist
      */
-    public function run(string $command, array $input = []): ?array
+    public function run(string $command): ?array
     {
         if (!$this->application->has($command)) {
             return null;
@@ -46,7 +44,7 @@ class CommandRunner
         $output = new BufferedOutput();
 
         return [
-            'exit_code' => $this->application->doRun(new ArrayInput(['command' => $command, ...$input]), $output),
+            'exit_code' => $this->application->doRun(new ArrayInput(['command' => $command]), $output),
             'output' => $output->fetch(),
         ];
     }
@@ -56,7 +54,7 @@ class CommandRunner
      *
      * @return array{exit_code: int|null, output: string, error_output: string}
      */
-    public function runProcess(array $command, ?int $timeout): array
+    public function runProcess(array $command, int $timeout): array
     {
         $process = new Process($command, $this->projectDir, timeout: $timeout);
         $process->run();
@@ -75,7 +73,7 @@ class CommandRunner
      *
      * @return array{exit_code: int|null, output: string, error_output: string}
      */
-    public function runPhpProcess(array $command, ?int $timeout): array
+    public function runPhpProcess(array $command, int $timeout): array
     {
         $phpBinary = $this->phpBinary();
 

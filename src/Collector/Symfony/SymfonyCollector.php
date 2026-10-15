@@ -10,6 +10,7 @@ use Jmonitor\Exceptions\BootFailedException;
 use Jmonitor\Exceptions\CollectorException;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LogLevel;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 /**
@@ -40,7 +41,9 @@ final class SymfonyCollector implements CollectorInterface, LoggerAwareInterface
             } catch (\Throwable $e) {
                 $cause = $e instanceof BootFailedException ? ($e->getPrevious() ?? $e) : $e;
 
-                $this->logger?->error('Symfony component "{component}" failed to boot.', [
+                $level = $cause instanceof CollectorException ? LogLevel::WARNING : LogLevel::ERROR;
+
+                $this->logger?->log($level, 'Symfony component "{component}" failed to boot.', [
                     'component' => $name,
                     'message' => $cause->getMessage(),
                     'exception' => $cause,

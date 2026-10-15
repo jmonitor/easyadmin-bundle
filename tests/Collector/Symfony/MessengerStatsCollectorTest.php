@@ -8,6 +8,8 @@ use Jmonitor\EasyAdminBundle\Collector\Symfony\CommandRunner;
 use Jmonitor\EasyAdminBundle\Collector\Symfony\MessengerStatsCollector;
 use Jmonitor\Exceptions\CollectorException;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\Process;
 
 final class MessengerStatsCollectorTest extends TestCase
 {
@@ -32,6 +34,16 @@ final class MessengerStatsCollectorTest extends TestCase
     {
         $runner = $this->createStub(CommandRunner::class);
         $runner->method('runPhpProcess')->willReturn(['exit_code' => 1, 'output' => '', 'error_output' => 'error']);
+
+        $this->expectException(CollectorException::class);
+
+        (new MessengerStatsCollector($runner))->collect();
+    }
+
+    public function testAProcessThatTimesOutFails(): void
+    {
+        $runner = $this->createStub(CommandRunner::class);
+        $runner->method('runPhpProcess')->willThrowException(new ProcessTimedOutException(new Process(['php']), ProcessTimedOutException::TYPE_GENERAL));
 
         $this->expectException(CollectorException::class);
 

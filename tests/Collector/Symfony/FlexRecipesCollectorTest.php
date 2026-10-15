@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class FlexRecipesCollectorTest extends TestCase
 {
-    public function testUpToDateRecipesRunComposerOnceADay(): void
+    public function testTheBootSampleIsServedByTheNextCollect(): void
     {
         $runner = $this->createMock(CommandRunner::class);
         $runner->expects(self::once())
@@ -60,6 +60,21 @@ final class FlexRecipesCollectorTest extends TestCase
         $runner->method('runProcess')->willReturn(['exit_code' => null, 'output' => '', 'error_output' => '']);
 
         $this->expectException(CollectorException::class);
+
+        (new FlexRecipesCollector($runner))->collect();
+    }
+
+    public function testAFailureIsNotTakenForOutdatedRecipes(): void
+    {
+        $runner = $this->createStub(CommandRunner::class);
+        $runner->method('runProcess')->willReturn([
+            'exit_code' => 1,
+            'output' => '',
+            'error_output' => 'The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly',
+        ]);
+
+        $this->expectException(CollectorException::class);
+        $this->expectExceptionMessage('COMPOSER_HOME');
 
         (new FlexRecipesCollector($runner))->collect();
     }
