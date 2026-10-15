@@ -56,7 +56,7 @@ final readonly class PhpView
     public ?int $apcuTotal;
     public Gauge $apcuHitRate;
     public int|false|null $apcuShmSize;
-    public ?int $apcuShmSegments;
+    public ?int $apcuSegments;
     public ?int $apcuTtl;
 
     public bool $fpm;
@@ -169,7 +169,7 @@ final readonly class PhpView
             Values::int($cacheInfo['num_misses'] ?? null),
         ));
         $this->apcuShmSize = Values::iniBytes($apcuConfig['apc.shm_size'] ?? null);
-        $this->apcuShmSegments = Values::int($apcuConfig['apc.shm_segments'] ?? null);
+        $this->apcuSegments = $segments;
         $this->apcuTtl = Values::int($apcuConfig['apc.ttl'] ?? null);
 
         $fpm = is_array($data['fpm'] ?? null) ? $data['fpm'] : [];
