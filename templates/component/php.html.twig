@@ -129,7 +129,7 @@
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
                             'shm_size': view.apcuShmSize is same as(false) ? null : view.apcuShmSize|jm_bytes,
-                            'shm_segments': view.apcuShmSegments,
+                            'segments': view.apcuSegments,
                             'ttl': view.apcuTtl,
                         }}) }}
                     {% endblock %}

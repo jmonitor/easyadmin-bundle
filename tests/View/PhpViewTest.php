@@ -14,7 +14,6 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\PhpView;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class PhpViewTest extends TestCase
@@ -64,7 +63,7 @@ final class PhpViewTest extends TestCase
         self::assertSame(90.0, $view->apcuHitRate->value);
         self::assertSame('since server start', $view->apcuHitRate->hint, 'no APCu counters in the delta: cumulative value');
         self::assertSame(33_554_432, $view->apcuShmSize);
-        self::assertSame(1, $view->apcuShmSegments);
+        self::assertSame(1, $view->apcuSegments);
         self::assertSame(0, $view->apcuTtl);
 
         self::assertTrue($view->fpm);
@@ -141,24 +140,14 @@ final class PhpViewTest extends TestCase
         self::assertSame('Disabled', $view->opcacheEnabled->label, 'opcache.enable is on but the accelerator is not');
     }
 
-    /**
-     * @return iterable<string, array{mixed}>
-     */
-    public static function provideApcuShmSegmentsDirectives(): iterable
-    {
-        yield 'directive removed in APCu 5.1.25' => [null];
-        yield 'directive ignored in MMAP mode' => [4];
-    }
-
-    #[DataProvider('provideApcuShmSegmentsDirectives')]
-    public function testApcuSegmentsAreTheAllocatedOnes(mixed $directive): void
+    public function testApcuSegmentsIgnoreTheDirectiveSentBeforeCollector223(): void
     {
         $payload = Payloads::php();
-        $payload['apcu']['config']['apc.shm_segments'] = $directive;
+        $payload['apcu']['config']['apc.shm_segments'] = 4;
 
         $view = new PhpView($this->snapshot($payload), $this->gauges());
 
-        self::assertSame(1, $view->apcuShmSegments);
+        self::assertSame(1, $view->apcuSegments, 'APCu ignores the directive in MMAP mode');
     }
 
     public function testDisabledApcuHasNoSegments(): void
@@ -169,7 +158,7 @@ final class PhpViewTest extends TestCase
 
         $view = new PhpView($this->snapshot($payload), $this->gauges());
 
-        self::assertNull($view->apcuShmSegments, 'no segment allocated');
+        self::assertNull($view->apcuSegments, 'no segment allocated');
     }
 
     public function testFailedCollectorIsUnavailable(): void
