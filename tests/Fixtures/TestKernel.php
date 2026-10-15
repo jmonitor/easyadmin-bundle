@@ -87,6 +87,7 @@ class TestKernel extends Kernel
                 'viewer' => ['password' => 'viewer', 'roles' => ['ROLE_USER']],
             ]]]],
             'firewalls' => ['main' => ['lazy' => true, 'provider' => 'in_memory', 'logout' => ['path' => '/logout']]],
+            'access_control' => [['path' => '^/admin', 'roles' => 'ROLE_ADMIN']],
         ]);
 
         $container->extension('doctrine', [

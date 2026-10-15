@@ -20,7 +20,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('cache.app', $config['cache_pool']);
         self::assertSame(10, $config['polling_interval']);
         self::assertSame(3600, $config['static_ttl']);
-        self::assertSame('ROLE_ADMIN', $config['role']);
         self::assertSame('https://dash.jmonitor.io/help/metric/', $config['help_url']);
 
         foreach (['system', 'php', 'symfony', 'mysql', 'redis'] as $component) {
