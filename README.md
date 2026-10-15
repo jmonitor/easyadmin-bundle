@@ -118,14 +118,14 @@ This bundle shows the **present** only: nothing is collected while nobody looks 
 
 [jmonitor.io](https://jmonitor.io), the cloud edition (also [self-hostable](https://github.com/jmonitor/jmonitor)), collects your metrics continuously with a worker and keeps their **history**: the dashboards draw their charts, and **alerts** notify you by email when a threshold is crossed or a version reaches its end of life. It also covers Apache, Nginx, Caddy, FrankenPHP and PostgreSQL.
 
-Both use the same collectors and run side by side: fill the API key of [jmonitor/jmonitor-bundle](https://github.com/jmonitor/jmonitor-bundle), already installed, and run its worker to send the same metrics to jmonitor.io.
+Both use the same collectors and run side by side: install [jmonitor/jmonitor-bundle](https://github.com/jmonitor/jmonitor-bundle), fill its API key and run its worker to send the same metrics to jmonitor.io.
 
 ## Good to know
 
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
 - **MySQL**: the slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
-- **Symfony**: the commands run in the web process. The Flex recipes check needs `composer` in the `PATH` of the web server.
+- **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats` in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`.
 
 ## How it works
 

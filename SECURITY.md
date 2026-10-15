@@ -20,8 +20,7 @@ we will coordinate disclosure with you and credit you in the advisory unless you
 ## Scope
 
 This policy covers the monitoring pages of this bundle. Vulnerabilities in
-[jmonitor/collector](https://github.com/jmonitor/collector) or
-[jmonitor/jmonitor-bundle](https://github.com/jmonitor/jmonitor-bundle) are covered by the
+[jmonitor/collector](https://github.com/jmonitor/collector) are covered by the
 [policy of jmonitor/jmonitor](https://github.com/jmonitor/jmonitor/security/policy).
 
 ## Supported versions

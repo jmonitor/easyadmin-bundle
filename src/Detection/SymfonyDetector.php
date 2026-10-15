@@ -7,12 +7,12 @@ namespace Jmonitor\EasyAdminBundle\Detection;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\CommandRunner;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\FlexRecipesCollector;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\MessengerStatsCollector;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\SchedulerCollector;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\SymfonyCollector;
 use Jmonitor\EasyAdminBundle\Component;
-use Jmonitor\JmonitorBundle\Collector\CommandRunner;
-use Jmonitor\JmonitorBundle\Collector\Components\FlexRecipesCollector;
-use Jmonitor\JmonitorBundle\Collector\Components\MessengerStatsCollector;
-use Jmonitor\JmonitorBundle\Collector\Components\SchedulerCollector;
-use Jmonitor\JmonitorBundle\Collector\SymfonyCollector;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 final readonly class SymfonyDetector implements ComponentDetectorInterface

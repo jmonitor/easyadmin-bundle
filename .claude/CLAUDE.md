@@ -4,7 +4,7 @@
 
 This is a **Symfony bundle** (`jmonitor/easyadmin-bundle`) that adds live monitoring pages to an EasyAdmin 5 backend: system, PHP, MySQL, Redis and Symfony metrics collected when the page is opened and refreshed by polling while it stays open. No worker, no history, no charts: the present only.
 
-It reuses the collectors of `jmonitor/collector` and the Symfony collectors of `jmonitor/jmonitor-bundle` (`SymfonyCollector`, `CommandRunner`, the messenger/scheduler/flex sub-collectors), instantiated by this bundle's own service wiring. It is **not** coupled to the jmonitor.io SaaS: no shared code with it, no project, no API key, no alerts. Copying a small piece of logic from the SaaS for the bundle's own use is fine (the gauge thresholds in `config/ranges.php` are such a copy); depending on it is not.
+It reuses the collectors of `jmonitor/collector`, instantiated by this bundle's own service wiring. The Symfony collectors (`src/Collector/Symfony/`: `SymfonyCollector`, `CommandRunner`, the messenger/scheduler/flex sub-collectors) are a copy of those of `jmonitor/jmonitor-bundle`, which must not become a dependency again: being a `symfony-bundle`, Flex would register it and apply its recipe in every application, with a configuration asking for a jmonitor.io API key. Keep the copy's payload shape identical to the original. It is **not** coupled to the jmonitor.io SaaS: no shared code with it, no project, no API key, no alerts. Copying a small piece of logic from the SaaS for the bundle's own use is fine (the gauge thresholds in `config/ranges.php` are such a copy); depending on it is not.
 
 ## Status
 
