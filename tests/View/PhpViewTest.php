@@ -161,6 +161,17 @@ final class PhpViewTest extends TestCase
         self::assertSame(1, $view->apcuShmSegments);
     }
 
+    public function testDisabledApcuHasNoSegments(): void
+    {
+        $payload = Payloads::php();
+        $payload['apcu']['config']['apc.enabled'] = false;
+        $payload['apcu']['sma_info'] = [];
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertNull($view->apcuShmSegments, 'no segment allocated');
+    }
+
     public function testFailedCollectorIsUnavailable(): void
     {
         $view = new PhpView(new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [], 'boom', 1)]), $this->gauges());
