@@ -169,7 +169,7 @@ final readonly class PhpView
             Values::int($cacheInfo['num_misses'] ?? null),
         ));
         $this->apcuShmSize = Values::iniBytes($apcuConfig['apc.shm_size'] ?? null);
-        $this->apcuShmSegments = Values::int($apcuConfig['apc.shm_segments'] ?? null);
+        $this->apcuShmSegments = $segments;
         $this->apcuTtl = Values::int($apcuConfig['apc.ttl'] ?? null);
 
         $fpm = is_array($data['fpm'] ?? null) ? $data['fpm'] : [];

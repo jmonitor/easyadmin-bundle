@@ -14,6 +14,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\PhpView;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class PhpViewTest extends TestCase
@@ -138,6 +139,26 @@ final class PhpViewTest extends TestCase
         $view = new PhpView($this->snapshot($payload), $this->gauges());
 
         self::assertSame('Disabled', $view->opcacheEnabled->label, 'opcache.enable is on but the accelerator is not');
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function provideApcuShmSegmentsDirectives(): iterable
+    {
+        yield 'directive removed in APCu 5.1.25' => [null];
+        yield 'directive ignored in MMAP mode' => [4];
+    }
+
+    #[DataProvider('provideApcuShmSegmentsDirectives')]
+    public function testApcuSegmentsAreTheAllocatedOnes(mixed $directive): void
+    {
+        $payload = Payloads::php();
+        $payload['apcu']['config']['apc.shm_segments'] = $directive;
+
+        $view = new PhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertSame(1, $view->apcuShmSegments);
     }
 
     public function testFailedCollectorIsUnavailable(): void
