@@ -1,2 +1,1 @@
-{% set helpUrl = jm_help_url(metric) %}
-{% if helpUrl %}<a class="jm-help" href="{{ helpUrl }}" target="_blank" rel="noopener noreferrer" title="Help" aria-label="Help: {{ label|default(metric) }}" data-jm-help>?</a>{% endif %}
+<a class="jm-help" href="{{ jm_help_url(metric) }}" target="_blank" rel="noopener noreferrer" title="Help" aria-label="Help: {{ label|default(metric) }}" data-jm-help>?</a>

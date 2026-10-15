@@ -93,7 +93,6 @@ jmonitor_easyadmin:
     cache_pool: cache.app      # PSR-6 pool keeping the collected metrics
     polling_interval: 10       # seconds between two live refreshes, 0 disables them
     static_ttl: 3600           # seconds during which versions, configuration and OS data are kept
-    help_url: https://dash.jmonitor.io/help/metric/   # false hides the help links
     components:
         system: auto           # auto | true | false
         php: auto
@@ -139,7 +138,7 @@ Several web servers behind a load balancer are not well handled yet: the System 
 - The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin). They show data meant for administrators: slow query samples with their literal values (which may hold personal data), the MySQL user and host in driver errors, the paths of the PHP INI files.
 - The pages are reachable under every dashboard of the application, whether its menu links to them or not: with a second dashboard for less trusted users, they answer there too.
 - EasyAdmin does not carry the `host` requirement of a dashboard over to these routes: on a dashboard restricted to one host, the pages also answer on the other hosts.
-- With a Content-Security-Policy, allow the origin of `help_url` in `frame-src` (`https://dash.jmonitor.io` by default); otherwise the help panel stays empty and its "Open in a new tab" link still works. The bundle loads its scripts from `bundles/jmonitoreasyadmin/`, with a nonce when `csp_nonce()` is available (NelmioSecurityBundle), and uses no inline script or style.
+- With a Content-Security-Policy, allow `https://dash.jmonitor.io` in `frame-src`, where the help pages behind the `?` links live; otherwise the help panel stays empty and its "Open in a new tab" link still works. The bundle loads its scripts from `bundles/jmonitoreasyadmin/`, with a nonce when `csp_nonce()` is available (NelmioSecurityBundle), and uses no inline script or style.
 
 ## Need help?
 - Anything about this bundle — installation, configuration, the pages in EasyAdmin: open an issue on this repo https://github.com/jmonitor/easyadmin-bundle/issues

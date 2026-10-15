@@ -137,7 +137,6 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ])
     ;
     $services->set(MonitoringExtension::class)
-        ->args([$config['help_url']])
         ->tag('twig.extension')
     ;
     $services->set(MonitoringController::class)
