@@ -121,7 +121,7 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testAViewerIsDenied(): void
+    public function testThePagesFollowTheAccessControlOfTheDashboard(): void
     {
         $client = static::createClient();
         $client->loginUser(new InMemoryUser('viewer', 'viewer', ['ROLE_USER']));

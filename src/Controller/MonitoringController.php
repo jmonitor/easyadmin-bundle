@@ -16,8 +16,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
@@ -36,10 +34,8 @@ final class MonitoringController
         private readonly SnapshotProvider $snapshots,
         private readonly ViewFactory $views,
         private readonly Environment $twig,
-        private readonly AuthorizationCheckerInterface $authorizationChecker,
         private readonly AdminContextProviderInterface $adminContextProvider,
         private readonly UrlGeneratorInterface $urlGenerator,
-        private readonly string $role,
         private readonly int $pollingInterval,
         private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
     ) {}
@@ -47,8 +43,6 @@ final class MonitoringController
     #[AdminRoute(name: 'index')]
     public function index(): Response
     {
-        $this->denyAccessUnlessGranted();
-
         $available = $this->registry->available();
 
         if ($available === []) {
@@ -73,7 +67,6 @@ final class MonitoringController
     #[AdminRoute(path: '/{component}/refresh', name: 'refresh', options: self::COMPONENT_OPTIONS + ['methods' => ['POST']])]
     public function refresh(Request $request, Component $component): Response
     {
-        $this->denyAccessUnlessGranted();
         $this->denyUnlessAvailable($component);
 
         if ($this->csrfTokenManager !== null && !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::REFRESH_TOKEN_ID, $request->request->getString('_token')))) {
@@ -87,7 +80,6 @@ final class MonitoringController
 
     private function render(Component $component, bool $fragment): Response
     {
-        $this->denyAccessUnlessGranted();
         $this->denyUnlessAvailable($component);
 
         $snapshot = $this->snapshots->get($component);
@@ -127,13 +119,6 @@ final class MonitoringController
         $context = $this->adminContextProvider->getContext() ?? throw new \LogicException('No EasyAdmin context: the monitoring routes must be reached through an EasyAdmin dashboard.');
 
         return $context->getDashboardRouteName() . '_jmonitor_' . $action;
-    }
-
-    private function denyAccessUnlessGranted(): void
-    {
-        if (!$this->authorizationChecker->isGranted($this->role)) {
-            throw new AccessDeniedException(sprintf('The monitoring pages require the "%s" role.', $this->role));
-        }
     }
 
     private function denyUnlessAvailable(Component $component): void

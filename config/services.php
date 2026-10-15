@@ -146,10 +146,8 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(SnapshotProvider::class),
             service(ViewFactory::class),
             service('twig'),
-            service('security.authorization_checker'),
             service(AdminContextProviderInterface::class),
             service('router'),
-            $config['role'],
             $config['polling_interval'],
             service('security.csrf.token_manager')->nullOnInvalid(),
         ])
