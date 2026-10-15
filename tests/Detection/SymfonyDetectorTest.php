@@ -6,9 +6,9 @@ namespace Jmonitor\EasyAdminBundle\Tests\Detection;
 
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\Symfony\SymfonyCollector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
-use Jmonitor\JmonitorBundle\Collector\SymfonyCollector;
 use PHPUnit\Framework\TestCase;
 
 final class SymfonyDetectorTest extends TestCase
