@@ -81,7 +81,7 @@ public function configureMenuItems(): iterable
 }
 ```
 
-The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboard at `/admin`), behind the same firewall.
+The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboard at `/admin`), so the `access_control` rule protecting your backend covers them.
 
 ## Configuration
 

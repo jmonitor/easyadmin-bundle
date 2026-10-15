@@ -10,7 +10,7 @@ It reuses the collectors of `jmonitor/collector` and the Symfony collectors of `
 
 - v1 is implemented on `1.x`, not released yet.
 - The `?` links default to `https://dash.jmonitor.io/help/metric/<metric key>`, the public help pages of the SaaS (served with `frame-ancestors *`). The page needs no JavaScript, so the iframe's `sandbox` grants no `allow-scripts`; this also keeps out the script Cloudflare injects into it.
-- Before the first release: do a manual pass in a real EasyAdmin application (`public/live.js` and `public/help.js` were only verified in a browser against a harness reproducing the layout's markup), write the Flex recipe (the bundle currently relies on Flex's automatic bundle registration), rework the README.
+- Before the first release: do a manual pass in a real EasyAdmin application (`public/live.js` and `public/help.js` were only verified in a browser against a harness reproducing the layout's markup), write the Flex recipe (the bundle currently relies on Flex's automatic bundle registration), add the README screenshot (`.github/assets/hero-easyadmin.png`, commented out in the README).
 - Known minor follow-ups, none blocking: `CollectorRunner` runs `boot()` at every collect (one probe query per lifetime); detection builds the collector instances on every monitoring request even when the cache is warm (cheap objects, but a detection/construction split would avoid it); several web nodes sharing one cache pool show whichever node collected last, and the deltas of the node-local collectors (system, php) can mix two nodes; `live.js` and `help.js` have no automated test.
 
 ## Architecture
