@@ -20,7 +20,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('cache.app', $config['cache_pool']);
         self::assertSame(10, $config['polling_interval']);
         self::assertSame(3600, $config['static_ttl']);
-        self::assertSame('https://dash.jmonitor.io/help/metric/', $config['help_url']);
 
         foreach (['system', 'php', 'symfony', 'mysql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
@@ -60,18 +59,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('doctrine.dbal.reporting_connection', $config['components']['mysql']['connection']);
         self::assertSame('redis://cache', $config['components']['redis']['dsn']);
         self::assertFalse($config['components']['symfony']['flex']);
-    }
-
-    public function testHelpCanBeDisabled(): void
-    {
-        self::assertFalse($this->process(['help_url' => false])['help_url']);
-    }
-
-    public function testEmptyHelpUrlIsRejected(): void
-    {
-        $this->expectException(InvalidConfigurationException::class);
-
-        $this->process(['help_url' => '']);
     }
 
     public function testRedisDsnAndServiceAreExclusive(): void

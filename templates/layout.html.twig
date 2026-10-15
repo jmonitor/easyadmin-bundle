@@ -9,7 +9,7 @@
 
 {% block head_javascript %}
     {{ parent() }}
-    {% set scripts = (jm_help_enabled() ? ['help.js'] : [])|merge(current and polling_interval > 0 ? ['live.js'] : []) %}
+    {% set scripts = ['help.js']|merge(current and polling_interval > 0 ? ['live.js'] : []) %}
     {% for script in scripts %}
         {% guard function csp_nonce %}
             <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}" nonce="{{ csp_nonce('script') }}" defer></script>
@@ -62,16 +62,14 @@
         </div>
     </div>
 
-    {% if jm_help_enabled() %}
-        <div class="offcanvas offcanvas-end jm-help-panel" tabindex="-1" id="jm-help-panel" aria-labelledby="jm-help-panel-title" data-jm-help-panel>
-            <div class="offcanvas-header gap-2">
-                <h5 class="offcanvas-title me-auto" id="jm-help-panel-title">Help</h5>
-                <a class="small" href="#" target="_blank" rel="noopener noreferrer" data-jm-help-external>Open in a new tab</a>
-                <button type="button" class="btn-close ms-0" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body p-0 overflow-hidden">
-                <iframe class="jm-help-frame" title="Help" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" data-jm-help-frame></iframe>
-            </div>
+    <div class="offcanvas offcanvas-end jm-help-panel" tabindex="-1" id="jm-help-panel" aria-labelledby="jm-help-panel-title" data-jm-help-panel>
+        <div class="offcanvas-header gap-2">
+            <h5 class="offcanvas-title me-auto" id="jm-help-panel-title">Help</h5>
+            <a class="small" href="#" target="_blank" rel="noopener noreferrer" data-jm-help-external>Open in a new tab</a>
+            <button type="button" class="btn-close ms-0" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
-    {% endif %}
+        <div class="offcanvas-body p-0 overflow-hidden">
+            <iframe class="jm-help-frame" title="Help" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" data-jm-help-frame></iframe>
+        </div>
+    </div>
 {% endblock %}

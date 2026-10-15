@@ -11,10 +11,7 @@ use Twig\TwigFunction;
 final class MonitoringExtension extends AbstractExtension
 {
     private const EMPTY = '—';
-
-    public function __construct(
-        private readonly string|false $helpUrl,
-    ) {}
+    private const HELP_URL = 'https://dash.jmonitor.io/help/metric/';
 
     public function getFilters(): array
     {
@@ -30,7 +27,6 @@ final class MonitoringExtension extends AbstractExtension
     {
         return [
             new TwigFunction('jm_help_url', $this->helpUrl(...)),
-            new TwigFunction('jm_help_enabled', $this->helpEnabled(...)),
         ];
     }
 
@@ -119,17 +115,8 @@ final class MonitoringExtension extends AbstractExtension
         return $elapsed > 0 ? $distance . ' ago' : 'in ' . $distance;
     }
 
-    public function helpUrl(string $metric): ?string
+    public function helpUrl(string $metric): string
     {
-        if ($this->helpUrl === false) {
-            return null;
-        }
-
-        return rtrim($this->helpUrl, '/') . '/' . $metric;
-    }
-
-    public function helpEnabled(): bool
-    {
-        return $this->helpUrl !== false;
+        return self::HELP_URL . $metric;
     }
 }
