@@ -32,7 +32,10 @@ No worker to run, nothing to store.
   </tr>
 </table>
 
-<!-- <img src=".github/assets/hero-easyadmin.png" alt="Jmonitor monitoring pages in EasyAdmin" width="700"> -->
+<p align="center">
+  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png" alt="Symfony tab of the monitoring page in EasyAdmin" width="48%"></a>
+  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png" alt="PHP tab of the monitoring page in EasyAdmin" width="48%"></a>
+</p>
 
 ## Supported components
 
