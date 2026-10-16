@@ -75,6 +75,7 @@
 .jm-stat {
     font-size: 1.75rem;
     font-weight: 600;
+    overflow-wrap: break-word;
 }
 
 .jm-rate {
@@ -102,12 +103,9 @@
 
 .jm-kv-row dd {
     max-width: 100%;
-    margin: 0 0 0 auto;
-    text-align: right;
-    overflow-wrap: break-word;
-}
-
-.jm-stat {
+    margin: 0;
+    margin-inline-start: auto;
+    text-align: end;
     overflow-wrap: break-word;
 }
 
