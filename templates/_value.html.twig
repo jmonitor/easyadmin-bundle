@@ -1,0 +1,11 @@
+{%- if value is null or value is same as('') -%}
+    <span class="text-muted">—</span>
+{%- elseif value is same as(true) -%}
+    <span class="badge text-bg-success">On</span>
+{%- elseif value is same as(false) -%}
+    <span class="badge text-bg-secondary">Off</span>
+{%- elseif value.style is defined -%}
+    {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: value}) }}
+{%- else -%}
+    {{ value }}
+{%- endif -%}
