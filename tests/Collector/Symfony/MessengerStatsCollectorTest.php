@@ -33,9 +33,21 @@ final class MessengerStatsCollectorTest extends TestCase
     public function testAFailedCommandFails(): void
     {
         $runner = $this->createStub(CommandRunner::class);
-        $runner->method('runPhpProcess')->willReturn(['exit_code' => 1, 'output' => '', 'error_output' => 'error']);
+        $runner->method('runPhpProcess')->willReturn(['exit_code' => 1, 'output' => '', 'error_output' => "\n  The \"--format\" option does not exist.  \n"]);
 
         $this->expectException(CollectorException::class);
+        $this->expectExceptionMessage('messenger:stats command failed (exit code: 1): The "--format" option does not exist.');
+
+        (new MessengerStatsCollector($runner))->collect();
+    }
+
+    public function testAFailedCommandWithoutErrorOutputReportsItsOutput(): void
+    {
+        $runner = $this->createStub(CommandRunner::class);
+        $runner->method('runPhpProcess')->willReturn(['exit_code' => 255, 'output' => 'PHP Fatal error: Allowed memory size exhausted', 'error_output' => '']);
+
+        $this->expectException(CollectorException::class);
+        $this->expectExceptionMessage('messenger:stats command failed (exit code: 255): PHP Fatal error: Allowed memory size exhausted');
 
         (new MessengerStatsCollector($runner))->collect();
     }

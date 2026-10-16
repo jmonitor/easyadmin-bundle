@@ -11,6 +11,7 @@ use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Messenger\Worker;
 use Symfony\Component\Scheduler\Scheduler;
 use Symfony\Flex\SymfonyBundle;
@@ -77,7 +78,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                         ->append($this->componentNode('system', 'Collected on Linux only when "auto".'))
                         ->append($this->componentNode('php', 'Always available when "auto": metrics of the PHP process serving the page.'))
                         ->append($this->componentNode('symfony', 'Always available when "auto".', static function (NodeBuilder $children): void {
-                            $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class))->info('Show the Messenger transports (runs "messenger:stats").');
+                            $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class) && Kernel::VERSION_ID >= 70200)->info('Show the Messenger transports (runs "messenger:stats --format=json", Symfony 7.2+).');
                             $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');
                             $children->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").');
                         }))

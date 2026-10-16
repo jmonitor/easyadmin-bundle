@@ -4,7 +4,7 @@
 
 This is a **Symfony bundle** (`jmonitor/easyadmin-bundle`) that adds live monitoring pages to an EasyAdmin 5 backend: system, PHP, MySQL, Redis and Symfony metrics collected when the page is opened and refreshed by polling while it stays open. No worker, no history, no charts: the present only.
 
-It reuses the collectors of `jmonitor/collector`, instantiated by this bundle's own service wiring. The Symfony collectors (`src/Collector/Symfony/`: `SymfonyCollector`, `CommandRunner`, the messenger/scheduler/flex sub-collectors) are a copy of those of `jmonitor/jmonitor-bundle`, which must not become a dependency: being a `symfony-bundle`, Flex would register it in every application. Keep the copy's payload shape identical to the original. The bundle needs no account and no API key.
+It reuses the collectors of `jmonitor/collector`, instantiated by this bundle's own service wiring. The Symfony collectors (`src/Collector/Symfony/`: `SymfonyCollector`, `CommandRunner`, the messenger/scheduler/flex sub-collectors) are a copy of those of `jmonitor/jmonitor-bundle`, which must not become a dependency: being a `symfony-bundle`, Flex would register it in every application. Keep the copy's payload shape identical to the original, except the `errors` key it adds (sub-collector name => failure message) so that the Symfony tab can show why a card is empty. The bundle needs no account and no API key.
 
 ## Architecture
 

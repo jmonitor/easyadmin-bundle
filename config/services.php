@@ -134,6 +134,9 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(GaugeFactory::class),
             service(SnapshotProvider::class),
             service('clock'),
+            $config['components']['symfony']['messenger'],
+            $config['components']['symfony']['scheduler'],
+            $config['components']['symfony']['flex'],
         ])
     ;
     $services->set(MonitoringExtension::class)

@@ -80,6 +80,17 @@ class CommandRunner
         return $this->runProcess($phpBinary === false ? $command : [...$phpBinary, ...$command], $timeout);
     }
 
+    /**
+     * @param array{exit_code: int|null, output: string, error_output: string} $run
+     */
+    public static function failureMessage(string $command, array $run): string
+    {
+        $details = trim($run['error_output']) !== '' ? trim($run['error_output']) : trim($run['output']);
+        $message = sprintf('%s failed (exit code: %s)', $command, var_export($run['exit_code'], true));
+
+        return $details === '' ? $message : $message . ': ' . $details;
+    }
+
     public function getApplication(): Application
     {
         return $this->application;

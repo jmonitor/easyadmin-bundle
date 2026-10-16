@@ -14,7 +14,8 @@ use Psr\Log\LogLevel;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 /**
- * The kernel's description, plus the payload of each component collector that did not fail.
+ * The kernel's description, the payload of each component collector that did not fail and the
+ * failure message of the others.
  *
  * @internal
  */
@@ -24,6 +25,9 @@ final class SymfonyCollector implements CollectorInterface, LoggerAwareInterface
 
     /** @var array<string, true> */
     private array $disabledComponents = [];
+
+    /** @var array<string, string> */
+    private array $errors = [];
 
     /**
      * @param array<string, ComponentCollectorInterface> $componentCollectors
@@ -50,6 +54,7 @@ final class SymfonyCollector implements CollectorInterface, LoggerAwareInterface
                 ]);
 
                 $this->disabledComponents[$name] = true;
+                $this->errors[$name] = $cause->getMessage();
             }
         }
     }
@@ -69,8 +74,10 @@ final class SymfonyCollector implements CollectorInterface, LoggerAwareInterface
             try {
                 $components[$name] = $collector->collect();
             } catch (CollectorException $e) {
+                $this->errors[$name] = $e->getMessage();
                 $this->logger?->warning($e->getMessage(), ['exception' => $e]);
             } catch (\Throwable $e) {
+                $this->errors[$name] = $e->getMessage();
                 $this->logger?->error('Symfony component "{component}" failed to collect.', [
                     'component' => $name,
                     'message' => $e->getMessage(),
@@ -91,6 +98,7 @@ final class SymfonyCollector implements CollectorInterface, LoggerAwareInterface
             'share_dir' => method_exists($this->kernel, 'getShareDir') ? $this->kernel->getShareDir() : null,
             'charset' => $this->kernel->getCharset(),
             'components' => array_filter($components),
+            'errors' => $this->errors,
         ];
     }
 

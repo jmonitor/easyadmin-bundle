@@ -98,7 +98,7 @@ jmonitor_easyadmin:
         php: auto
         symfony:
             enabled: auto
-            messenger: true    # runs "messenger:stats", defaults to true when Messenger is installed
+            messenger: true    # runs "messenger:stats", defaults to true when Messenger is installed on Symfony 7.2+
             scheduler: true    # runs "debug:scheduler", defaults to true when Scheduler is installed
             flex: true         # runs "composer recipes", defaults to true when Flex is installed
         mysql:
@@ -125,7 +125,7 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
 - **MySQL**: the slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
-- **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats` in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`.
+- **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats --format=json` (Symfony 7.2+) in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`. When one of them fails, its card shows the cause; set its option to `false` to remove the card.
 
 ## How it works
 

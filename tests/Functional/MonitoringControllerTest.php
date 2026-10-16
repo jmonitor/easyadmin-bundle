@@ -177,8 +177,8 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'JmonitorEasyAdminBundle');
         self::assertSelectorTextContains('body', 'Recommendations');
         self::assertSelectorTextContains('body', 'realpath_cache_size');
-        self::assertSelectorTextContains('body', 'Messenger');
-        self::assertSelectorTextContains('body', 'not collected');
+        self::assertSelectorTextNotContains('body', 'Messenger', 'disabled in the test kernel');
+        self::assertSelectorTextNotContains('body', 'Flex recipes');
     }
 
     private function adminClient(): KernelBrowser

@@ -55,10 +55,7 @@ final class FlexRecipesCollector implements ComponentCollectorInterface
 
         // Flex also exits with 1 when it lists outdated recipes.
         if (!str_contains($run['output'], 'Outdated recipes.')) {
-            throw new CollectorException(
-                sprintf('composer recipes failed (exit code: %s): %s', var_export($run['exit_code'], true), trim($run['error_output'])),
-                self::class,
-            );
+            throw new CollectorException(CommandRunner::failureMessage('composer recipes', $run), self::class);
         }
 
         return ['up_to_date' => false, 'outdated_recipes' => $this->parseOutput($run['output'])];
