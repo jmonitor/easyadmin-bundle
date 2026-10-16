@@ -57,6 +57,25 @@ final class CommandRunnerTest extends TestCase
         self::assertSame(realpath(__DIR__), realpath($result['output']));
     }
 
+    public function testAProcessRunsAtNormalVerbosityUnderADebugKernel(): void
+    {
+        $env = $_ENV;
+        $server = $_SERVER;
+        $previous = getenv('SHELL_VERBOSITY');
+        putenv('SHELL_VERBOSITY=3');
+        $_ENV['SHELL_VERBOSITY'] = $_SERVER['SHELL_VERBOSITY'] = 3;
+
+        try {
+            $result = $this->runner->runProcess([PHP_BINARY, '-r', 'echo getenv("SHELL_VERBOSITY");'], 10);
+        } finally {
+            putenv($previous === false ? 'SHELL_VERBOSITY' : 'SHELL_VERBOSITY=' . $previous);
+            $_ENV = $env;
+            $_SERVER = $server;
+        }
+
+        self::assertSame('0', $result['output']);
+    }
+
     private function register(Command $command): void
     {
         $application = $this->runner->getApplication();
