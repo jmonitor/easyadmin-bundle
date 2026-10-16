@@ -56,7 +56,7 @@ class CommandRunner
      */
     public function runProcess(array $command, int $timeout): array
     {
-        $process = new Process($command, $this->projectDir, timeout: $timeout);
+        $process = new Process($command, $this->projectDir, ['SHELL_VERBOSITY' => '0'], timeout: $timeout);
         $process->run();
 
         return [

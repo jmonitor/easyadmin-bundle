@@ -16,3 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The Scheduler card shows "No tasks" instead of "Scheduler tasks are not collected." when the scheduler has no task.
+- In debug mode, the `messenger:stats` and `composer recipes` processes no longer run at debug verbosity, so their error is no longer followed by a full exception trace.
