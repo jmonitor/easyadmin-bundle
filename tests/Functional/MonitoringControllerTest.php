@@ -81,7 +81,9 @@ final class MonitoringControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a.jm-help[data-jm-help][href="https://dash.jmonitor.io/help/metric/php.version"]');
-        self::assertSelectorExists('.offcanvas[data-jm-help-panel] iframe[data-jm-help-frame][sandbox]');
+        $frame = $crawler->filter('.offcanvas[data-jm-help-panel] template[data-jm-help-frame]');
+        self::assertCount(1, $frame);
+        self::assertStringContainsString('sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"', $frame->html());
         self::assertCount(1, $crawler->filter('script[src*="help.js"]'));
     }
 

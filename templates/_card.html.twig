@@ -1,5 +1,5 @@
 <div class="card{{ (fill ?? true) ? ' h-100' }}">
-    <div class="card-header d-flex align-items-center gap-2">
+    <div class="card-header d-flex flex-wrap align-items-center column-gap-2 row-gap-1">
         <span>{{ title }}</span>
         {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric, label: title}) }}{% endif %}
         {% if badge|default(null) %}<span class="ms-auto">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: badge}) }}</span>{% endif %}

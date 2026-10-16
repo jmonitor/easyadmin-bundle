@@ -69,7 +69,9 @@
             <button type="button" class="btn-close ms-0" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body p-0 overflow-hidden">
-            <iframe class="jm-help-frame" title="Help" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" data-jm-help-frame></iframe>
+            <template data-jm-help-frame>
+                <iframe class="jm-help-frame" title="Help" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
+            </template>
         </div>
     </div>
 {% endblock %}

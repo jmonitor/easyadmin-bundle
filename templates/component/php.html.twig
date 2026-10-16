@@ -4,13 +4,13 @@
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
 
     <div class="row g-3">
-        <div class="col-md-4 col-xxl-2">
+        <div class="col-md-4 col-xxl-3">
             <div class="d-flex flex-column gap-3 h-100">
                 <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'PHP version', metric: 'php.version', value: view.version}) }}</div>
                 <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Execution mode (SAPI)', metric: 'php.sapi', value: view.sapi}) }}</div>
             </div>
         </div>
-        <div class="col-md-8 col-xxl-6">
+        <div class="col-md-8 col-xxl-5">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.base_config', scroll: true} %}
                 {% block body %}
                     <h6 class="text-muted">[PHP]</h6>
@@ -82,17 +82,17 @@
         <p class="text-muted">OPcache is not available in this PHP process.</p>
     {% else %}
         <div class="row g-3">
-            <div class="col-xl-6">
+            <div class="col-xl-8 col-xxl-6">
                 {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheMemory, detail: view.opcacheTotal is null ? null : view.opcacheUsed|jm_bytes ~ ' / ' ~ view.opcacheTotal|jm_bytes, rows: {
                     'Used': view.opcacheUsed|jm_bytes,
                     'Available': view.opcacheFree|jm_bytes,
                     'Wasted': view.opcacheWasted|jm_bytes,
                 }}) }}
             </div>
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-4 col-xxl-3">
                 {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheHitRate}) }}
             </div>
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-4 col-xxl-3">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.opcache_config'} %}
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
@@ -124,7 +124,7 @@
             <div class="col-sm-6 col-xl-4">
                 {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.apcuHitRate}) }}
             </div>
-            <div class="col-xl-4">
+            <div class="col-md-6 col-xl-4">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.apcu_config'} %}
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {

@@ -4,7 +4,7 @@
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
 
     <div class="row g-3">
-        <div class="col-md-4 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="d-flex flex-column gap-3 h-100">
                 <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Version', metric: 'redis.version', value: view.version}) }}</div>
                 <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Execution mode', metric: 'redis.mode', value: view.mode}) }}</div>
@@ -28,7 +28,7 @@
                 {% endblock %}
             {% endembed %}
         </div>
-        <div class="col-xl-5">
+        <div class="col-md-6 col-xl-4">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Persistence', metric: 'redis.persistence'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'RDB': view.rdb}}) }}
@@ -88,7 +88,7 @@
         <div class="col-md-6 col-xl-4">
             {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.hitRate}) }}
         </div>
-        <div class="col-xl-4">
+        <div class="col-md-6 col-xl-4">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Stats', metric: 'redis.stats'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
@@ -106,7 +106,7 @@
         <h2 class="h5 mt-4 mb-2">Databases</h2>
         <div class="row g-3">
             {% for database in view.databases %}
-                <div class="col-md-6 col-xl-4">
+                <div class="col-md-6 col-xxl-4">
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: database.name} %}
                         {% block body %}
                             <div class="row g-3">

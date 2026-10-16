@@ -10,7 +10,8 @@
     // a transformed ancestor would turn the fixed offcanvas into a box inside the page
     document.body.appendChild(panel);
 
-    var frame = panel.querySelector('[data-jm-help-frame]');
+    var frameTemplate = panel.querySelector('template[data-jm-help-frame]');
+    var frame = null;
     var external = panel.querySelector('[data-jm-help-external]');
     var offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(panel);
 
@@ -37,7 +38,12 @@
 
         var url = themedUrl(link.href);
 
-        if (frame.getAttribute('src') !== url) {
+        // created on first use: an empty frame is an about:blank document, where browser extensions inject scripts that the sandbox then blocks
+        if (!frame) {
+            frame = frameTemplate.content.querySelector('iframe').cloneNode(false);
+            frame.setAttribute('src', url);
+            frameTemplate.replaceWith(frame);
+        } else if (frame.getAttribute('src') !== url) {
             frame.setAttribute('src', url);
         }
 

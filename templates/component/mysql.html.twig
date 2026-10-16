@@ -4,7 +4,7 @@
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
 
     <div class="row g-3">
-        <div class="col-md-6 col-xl-3">
+        <div class="col-md-6 col-xxl-3">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Version', metric: 'mysql.version'} %}
                 {% block body %}
                     <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.version}) }}</div>
@@ -12,7 +12,7 @@
                 {% endblock %}
             {% endembed %}
         </div>
-        <div class="col-md-6 col-xl-4 order-xl-last">
+        <div class="col-md-6 col-xxl-4 order-xxl-last">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'MySQL informations', metric: 'mysql.informations'} %}
                 {% block body %}
                     {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
@@ -24,7 +24,7 @@
                 {% endblock %}
             {% endembed %}
         </div>
-        <div class="col-xl-5">
+        <div class="col-md-8 col-xl-6 col-xxl-5">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center gap-2">
                     <ul class="nav nav-tabs card-header-tabs" role="tablist">
@@ -138,7 +138,7 @@
                     {% endblock %}
                 {% endembed %}
             </div>
-            <div class="col-lg-3">
+            <div class="col-md-6 col-lg-3">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Total', metric: 'mysql.slow_queries_count', fill: false} %}
                     {% block body %}
                         <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.slowQueriesCount}) }}</div>
