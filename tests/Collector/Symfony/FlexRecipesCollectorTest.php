@@ -60,6 +60,18 @@ final class FlexRecipesCollectorTest extends TestCase
         $runner->method('runProcess')->willReturn(['exit_code' => null, 'output' => '', 'error_output' => '']);
 
         $this->expectException(CollectorException::class);
+        $this->expectExceptionMessageMatches('/composer recipes failed \(exit code: NULL\)$/');
+
+        (new FlexRecipesCollector($runner))->collect();
+    }
+
+    public function testAFailureWithoutErrorOutputReportsItsOutput(): void
+    {
+        $runner = $this->createStub(CommandRunner::class);
+        $runner->method('runProcess')->willReturn(['exit_code' => 1, 'output' => 'Command "recipes" is not defined.', 'error_output' => '']);
+
+        $this->expectException(CollectorException::class);
+        $this->expectExceptionMessage('composer recipes failed (exit code: 1): Command "recipes" is not defined.');
 
         (new FlexRecipesCollector($runner))->collect();
     }
