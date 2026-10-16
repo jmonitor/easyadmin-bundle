@@ -12,7 +12,7 @@ parameters:
             path: src/JmonitorEasyAdminBundle.php
         # The Messenger default depends on the installed Symfony version.
         -
-            message: '#^Comparison operation ">=" between \d+ and 70200 is always (true|false)\.$#'
+            message: '#^(Comparison operation ">=" between \d+ and 70200 is always (true|false)|Result of && is always false)\.$#'
             path: src/JmonitorEasyAdminBundle.php
         # KernelInterface::getShareDir() only exists on recent Symfony versions.
         -
