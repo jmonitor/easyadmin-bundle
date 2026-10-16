@@ -1,0 +1,6 @@
+{% if snapshot.error %}
+    <div class="alert alert-warning">{{ snapshot.error }}</div>
+{% endif %}
+{% for error in snapshot.errors %}
+    <div class="alert alert-warning py-2 small">{{ error }}</div>
+{% endfor %}

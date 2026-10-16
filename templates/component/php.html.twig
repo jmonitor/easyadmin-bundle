@@ -1,0 +1,181 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-md-4 col-xxl-3">
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'PHP version', metric: 'php.version', value: view.version}) }}</div>
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Execution mode (SAPI)', metric: 'php.sapi', value: view.sapi}) }}</div>
+            </div>
+        </div>
+        <div class="col-md-8 col-xxl-5">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.base_config', scroll: true} %}
+                {% block body %}
+                    <h6 class="text-muted">[PHP]</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'memory_limit': view.memoryLimitUnlimited ?? (view.memoryLimit is null ? null : view.memoryLimit|jm_bytes),
+                                'max_execution_time': view.maxExecutionTimeUnlimited ?? (view.maxExecutionTime is null ? null : view.maxExecutionTime|jm_duration),
+                                'display_errors': view.displayErrors,
+                                'log_errors': view.logErrors,
+                            }}) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'error_log': view.errorLog,
+                                'error_reporting': view.errorReporting,
+                                'post_max_size': view.postMaxSize,
+                                'upload_max_filesize': view.uploadMaxFilesize,
+                            }}) }}
+                        </div>
+                    </div>
+                    <h6 class="text-muted mt-3">[Date]</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'date.timezone': view.timezone}}) }}
+                        </div>
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-xxl-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-ini-files" aria-controls="jm-php-ini-files" aria-selected="true">INI files <span class="badge text-bg-secondary">{{ view.iniFiles|length }}</span></button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-extensions" aria-controls="jm-php-extensions" aria-selected="false">Extensions <span class="badge text-bg-secondary">{{ view.extensions|length }}</span></button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body jm-scroll tab-content">
+                    <div class="tab-pane active" id="jm-php-ini-files" role="tabpanel">
+                        <ul class="list-unstyled small mb-0 jm-files">
+                            {% for file in view.iniFiles %}
+                                <li>{{ file }}</li>
+                            {% else %}
+                                <li class="text-muted">—</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="jm-php-extensions" role="tabpanel">
+                        {{ view.extensions|join(', ') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-4 mb-2">
+        <h2 class="h5 mb-0">OpCache</h2>
+        {% if view.opcache %}
+            {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.opcacheEnabled}) }}
+            {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.opcacheCli}) }}
+        {% endif %}
+    </div>
+    {% if not view.opcache %}
+        <p class="text-muted">OPcache is not available in this PHP process.</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-xl-8 col-xxl-6">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheMemory, detail: view.opcacheTotal is null ? null : view.opcacheUsed|jm_bytes ~ ' / ' ~ view.opcacheTotal|jm_bytes, rows: {
+                    'Used': view.opcacheUsed|jm_bytes,
+                    'Available': view.opcacheFree|jm_bytes,
+                    'Wasted': view.opcacheWasted|jm_bytes,
+                }}) }}
+            </div>
+            <div class="col-md-6 col-xl-4 col-xxl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.opcacheHitRate}) }}
+            </div>
+            <div class="col-md-6 col-xl-4 col-xxl-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.opcache_config'} %}
+                    {% block body %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'memory_consumption': view.opcacheMemoryConsumption|jm_bytes,
+                            'preload': view.opcachePreload,
+                            'revalidate_freq': view.opcacheRevalidateFreq,
+                            'max_accelerated_files': view.opcacheMaxAcceleratedFiles,
+                        }}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-4 mb-2">
+        <h2 class="h5 mb-0">APCu</h2>
+        {% if view.apcu %}
+            {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.apcuEnabled}) }}
+            {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.apcuCli}) }}
+        {% endif %}
+    </div>
+    {% if not view.apcu %}
+        <p class="text-muted">APCu is disabled.</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-sm-6 col-xl-4">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.apcuMemory, detail: view.apcuUsed is null ? null : view.apcuUsed|jm_bytes ~ ' / ' ~ view.apcuTotal|jm_bytes}) }}
+            </div>
+            <div class="col-sm-6 col-xl-4">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.apcuHitRate}) }}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config', metric: 'php.apcu_config'} %}
+                    {% block body %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'shm_size': view.apcuShmSize is same as(false) ? null : view.apcuShmSize|jm_bytes,
+                            'segments': view.apcuSegments,
+                            'ttl': view.apcuTtl,
+                        }}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+
+    <h2 class="h5 mt-4 mb-2">PHP-FPM</h2>
+    {% if not view.fpm %}
+        <p class="text-muted">PHP-FPM usage not detected.</p>
+    {% else %}
+        <div class="row g-3">
+            <div class="col-xl-6">
+                {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Requests per second', metric: 'php.fpm_req_per_sec', rate: view.fpmRequestsPerSec}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmActiveProcesses, detail: view.fpmProcesses is null ? null : view.fpmActive ~ ' / ' ~ view.fpmProcesses}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="d-flex flex-column gap-3 h-100">
+                    <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Idle processes', metric: 'php.fpm_idle_processes', value: view.fpmIdle}) }}</div>
+                    <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Max children reached', metric: 'php.fpm_max_children_reached', value: view.fpmMaxChildrenReached, badge: view.fpmMaxChildrenReachedBadge}) }}</div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Slow requests', metric: 'php.fpm_slow_request', value: view.fpmSlowRequests, badge: view.fpmSlowRequestsBadge}) }}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {% if view.fpmMemoryPeakPercent %}
+                    {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.fpmMemoryPeakPercent, detail: view.fpmMemoryPeak is null or view.memoryLimit is null ? null : view.fpmMemoryPeak|jm_bytes ~ ' / ' ~ view.memoryLimit|jm_bytes}) }}
+                {% else %}
+                    {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Memory peak', value: view.fpmMemoryPeak is null ? null : view.fpmMemoryPeak|jm_bytes}) }}
+                {% endif %}
+            </div>
+            <div class="col-md-6 col-xl-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'FPM informations', metric: 'php.fpm_config'} %}
+                    {% block body %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Pool': view.fpmPool,
+                            'Mode': view.fpmProcessManager,
+                            'Uptime': view.fpmUptime|jm_duration,
+                        }}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

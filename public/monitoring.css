@@ -1,0 +1,208 @@
+.jm-monitoring .nav-tabs .nav-link {
+    cursor: pointer;
+}
+
+@media (max-width: 575.98px) {
+    .jm-monitoring .nav-tabs .nav-link {
+        padding-inline: .5rem;
+    }
+}
+
+.jm-gauge-card > .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.jm-gauge {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin: 0 auto;
+}
+
+.jm-gauge circle {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+}
+
+.jm-gauge-track {
+    stroke: var(--bs-secondary-bg, #e9ecef);
+}
+
+.jm-gauge-value {
+    stroke: var(--bs-primary, #0d6efd);
+}
+
+.jm-gauge-success .jm-gauge-value { stroke: var(--bs-success, #198754); }
+.jm-gauge-info .jm-gauge-value { stroke: var(--bs-info, #0dcaf0); }
+.jm-gauge-warning .jm-gauge-value { stroke: var(--bs-warning, #ffc107); }
+.jm-gauge-danger .jm-gauge-value { stroke: var(--bs-danger, #dc3545); }
+
+.jm-gauge-text {
+    font-size: 22px;
+    font-weight: 600;
+    fill: currentColor;
+}
+
+.jm-gauge-empty {
+    font-size: 1.5rem;
+    line-height: 4.5rem;
+}
+
+.jm-gauge-label {
+    font-weight: 500;
+    margin-top: .25rem;
+}
+
+.jm-help {
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    line-height: 1.1rem;
+    border-radius: 50%;
+    font-size: .75rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    background: var(--bs-secondary-bg, #e9ecef);
+    vertical-align: middle;
+}
+
+.jm-stat {
+    font-size: 1.75rem;
+    font-weight: 600;
+    overflow-wrap: break-word;
+}
+
+.jm-rate {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.jm-stat .jm-rate {
+    font-size: inherit;
+}
+
+.jm-kv-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1rem;
+    padding: .125rem 0;
+}
+
+.jm-kv-row dt {
+    font-weight: normal;
+    color: var(--bs-secondary-color, #6c757d);
+    overflow-wrap: anywhere;
+}
+
+.jm-kv-row dd {
+    max-width: 100%;
+    margin: 0;
+    margin-inline-start: auto;
+    text-align: end;
+    overflow-wrap: break-word;
+}
+
+.jm-next-task-main {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+.jm-text-cell {
+    min-width: 14rem;
+}
+
+.jm-peak svg {
+    display: block;
+    width: 100%;
+    height: .75rem;
+}
+
+.jm-peak-track {
+    fill: var(--bs-secondary-bg, #e9ecef);
+}
+
+.jm-peak-value {
+    fill: var(--bs-primary, #0d6efd);
+}
+
+.jm-peak-marker {
+    fill: var(--bs-danger, #dc3545);
+}
+
+.jm-scroll {
+    max-height: 20rem;
+    overflow-y: auto;
+}
+
+.jm-query {
+    display: block;
+    min-width: 16rem;
+    max-height: 4.5em;
+    overflow-y: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.jm-files li {
+    overflow-wrap: anywhere;
+}
+
+.jm-tile {
+    padding: .5rem .25rem;
+    border-radius: var(--bs-border-radius, .375rem);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.jm-tile-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.jm-tile-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.jm-live {
+    white-space: nowrap;
+}
+
+.jm-live-switch {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0;
+    cursor: pointer;
+}
+
+.jm-live-ago {
+    display: inline-grid;
+    font-variant-numeric: tabular-nums;
+}
+
+.jm-live-ago > * {
+    grid-area: 1 / 1;
+}
+
+.jm-live-ago-widest {
+    visibility: hidden;
+}
+
+.jm-help-panel {
+    --bs-offcanvas-width: min(560px, 100vw);
+}
+
+.jm-help-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
