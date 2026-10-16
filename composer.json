@@ -26,7 +26,7 @@
     "require": {
         "php": "^8.2",
         "easycorp/easyadmin-bundle": "^5.2",
-        "jmonitor/collector": "^2.2.2",
+        "jmonitor/collector": "^2.3.0",
         "psr/cache": "^1.0|^2.0|^3.0",
         "psr/container": "^1.1|^2.0",
         "psr/log": "^2.0|^3.0",
@@ -69,10 +69,7 @@
         }
     },
     "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "php-http/discovery": false
-        }
+        "sort-packages": true
     },
     "extra": {
         "branch-alias": {
