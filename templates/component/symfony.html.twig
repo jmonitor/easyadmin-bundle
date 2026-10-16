@@ -54,87 +54,102 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-4">
-            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Flex recipes', metric: 'symfony.flex', badge: view.flex} %}
-                {% block body %}
-                    {% if not view.flexAvailable %}
-                        <p class="text-muted mb-0">Flex recipes are not collected.</p>
-                    {% elseif view.flexCheckFailed %}
-                        <p class="text-muted mb-0">The recipes check could not run: is <code>composer</code> available on this server?</p>
-                    {% elseif view.recipesUpToDate %}
-                        <p class="mb-0">Configuration optimized.<br><span class="text-muted">No recipe updates required.</span></p>
-                    {% else %}
-                        <ul class="mb-0">
-                            {% for recipe in view.outdatedRecipes %}
-                                <li>{{ recipe }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-                {% endblock %}
-            {% endembed %}
-        </div>
+        {% if view.flexEnabled %}
+            <div class="col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Flex recipes', metric: 'symfony.flex', badge: view.flex} %}
+                    {% block body %}
+                        {% if view.flexError %}
+                            <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.flexError }}</div>
+                            <p class="small text-muted mb-0">The check runs <code>composer recipes -o</code> in the project directory, as the user running PHP, and stops after 5 seconds: <code>composer</code> must be in the <code>PATH</code> of that user and reach the Symfony recipes server. Click Refresh once fixed, or set <code>flex: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
+                        {% elseif not view.flexAvailable %}
+                            <p class="text-muted mb-0">Flex recipes are not collected.</p>
+                        {% elseif view.flexCheckFailed %}
+                            <p class="text-muted mb-0">The recipes check could not run: is <code>composer</code> available on this server?</p>
+                        {% elseif view.recipesUpToDate %}
+                            <p class="mb-0">Configuration optimized.<br><span class="text-muted">No recipe updates required.</span></p>
+                        {% else %}
+                            <ul class="mb-0">
+                                {% for recipe in view.outdatedRecipes %}
+                                    <li>{{ recipe }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        {% endif %}
     </div>
 
-    <h2 class="h5 mt-4 mb-2">Components</h2>
-    <div class="row g-3">
-        <div class="col-md-6 col-xxl-4">
-            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Messenger', metric: 'symfony.messenger'} %}
-                {% block body %}
-                    {% if not view.messengerAvailable %}
-                        <p class="text-muted mb-0">Messenger stats are not collected.</p>
-                    {% else %}
-                        <div class="table-responsive">
-                            <table class="table table-sm mb-0">
-                                <thead><tr><th>Transport</th><th class="text-end">Messages</th></tr></thead>
-                                <tbody>
-                                    {% for name, count in view.messengerTransports %}
-                                        <tr>
-                                            <td>{{ name }}</td>
-                                            <td class="text-end">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                    {% for name in view.messengerUncountable %}
-                                        <tr>
-                                            <td>{{ name }}</td>
-                                            <td class="text-end text-muted">Uncountable</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% endif %}
-                {% endblock %}
-            {% endembed %}
-        </div>
-        <div class="col-md-6 col-xxl-5">
-            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scheduler - Next task', metric: 'symfony.scheduler_next_task'} %}
-                {% block body %}
-                    {% if not view.schedulerAvailable %}
-                        <p class="text-muted mb-0">Scheduler tasks are not collected.</p>
-                    {% elseif not view.nextTask %}
-                        <p class="text-muted mb-0">No tasks</p>
-                    {% else %}
-                        <div class="d-flex flex-wrap align-items-start column-gap-3 row-gap-2">
-                            <div class="jm-next-task-main">
-                                <div class="fs-5"><code>{{ view.nextTask.command }}</code></div>
-                                {% if view.nextTask.description %}<div class="text-muted">{{ view.nextTask.description }}</div>{% endif %}
-                                <div class="mt-2">
-                                    {% if view.nextTask.trigger %}<span class="badge text-bg-info">{{ view.nextTask.trigger }}</span>{% endif %}
-                                    {% if view.nextTask.jitter %}<span class="small text-muted ms-1">{{ view.nextTask.jitter }} jitters</span>{% endif %}
-                                </div>
-                            </div>
-                            {% if view.nextTask.next_run %}
-                                <div class="ms-auto text-end">
-                                    <div class="fs-5">{{ view.nextTask.next_run|jm_ago }}</div>
-                                    <div class="small text-muted">{{ view.nextTask.next_run|date('Y-m-d H:i:s') }}</div>
+    {% if view.messengerEnabled or view.schedulerEnabled %}
+        <h2 class="h5 mt-4 mb-2">Components</h2>
+        <div class="row g-3">
+            {% if view.messengerEnabled %}
+                <div class="col-md-6 col-xxl-4">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Messenger', metric: 'symfony.messenger'} %}
+                        {% block body %}
+                            {% if view.messengerError %}
+                                <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.messengerError }}</div>
+                                <p class="small text-muted mb-0">The stats come from <code>bin/console messenger:stats --format=json</code> (Symfony 7.2 or later), run in a PHP CLI process from the project directory and stopped after 3 seconds. Click Refresh once fixed, or set <code>messenger: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
+                            {% elseif not view.messengerAvailable %}
+                                <p class="text-muted mb-0">Messenger stats are not collected.</p>
+                            {% else %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Transport</th><th class="text-end">Messages</th></tr></thead>
+                                        <tbody>
+                                            {% for name, count in view.messengerTransports %}
+                                                <tr>
+                                                    <td>{{ name }}</td>
+                                                    <td class="text-end">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                            {% for name in view.messengerUncountable %}
+                                                <tr>
+                                                    <td>{{ name }}</td>
+                                                    <td class="text-end text-muted">Uncountable</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </div>
                             {% endif %}
-                        </div>
-                    {% endif %}
-                {% endblock %}
-            {% endembed %}
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            {% endif %}
+            {% if view.schedulerEnabled %}
+                <div class="col-md-6 col-xxl-5">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scheduler - Next task', metric: 'symfony.scheduler_next_task'} %}
+                        {% block body %}
+                            {% if view.schedulerError %}
+                                <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.schedulerError }}</div>
+                                <p class="small text-muted mb-0">The tasks come from the <code>debug:scheduler</code> command, run in the web process. Click Refresh once fixed, or set <code>scheduler: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
+                            {% elseif not view.nextTask %}
+                                <p class="text-muted mb-0">No tasks</p>
+                            {% else %}
+                                <div class="d-flex flex-wrap align-items-start column-gap-3 row-gap-2">
+                                    <div class="jm-next-task-main">
+                                        <div class="fs-5"><code>{{ view.nextTask.command }}</code></div>
+                                        {% if view.nextTask.description %}<div class="text-muted">{{ view.nextTask.description }}</div>{% endif %}
+                                        <div class="mt-2">
+                                            {% if view.nextTask.trigger %}<span class="badge text-bg-info">{{ view.nextTask.trigger }}</span>{% endif %}
+                                            {% if view.nextTask.jitter %}<span class="small text-muted ms-1">{{ view.nextTask.jitter }} jitters</span>{% endif %}
+                                        </div>
+                                    </div>
+                                    {% if view.nextTask.next_run %}
+                                        <div class="ms-auto text-end">
+                                            <div class="fs-5">{{ view.nextTask.next_run|jm_ago }}</div>
+                                            <div class="small text-muted">{{ view.nextTask.next_run|date('Y-m-d H:i:s') }}</div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            {% endif %}
         </div>
-    </div>
+    {% endif %}
 
     {% if view.schedulerTasks is not empty %}
         <div class="card mt-3">

@@ -35,6 +35,7 @@ final class SymfonyCollectorTest extends TestCase
         self::assertSame('/project', $result['project_dir']);
         self::assertSame('UTF-8', $result['charset']);
         self::assertSame(['filled' => ['foo' => 'bar']], $result['components']);
+        self::assertSame([], $result['errors']);
     }
 
     public function testAComponentThatFailsToBootIsDisabledAlone(): void
@@ -57,7 +58,10 @@ final class SymfonyCollectorTest extends TestCase
         $collector->setLogger($logger);
         $collector->boot();
 
-        self::assertSame(['healthy' => ['foo' => 'bar']], $collector->collect()['components']);
+        $result = $collector->collect();
+
+        self::assertSame(['healthy' => ['foo' => 'bar']], $result['components']);
+        self::assertSame(['broken' => 'Collector broken failed: unable to run'], $result['errors'], 'the cause, not the wrapping exception');
     }
 
     public function testAnUnexpectedBootFailureIsAnError(): void
@@ -74,7 +78,10 @@ final class SymfonyCollectorTest extends TestCase
         $collector->setLogger($logger);
         $collector->boot();
 
-        self::assertSame([], $collector->collect()['components']);
+        $result = $collector->collect();
+
+        self::assertSame([], $result['components']);
+        self::assertSame(['broken' => 'boom'], $result['errors']);
     }
 
     public function testAComponentThatFailsToCollectDoesNotBreakTheOthers(): void
@@ -93,7 +100,20 @@ final class SymfonyCollectorTest extends TestCase
         ]);
         $collector->setLogger($logger);
 
-        self::assertSame(['healthy' => ['foo' => 'bar']], $collector->collect()['components']);
+        $result = $collector->collect();
+
+        self::assertSame(['healthy' => ['foo' => 'bar']], $result['components']);
+        self::assertSame(['broken' => 'boom'], $result['errors']);
+    }
+
+    public function testACollectFailureIsReported(): void
+    {
+        $broken = $this->createStub(ComponentCollectorInterface::class);
+        $broken->method('collect')->willThrowException(new CollectorException('messenger:stats command failed', 'broken'));
+
+        $result = (new SymfonyCollector($this->createStub(KernelInterface::class), ['broken' => $broken]))->collect();
+
+        self::assertSame(['broken' => 'Collector broken failed: messenger:stats command failed'], $result['errors']);
     }
 
     /**

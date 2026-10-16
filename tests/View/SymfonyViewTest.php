@@ -44,7 +44,7 @@ final class SymfonyViewTest extends TestCase
         self::assertSame(0, $view->messengerTransports['retry']);
         self::assertSame(['sync'], $view->messengerUncountable);
 
-        self::assertTrue($view->schedulerAvailable);
+        self::assertNull($view->schedulerError);
         self::assertSame('app:ping', $view->schedulerTasks[0]['command'], 'sorted by next run');
         self::assertSame('every 5 minutes', $view->nextTask['trigger'] ?? null);
         self::assertSame('0-10 second', $view->nextTask['jitter'] ?? null);
@@ -77,8 +77,31 @@ final class SymfonyViewTest extends TestCase
         self::assertSame('Debug: enabled', $view->debug?->label);
         self::assertSame('Up to date', $view->flex?->label);
         self::assertFalse($view->messengerAvailable);
-        self::assertFalse($view->schedulerAvailable);
+        self::assertNull($view->schedulerError, 'a scheduler without tasks is dropped from the payload, it did not fail');
         self::assertNull($view->nextTask);
+    }
+
+    public function testFailuresCarryTheirCause(): void
+    {
+        $view = new SymfonyView($this->symfony(['env' => 'prod', 'debug' => false, 'bundles' => [], 'components' => [], 'errors' => [
+            'flex_recipes' => "composer recipes failed (exit code: 127): sh: 1: exec:\n   composer: not found",
+            'messenger' => 'Collector Jmonitor\EasyAdminBundle\Collector\Symfony\MessengerStatsCollector failed: messenger:stats command failed (exit code: 1): The "--format" option does not exist.',
+            'scheduler' => 'Unable to run debug:scheduler command',
+        ]]), $this->php([]));
+
+        self::assertSame('composer recipes failed (exit code: 127): sh: 1: exec: composer: not found', $view->flexError);
+        self::assertSame('messenger:stats command failed (exit code: 1): The "--format" option does not exist.', $view->messengerError);
+        self::assertSame('Unable to run debug:scheduler command', $view->schedulerError);
+        self::assertNull($view->flex);
+    }
+
+    public function testDisabledComponentsAreKnown(): void
+    {
+        $view = new SymfonyView($this->symfony(Payloads::symfony()), $this->php([]), messengerEnabled: false, schedulerEnabled: true, flexEnabled: false);
+
+        self::assertFalse($view->messengerEnabled);
+        self::assertTrue($view->schedulerEnabled);
+        self::assertFalse($view->flexEnabled);
     }
 
     public function testOpcacheTurnedOffAtRuntimeIsRecommended(): void

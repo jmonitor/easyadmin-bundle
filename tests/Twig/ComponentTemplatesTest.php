@@ -212,6 +212,36 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Every 1 hour', $html);
     }
 
+    public function testTheSymfonyFragmentExplainsAFailedCollect(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', ['env' => 'prod', 'debug' => false, 'bundles' => [], 'components' => [], 'errors' => [
+            'flex_recipes' => 'composer recipes failed (exit code: 127): sh: 1: exec: composer: not found',
+            'messenger' => 'messenger:stats command failed (exit code: 1): The "--format" option does not exist.',
+        ]], null, 1_000)]);
+        $php = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000)]);
+
+        $html = $this->render('symfony', $snapshot, new SymfonyView($snapshot, $php));
+
+        self::assertStringContainsString('sh: 1: exec: composer: not found', $html);
+        self::assertStringContainsString('<code>flex: false</code>', $html);
+        self::assertStringContainsString('The &quot;--format&quot; option does not exist.', $html);
+        self::assertStringContainsString('<code>messenger: false</code>', $html);
+        self::assertStringContainsString('No tasks', $html);
+    }
+
+    public function testTheSymfonyFragmentHidesDisabledComponents(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', Payloads::symfony(), null, 1_000)]);
+        $php = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000)]);
+
+        $html = $this->render('symfony', $snapshot, new SymfonyView($snapshot, $php, messengerEnabled: false, schedulerEnabled: false, flexEnabled: false));
+
+        self::assertStringNotContainsString('Flex recipes', $html);
+        self::assertStringNotContainsString('Messenger', $html);
+        self::assertStringNotContainsString('Scheduler - Next task', $html);
+        self::assertStringNotContainsString('<h2 class="h5 mt-4 mb-2">Components</h2>', $html);
+    }
+
     private function render(string $component, ComponentSnapshot $snapshot, object $view): string
     {
         return $this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component), [

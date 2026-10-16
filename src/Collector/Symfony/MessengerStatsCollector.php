@@ -53,7 +53,14 @@ final class MessengerStatsCollector implements ComponentCollectorInterface
         }
 
         if ($run['exit_code'] !== 0) {
-            throw new CollectorException('messenger:stats command failed (exit code: ' . var_export($run['exit_code'], true) . ')', self::class);
+            throw new CollectorException(
+                sprintf(
+                    'messenger:stats command failed (exit code: %s): %s',
+                    var_export($run['exit_code'], true),
+                    trim($run['error_output']) !== '' ? trim($run['error_output']) : trim($run['output']),
+                ),
+                self::class,
+            );
         }
 
         try {

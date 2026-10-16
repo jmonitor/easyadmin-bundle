@@ -23,6 +23,8 @@ final readonly class SymfonyView
     /** @var list<string> */
     public array $bundles;
 
+    public bool $flexEnabled;
+    public ?string $flexError;
     public bool $flexAvailable;
     public bool $flexCheckFailed;
     public ?Badge $flex;
@@ -30,22 +32,26 @@ final readonly class SymfonyView
     /** @var list<string> */
     public array $outdatedRecipes;
 
+    public bool $messengerEnabled;
+    public ?string $messengerError;
     public bool $messengerAvailable;
     /** @var array<string, Badge|int|null> transport name => queued messages */
     public array $messengerTransports;
     /** @var list<string> */
     public array $messengerUncountable;
 
-    public bool $schedulerAvailable;
+    public bool $schedulerEnabled;
+    public ?string $schedulerError;
     /** @var list<array{command: ?string, description: ?string, trigger: ?string, jitter: ?string, next_run: ?int}> */
     public array $schedulerTasks;
     /** @var ?array{command: ?string, description: ?string, trigger: ?string, jitter: ?string, next_run: ?int} */
     public ?array $nextTask;
 
-    public function __construct(ComponentSnapshot $symfony, ComponentSnapshot $php)
+    public function __construct(ComponentSnapshot $symfony, ComponentSnapshot $php, bool $messengerEnabled = true, bool $schedulerEnabled = true, bool $flexEnabled = true)
     {
         $data = $symfony->data('symfony');
         $components = is_array($data['components'] ?? null) ? $data['components'] : [];
+        $errors = is_array($data['errors'] ?? null) ? $data['errors'] : [];
 
         $this->version = Values::string($data['version'] ?? null);
         $environment = Values::string($data['env'] ?? null);
@@ -71,6 +77,8 @@ final readonly class SymfonyView
         $this->realpathCacheTtl = $realpathCacheTtl === null ? null : new Badge($realpathCacheTtl >= 600 ? BadgeStyle::Success : BadgeStyle::Warning, (string) $realpathCacheTtl);
         $this->bundles = is_array($data['bundles'] ?? null) ? array_values(array_filter($data['bundles'], 'is_string')) : [];
 
+        $this->flexEnabled = $flexEnabled;
+        $this->flexError = self::error($errors['flex_recipes'] ?? null);
         $flex = is_array($components['flex_recipes'] ?? null) ? $components['flex_recipes'] : null;
         $this->flexAvailable = $flex !== null && $flex !== [];
         $this->recipesUpToDate = Values::bool($flex['up_to_date'] ?? null) === true;
@@ -82,6 +90,8 @@ final readonly class SymfonyView
             default => new Badge(BadgeStyle::Success, 'Up to date'),
         };
 
+        $this->messengerEnabled = $messengerEnabled;
+        $this->messengerError = self::error($errors['messenger'] ?? null);
         $messenger = is_array($components['messenger'] ?? null) ? $components['messenger'] : null;
         $this->messengerAvailable = $messenger !== null;
         $transports = [];
@@ -96,10 +106,10 @@ final readonly class SymfonyView
         $this->messengerTransports = $transports;
         $this->messengerUncountable = is_array($messenger['uncountable_transports'] ?? null) ? array_values(array_filter($messenger['uncountable_transports'], 'is_string')) : [];
 
-        $scheduler = is_array($components['scheduler'] ?? null) ? $components['scheduler'] : null;
-        $this->schedulerAvailable = $scheduler !== null;
+        $this->schedulerEnabled = $schedulerEnabled;
+        $this->schedulerError = self::error($errors['scheduler'] ?? null);
         $tasks = [];
-        foreach ($scheduler ?? [] as $task) {
+        foreach (is_array($components['scheduler'] ?? null) ? $components['scheduler'] : [] as $task) {
             if (!is_array($task)) {
                 continue;
             }
@@ -116,6 +126,16 @@ final readonly class SymfonyView
         usort($tasks, static fn(array $a, array $b): int => ($a['next_run'] ?? PHP_INT_MAX) <=> ($b['next_run'] ?? PHP_INT_MAX));
         $this->schedulerTasks = $tasks;
         $this->nextTask = $tasks[0] ?? null;
+    }
+
+    /**
+     * Command outputs come boxed and indented over several lines.
+     */
+    private static function error(mixed $message): ?string
+    {
+        $message = Values::string($message);
+
+        return $message === null ? null : trim((string) preg_replace(['/^Collector \S+ failed: /', '/\s+/'], ['', ' '], $message));
     }
 
     /**
