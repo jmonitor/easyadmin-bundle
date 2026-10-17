@@ -129,6 +129,16 @@ final class InstancesTest extends WebTestCase
         self::assertResponseRedirects('/admin/jmonitor/mysql?connection=legacy');
     }
 
+    public function testRefreshOfASingleInstanceGoesBackToTheBareUrl(): void
+    {
+        $client = $this->adminClient([['id' => 'default', 'detail' => 'shop']]);
+
+        $crawler = $client->request('GET', '/admin/jmonitor/mysql');
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/mysql/refresh?connection=default"]')->form());
+
+        self::assertResponseRedirects('/admin/jmonitor/mysql');
+    }
+
     public function testTheIndexRedirectsToTheComponentWithoutParameter(): void
     {
         $client = $this->adminClient(self::TWO_INSTANCES, ['system' => false, 'php' => false, 'symfony' => false]);

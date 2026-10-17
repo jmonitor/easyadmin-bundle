@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The cumulated ratios and the deadlocks total of the PostgreSQL tab say "since stats reset" instead of "since server start": the `pg_stat_database` counters survive a restart and are cleared by `pg_stat_reset()`.
+- Refresh on a component with a single connection goes back to the page without the `connection` parameter, as it was opened.
 
 ## [1.0.1] - 2026-10-16
 
