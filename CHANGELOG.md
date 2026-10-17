@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The MySQL and PostgreSQL tabs show every Doctrine connection of their driver, one pill per database; the connection is selected with the `connection` query parameter (`/jmonitor/mysql?connection=legacy`), each one with its own cache and Refresh.
 - A PostgreSQL tab, detected from the Doctrine connections: connections, transactions, cache hit ratio, temp files, rows written, slow queries (`pg_stat_statements`), dead rows and index usage, blocked sessions and blocking chain, storage, with the configuration cards.
 
+### Changed
+
+- A Doctrine connection named in the configuration but unusable (unknown, or not of the component's driver) is shown with its error even when the component is `auto`, instead of hiding the component.
+
 ### Deprecated
 
 - `components.mysql.connection` and `components.postgresql.connection`: use `connections` instead.
