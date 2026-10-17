@@ -138,6 +138,12 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
 
         if ($connections !== null) {
+            // Declared without default so that the key never reaches the processed configuration:
+            // the config builders keep their connection() method, the value is merged above.
+            $children->scalarNode('connection')
+                ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', 'The "connection" option is deprecated, use "connections" instead.')
+                ->info('Deprecated, use "connections".')
+            ;
             $children->append($connections);
         }
 

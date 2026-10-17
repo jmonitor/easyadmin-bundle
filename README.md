@@ -88,7 +88,7 @@ The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboa
 
 ## Configuration
 
-Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL, the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
+Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL (every connection of their driver, one pill per database), the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
 
 ```yaml
 # config/packages/jmonitor_easyadmin.yaml

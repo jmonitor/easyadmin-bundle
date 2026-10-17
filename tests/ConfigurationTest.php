@@ -89,6 +89,20 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('connection', $config['components']['postgresql']);
     }
 
+    public function testTheDeprecatedConnectionOptionStaysInTheTreeForTheConfigBuilders(): void
+    {
+        $configuration = (new JmonitorEasyAdminBundle())->getContainerExtension()->getConfiguration([], new ContainerBuilder());
+        $components = $configuration->getConfigTreeBuilder()->buildTree()->getChildren()['components']->getChildren();
+
+        foreach (['mysql', 'postgresql'] as $component) {
+            $connection = $components[$component]->getChildren()['connection'] ?? null;
+
+            self::assertNotNull($connection, $component);
+            self::assertTrue($connection->isDeprecated(), $component);
+            self::assertFalse($connection->hasDefaultValue(), 'without a default the key does not reach the processed configuration');
+        }
+    }
+
     public function testConnectionAndConnectionsAreExclusive(): void
     {
         $this->expectException(InvalidConfigurationException::class);
