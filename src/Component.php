@@ -8,6 +8,7 @@ enum Component: string
 {
     case System = 'system';
     case Php = 'php';
+    case FrankenPhp = 'frankenphp';
     case Symfony = 'symfony';
     case Mysql = 'mysql';
     case Postgresql = 'postgresql';
@@ -18,6 +19,7 @@ enum Component: string
         return match ($this) {
             self::System => 'System',
             self::Php => 'PHP',
+            self::FrankenPhp => 'FrankenPHP',
             self::Symfony => 'Symfony',
             self::Mysql => 'MySQL',
             self::Postgresql => 'PostgreSQL',

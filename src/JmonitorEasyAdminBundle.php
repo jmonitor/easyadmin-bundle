@@ -82,6 +82,9 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->children()
                         ->append($this->componentNode('system', 'Collected on Linux only when "auto".'))
                         ->append($this->componentNode('php', 'Always available when "auto": metrics of the PHP process serving the page.'))
+                        ->append($this->componentNode('frankenphp', 'Detected when the page is served by FrankenPHP when "auto".', static function (NodeBuilder $children): void {
+                            $children->scalarNode('endpoint')->defaultValue('http://localhost:2019/metrics')->cannotBeEmpty()->info('URL of the Caddy Prometheus endpoint, served by its admin API.');
+                        }))
                         ->append($this->componentNode('symfony', 'Always available when "auto".', static function (NodeBuilder $children): void {
                             $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class) && Kernel::VERSION_ID >= 70200)->info('Show the Messenger transports (runs "messenger:stats --format=json", Symfony 7.2+).');
                             $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');
