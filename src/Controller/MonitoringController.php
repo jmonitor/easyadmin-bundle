@@ -93,7 +93,8 @@ final class MonitoringController
     }
 
     /**
-     * Without an authorization checker the configured permission cannot be granted, so it denies.
+     * The HTTP exception answers 403 even outside a firewall; inside one, the firewall finds
+     * Security's exception behind it and applies its access denied handling.
      */
     private function denyAccessUnlessGranted(): void
     {
@@ -101,8 +102,14 @@ final class MonitoringController
             return;
         }
 
-        if ($this->authorizationChecker === null || !$this->authorizationChecker->isGranted($this->permission)) {
-            throw new AccessDeniedException(sprintf('The monitoring pages need the "%s" permission.', $this->permission));
+        if ($this->permission === '') {
+            throw new \LogicException('The "permission" option of jmonitor_easyadmin resolved to an empty string: give it a role or remove it.');
+        }
+
+        if (!$this->authorizationChecker?->isGranted($this->permission)) {
+            $message = sprintf('The monitoring pages need the "%s" permission.', $this->permission);
+
+            throw new AccessDeniedHttpException($message, new AccessDeniedException($message));
         }
     }
 

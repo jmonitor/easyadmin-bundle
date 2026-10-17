@@ -54,10 +54,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
-        $bundles = $builder->hasParameter('kernel.bundles') ? (array) $builder->getParameter('kernel.bundles') : [];
+        // Checked here rather than by the node: the tree validates an env placeholder with an empty string.
+        if ($config['permission'] === '') {
+            throw new InvalidConfigurationException('The "permission" option of jmonitor_easyadmin cannot be empty: give it a role or set it to null.');
+        }
 
-        if ($config['permission'] !== null && !in_array(SecurityBundle::class, $bundles, true)) {
-            throw new \LogicException('The "permission" option of jmonitor_easyadmin needs the Security bundle: install symfony/security-bundle or remove the option.');
+        // The extension is loaded in a temporary container that knows no other extension, only the parameters.
+        $bundles = $builder->hasParameter('kernel.bundles') ? (array) $builder->getParameter('kernel.bundles') : [];
+        $hasSecurity = array_filter($bundles, static fn(mixed $class): bool => is_string($class) && is_a($class, SecurityBundle::class, true)) !== [];
+
+        if ($config['permission'] !== null && !$hasSecurity) {
+            throw new \LogicException('The "permission" option of jmonitor_easyadmin needs the Security bundle: register Symfony\Bundle\SecurityBundle\SecurityBundle in config/bundles.php or remove the option.');
         }
 
         $builder->setParameter('jmonitor_easyadmin.config', $config);
@@ -87,10 +94,6 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                 ->scalarNode('permission')
                     ->defaultNull()
                     ->info('Role or voter attribute required to see the pages, checked with is_granted(). Null leaves the access to the security of the dashboard.')
-                    ->validate()
-                        ->ifTrue(static fn(mixed $v): bool => $v !== null && (!is_string($v) || $v === ''))
-                        ->thenInvalid('The permission must be a non-empty string or null, got %s.')
-                    ->end()
                 ->end()
                 ->arrayNode('components')
                     ->addDefaultsIfNotSet()

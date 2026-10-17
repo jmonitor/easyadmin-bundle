@@ -48,6 +48,21 @@ final class BundleBootTest extends TestCase
         $kernel->shutdown();
     }
 
+    public function testThePermissionAcceptsAnEnvironmentVariable(): void
+    {
+        $_SERVER['JMONITOR_TEST_PERMISSION'] = 'ROLE_SUPER_ADMIN';
+        $kernel = new TestKernel(['permission' => '%env(JMONITOR_TEST_PERMISSION)%']);
+
+        try {
+            $kernel->boot();
+
+            self::assertSame('ROLE_SUPER_ADMIN', $kernel->getContainer()->getParameter('jmonitor_easyadmin.config')['permission']);
+        } finally {
+            $kernel->shutdown();
+            unset($_SERVER['JMONITOR_TEST_PERMISSION']);
+        }
+    }
+
     public function testALongPollingIntervalStillGivesDeltas(): void
     {
         $kernel = new TestKernel(['polling_interval' => 600]);

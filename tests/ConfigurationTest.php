@@ -52,21 +52,22 @@ final class ConfigurationTest extends TestCase
     public function testAnEmptyPermissionIsRefused(): void
     {
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The "permission" option of jmonitor_easyadmin cannot be empty');
 
-        $this->process(['permission' => '']);
+        (new JmonitorEasyAdminBundle())->getContainerExtension()->load([['permission' => '']], $this->builder(['SecurityBundle' => SecurityBundle::class]));
     }
 
     public function testPermissionNeedsTheSecurityBundle(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('The "permission" option of jmonitor_easyadmin needs the Security bundle');
+        $this->expectExceptionMessage('The "permission" option of jmonitor_easyadmin needs the Security bundle: register Symfony\Bundle\SecurityBundle\SecurityBundle in config/bundles.php');
 
         (new JmonitorEasyAdminBundle())->getContainerExtension()->load([['permission' => 'ROLE_SUPER_ADMIN']], $this->builder([]));
     }
 
-    public function testPermissionLoadsWithTheSecurityBundle(): void
+    public function testPermissionLoadsWithTheSecurityBundleOrAChildOfIt(): void
     {
-        $builder = $this->builder(['SecurityBundle' => SecurityBundle::class]);
+        $builder = $this->builder(['AppSecurityBundle' => (new class extends SecurityBundle {})::class]);
 
         (new JmonitorEasyAdminBundle())->getContainerExtension()->load([['permission' => 'ROLE_SUPER_ADMIN']], $builder);
 

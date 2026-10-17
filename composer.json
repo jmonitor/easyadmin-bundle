@@ -59,9 +59,6 @@
         "symfony/yaml": "^6.4|^7.0|^8.0",
         "twig/extra-bundle": "^3.15"
     },
-    "suggest": {
-        "symfony/security-bundle": "To restrict the pages with the permission option"
-    },
     "autoload": {
         "psr-4": {
             "Jmonitor\\EasyAdminBundle\\": "src/"
