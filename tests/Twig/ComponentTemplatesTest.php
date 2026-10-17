@@ -89,7 +89,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
-        self::assertStringContainsString('performance_schema table is not readable', $html);
+        self::assertStringContainsString('<div class="alert alert-warning py-2 small mb-3">mysql.slow_queries: performance_schema table is not readable</div>', $html, 'EasyAdmin removes the bottom margin of alerts');
         self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
     }
 
@@ -383,6 +383,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('global option of the Caddyfile', $html);
+        self::assertStringContainsString('class="alert alert-warning mb-3"', $this->render('frankenphp', new ComponentSnapshot(Component::FrankenPhp, [], 'FrankenPHP is not serving this page (PHP SAPI "cli").'), new FrankenPhpView(new ComponentSnapshot(Component::FrankenPhp, []), $this->gauges())), 'the detection error keeps a margin too');
         self::assertStringContainsString('n/a', $html);
         self::assertStringNotContainsString('Workers', $html);
     }

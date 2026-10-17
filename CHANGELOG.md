@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A configured connection that cannot be used is shown with its error.
 - An unknown Redis `service` no longer breaks the container.
 
+### Fixed
+
+- The error messages of a tab keep a margin under them.
+
 ### Deprecated
 
 - `components.mysql.connection`: use `connections`.
