@@ -30,6 +30,14 @@ final class InstanceTest extends TestCase
         self::assertSame('mysql.legacy.', $instance->keyPrefix());
     }
 
+    public function testTheKeyPrefixIsSafeForAPsr6CacheWhateverTheConnectionName(): void
+    {
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'app:read/replica');
+
+        self::assertSame('mysql.app%3Aread%2Freplica.', $instance->keyPrefix());
+        self::assertSame(0, preg_match('#[{}()/\\\\@:]#', $instance->keyPrefix()));
+    }
+
     public function testAnUnavailableInstanceKeepsItsIdentityAndError(): void
     {
         $instance = Instance::unavailable(Component::Postgresql, 'Unknown Doctrine connection "dwh".', 'dwh');

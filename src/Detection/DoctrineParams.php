@@ -15,6 +15,7 @@ use Psr\Container\ContainerInterface;
 final class DoctrineParams
 {
     private const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
+    private const NO_DBAL = 'No Doctrine DBAL connection is configured.';
 
     /**
      * One instance per Doctrine connection: every connection matching the product when none is
@@ -24,7 +25,7 @@ final class DoctrineParams
      * @param list<string>                                             $connectionNames every connection, in Doctrine order
      * @param array<string, array<string, mixed>>                      $configured      connection name => options, empty to take every matching connection
      * @param callable(array<string, mixed>): bool                     $matches         on the connection parameters
-     * @param callable(Connection, array<string, mixed>): CollectorSet $collectors      given the connection and its configured options
+     * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors given the connection, its parameters and its configured options
      * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
      */
     public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product): Detection
@@ -33,20 +34,25 @@ final class DoctrineParams
             $instances = [];
 
             foreach ($configured as $name => $options) {
-                $instances[] = self::configured($component, $connections, $name, $options, $matches, $collectors, $product);
+                $name = (string) $name;
+                $instances[] = $connectionNames === []
+                    ? Instance::unavailable($component, self::NO_DBAL, $name)
+                    : self::configured($component, $connections, $name, $options, $matches, $collectors, $product);
             }
 
             return Detection::instances($instances);
         }
 
         if ($connectionNames === []) {
-            return Detection::unavailable('No Doctrine DBAL connection is configured.');
+            return Detection::unavailable(self::NO_DBAL);
         }
 
         $instances = [];
         $unreadable = [];
 
         foreach ($connectionNames as $name) {
+            $name = (string) $name;
+
             try {
                 /** @var Connection $connection */
                 $connection = $connections->get($name);
@@ -59,7 +65,7 @@ final class DoctrineParams
             $params = $connection->getParams();
 
             if ($matches($params)) {
-                $instances[] = Instance::found($component, $collectors($connection, []), $name, self::database($params));
+                $instances[] = Instance::found($component, $collectors($connection, $params, []), $name, self::database($params));
             }
         }
 
@@ -81,8 +87,7 @@ final class DoctrineParams
      */
     public static function database(array $params): ?string
     {
-        $params = is_array($params['primary'] ?? null) ? $params['primary'] : $params;
-        $database = $params['dbname'] ?? null;
+        $database = self::primary($params)['dbname'] ?? null;
 
         return is_string($database) && $database !== '' ? $database : null;
     }
@@ -94,7 +99,7 @@ final class DoctrineParams
      */
     public static function isLocal(array $params): bool
     {
-        $params = is_array($params['primary'] ?? null) ? $params['primary'] : $params;
+        $params = self::primary($params);
 
         if (is_string($params['unix_socket'] ?? null) && $params['unix_socket'] !== '') {
             return true;
@@ -110,9 +115,21 @@ final class DoctrineParams
     }
 
     /**
-     * @param array<string, mixed>                                     $options
-     * @param callable(array<string, mixed>): bool                     $matches
-     * @param callable(Connection, array<string, mixed>): CollectorSet $collectors
+     * The parameters of the server written to: those of the primary when the connection has replicas.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    private static function primary(array $params): array
+    {
+        return is_array($params['primary'] ?? null) ? $params['primary'] : $params;
+    }
+
+    /**
+     * @param array<string, mixed>                                                           $options
+     * @param callable(array<string, mixed>): bool                                           $matches
+     * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors
      */
     private static function configured(Component $component, ContainerInterface $connections, string $name, array $options, callable $matches, callable $collectors, string $product): Instance
     {
@@ -133,6 +150,6 @@ final class DoctrineParams
             return Instance::unavailable($component, sprintf('Doctrine connection "%s" is not a %s connection.', $name, $product), $name, self::database($params));
         }
 
-        return Instance::found($component, $collectors($connection, $options), $name, self::database($params));
+        return Instance::found($component, $collectors($connection, $params, $options), $name, self::database($params));
     }
 }

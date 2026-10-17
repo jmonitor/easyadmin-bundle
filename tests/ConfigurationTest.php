@@ -67,6 +67,20 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['components']['symfony']['flex']);
     }
 
+    public function testConnectionsAcceptsAListOfNamedEntries(): void
+    {
+        $config = $this->process(['components' => ['postgresql' => ['connections' => [['name' => 'default'], ['name' => 'dwh', 'schema' => 'analytics']]]]]);
+
+        self::assertSame(['default' => ['schema' => null], 'dwh' => ['schema' => 'analytics']], $config['components']['postgresql']['connections']);
+    }
+
+    public function testAConnectionSchemaCannotBeEmpty(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['components' => ['postgresql' => ['connections' => ['dwh' => ['schema' => '']]]]]);
+    }
+
     public function testTheDeprecatedConnectionOptionBecomesAConnectionsEntry(): void
     {
         $deprecations = [];

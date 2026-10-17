@@ -104,7 +104,7 @@ final class ComponentRegistry implements ResetInterface
             if ($detection->isFound()) {
                 $instances[$component->value] = $detection->instances;
             } elseif ($enabled === true) {
-                $instances[$component->value] = [Instance::unavailable($component, $detection->error ?? 'This component is not available.')];
+                $instances[$component->value] = [Instance::unavailable($component, $detection->error ?? Instance::UNAVAILABLE)];
             }
         }
 

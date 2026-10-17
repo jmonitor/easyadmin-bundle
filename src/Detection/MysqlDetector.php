@@ -54,7 +54,7 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
             $this->connectionNames,
             $this->configured,
             self::isMysql(...),
-            fn(Connection $connection): CollectorSet => $this->collectors($connection, DoctrineParams::database($connection->getParams()) ?? '', DoctrineParams::isLocal($connection->getParams())),
+            fn(Connection $connection, array $params): CollectorSet => $this->collectors($connection, DoctrineParams::database($params) ?? '', DoctrineParams::isLocal($params)),
             'MySQL or MariaDB',
         );
     }

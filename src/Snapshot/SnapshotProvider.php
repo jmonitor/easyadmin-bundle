@@ -28,8 +28,8 @@ final readonly class SnapshotProvider
 
     public function get(Instance $instance): ComponentSnapshot
     {
-        if ($instance->collectors === null) {
-            return new ComponentSnapshot($instance->component, [], $instance->error ?? 'This component is not available.');
+        if (!$instance->isFound()) {
+            return new ComponentSnapshot($instance->component, [], $instance->error);
         }
 
         $results = [];

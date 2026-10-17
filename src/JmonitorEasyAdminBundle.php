@@ -19,6 +19,8 @@ use Symfony\Flex\SymfonyBundle;
 
 final class JmonitorEasyAdminBundle extends AbstractBundle
 {
+    private const CONNECTION_DEPRECATION = 'The "connection" option of the %s component is deprecated, use "connections" instead.';
+
     protected string $extensionAlias = 'jmonitor_easyadmin';
 
     public function getPath(): string
@@ -87,7 +89,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                         ->append($this->componentNode('postgresql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards, for the connections without their own.');
                         }, self::connectionsNode('PostgreSQL', static function (NodeBuilder $children): void {
-                            $children->scalarNode('schema')->defaultNull()->info('Schema of this connection, defaults to the component "schema".');
+                            $children->scalarNode('schema')->defaultNull()->cannotBeEmpty()->info('Schema of this connection, defaults to the component "schema".');
                         })))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
@@ -141,7 +143,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             // Declared without default so that the key never reaches the processed configuration:
             // the config builders keep their connection() method, the value is merged above.
             $children->scalarNode('connection')
-                ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', 'The "connection" option is deprecated, use "connections" instead.')
+                ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', sprintf(self::CONNECTION_DEPRECATION, $name))
                 ->info('Deprecated, use "connections".')
             ;
             $children->append($connections);
@@ -151,7 +153,8 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     }
 
     /**
-     * "connections" lists the Doctrine connections to show: a list of names, or a map name => options.
+     * "connections" lists the Doctrine connections to show: a list of names, a map name => options,
+     * or a list of entries carrying a "name" key (the XML form).
      *
      * @param (callable(NodeBuilder): void)|null $options the options of one connection
      */
@@ -164,12 +167,11 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ->normalizeKeys(false)
             ->beforeNormalization()
                 ->ifArray()
-                ->then(static fn(array $v): array => array_is_list($v) ? array_fill_keys($v, []) : $v)
+                ->then(static fn(array $v): array => array_is_list($v) ? array_map(static fn($entry) => is_string($entry) ? ['name' => $entry] : $entry, $v) : $v)
             ->end()
         ;
 
         $prototype = $node->arrayPrototype();
-        $prototype->beforeNormalization()->ifNull()->then(static fn(): array => [])->end();
 
         if ($options !== null) {
             $options($prototype->children());
@@ -195,7 +197,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             return $component;
         }
 
-        trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', 'The "connection" option of the %s component is deprecated, use "connections" instead.', $name);
+        trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', self::CONNECTION_DEPRECATION, $name);
 
         if (!empty($component['connections'])) {
             throw new InvalidConfigurationException(sprintf('You cannot set both "connection" and "connections" for the %s component.', $name));

@@ -56,7 +56,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
             $this->connectionNames,
             $this->configured,
             self::isPostgresql(...),
-            fn(Connection $connection, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($connection->getParams())),
+            fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
             'PostgreSQL',
         );
     }

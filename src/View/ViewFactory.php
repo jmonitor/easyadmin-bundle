@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
@@ -39,6 +40,6 @@ final readonly class ViewFactory
     {
         $instance = $this->registry->instance(Component::Php, null);
 
-        return $instance === null ? new ComponentSnapshot(Component::Php, [], 'This component is not available.') : $this->snapshots->get($instance);
+        return $instance === null ? new ComponentSnapshot(Component::Php, [], Instance::UNAVAILABLE) : $this->snapshots->get($instance);
     }
 }

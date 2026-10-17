@@ -146,6 +146,26 @@ final class MysqlDetectorTest extends TestCase
         self::assertNotContains('system.ram_total', $detector->detect()->instances[0]->collectors?->names() ?? []);
     }
 
+    public function testANumericConnectionNameIsAStringId(): void
+    {
+        $locator = new ServiceLocator(['2024' => fn(): Connection => $this->mysqlConnection('archive')]);
+
+        $auto = (new MysqlDetector($locator, ['2024'], []))->detect();
+        $configured = (new MysqlDetector($locator, ['2024'], ['2024' => []]))->detect();
+
+        self::assertSame(['2024'], self::ids($auto->instances));
+        self::assertSame(['2024'], self::ids($configured->instances));
+        self::assertTrue($configured->instances[0]->isFound());
+    }
+
+    public function testAConfiguredConnectionWithoutDoctrineExplainsThatDoctrineIsMissing(): void
+    {
+        $detection = (new MysqlDetector(new ServiceLocator([]), [], ['default' => []]))->detect();
+
+        self::assertSame(['default'], self::ids($detection->instances));
+        self::assertSame('No Doctrine DBAL connection is configured.', $detection->instances[0]->error);
+    }
+
     public function testUnknownConfiguredConnection(): void
     {
         $detection = (new MysqlDetector(new ServiceLocator([]), ['default'], ['missing' => []]))->detect();

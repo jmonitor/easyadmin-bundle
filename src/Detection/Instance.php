@@ -13,6 +13,8 @@ use Jmonitor\EasyAdminBundle\Component;
  */
 final readonly class Instance
 {
+    public const UNAVAILABLE = 'This component is not available.';
+
     private function __construct(
         public Component $component,
         public ?string $id,
@@ -31,16 +33,20 @@ final readonly class Instance
         return new self($component, $id, $detail, null, $error);
     }
 
+    /**
+     * @phpstan-assert-if-true CollectorSet $this->collectors
+     */
     public function isFound(): bool
     {
         return $this->collectors !== null;
     }
 
     /**
-     * Namespace of the cache entries of this instance, so that two instances sharing collector names never collide.
+     * Namespace of the cache entries of this instance, so that two instances sharing collector names never
+     * collide. The id is URL-encoded: a cache key must not contain the characters PSR-6 reserves.
      */
     public function keyPrefix(): string
     {
-        return $this->id === null ? '' : $this->component->value . '.' . $this->id . '.';
+        return $this->id === null ? '' : $this->component->value . '.' . rawurlencode($this->id) . '.';
     }
 }
