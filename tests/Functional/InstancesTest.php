@@ -113,6 +113,7 @@ final class InstancesTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/mysql');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.jm-instances a[href$="connection=broken"] .jm-instance-error[title=\'Unknown Doctrine connection "broken".\']');
+        self::assertSelectorExists('.jm-instances a[href$="connection=broken"] .jm-instance-error[role="img"][aria-label="Detection failed"]', 'an aria-label is only announced on an element with a role');
 
         $client->request('GET', '/admin/jmonitor/mysql?connection=broken');
         self::assertResponseIsSuccessful();
@@ -127,6 +128,16 @@ final class InstancesTest extends WebTestCase
         $client->submit($crawler->filter('form[action="/admin/jmonitor/mysql/refresh?connection=legacy"]')->form());
 
         self::assertResponseRedirects('/admin/jmonitor/mysql?connection=legacy');
+    }
+
+    public function testRefreshOfASingleInstanceGoesBackToTheBareUrl(): void
+    {
+        $client = $this->adminClient([['id' => 'default', 'detail' => 'shop']]);
+
+        $crawler = $client->request('GET', '/admin/jmonitor/mysql');
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/mysql/refresh?connection=default"]')->form());
+
+        self::assertResponseRedirects('/admin/jmonitor/mysql');
     }
 
     public function testTheIndexRedirectsToTheComponentWithoutParameter(): void

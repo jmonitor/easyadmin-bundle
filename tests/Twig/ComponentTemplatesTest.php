@@ -115,6 +115,8 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Idle in transaction', $html);
         self::assertStringContainsString('<code class="jm-query">SELECT * FROM customer', $html);
         self::assertStringContainsString('99.00%', $html, 'slow query cache hit');
+        self::assertStringContainsString('300 ms', $html, 'slow query average');
+        self::assertStringContainsString('1 200 ms', $html, 'slow query maximum');
         self::assertStringContainsString('UPDATE account SET balance', $html);
         self::assertStringContainsString('Dead rows ratio', $html);
         self::assertStringContainsString('100 000 / 1 000 000', $html, 'dead rows out of all rows, like the gauge value');
@@ -144,6 +146,9 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('No active transaction', $html, 'a null oldest transaction means the sub-query failed, not that there is none');
         self::assertStringNotContainsString('Longest running transaction', $html);
         self::assertStringNotContainsString('RAM ratio', $html, 'PostgreSQL is not on this host');
+        self::assertStringContainsString('since stats reset', $html, 'no delta: the ratios are cumulated');
+        self::assertStringContainsString('Since stats reset', $html, 'the deadlocks total');
+        self::assertStringNotContainsString('server start', $html);
     }
 
     public function testThePostgresqlFragmentRendersWithoutAnyData(): void

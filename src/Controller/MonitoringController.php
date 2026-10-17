@@ -76,7 +76,10 @@ final class MonitoringController
 
         $this->snapshots->refresh($instance);
 
-        return new RedirectResponse($this->componentUrl($component, $instance->id));
+        // Alone, the instance is the one the bare URL shows.
+        $connection = count($this->registry->instancesFor($component)) > 1 ? $instance->id : null;
+
+        return new RedirectResponse($this->componentUrl($component, $connection));
     }
 
     private function render(Instance $instance, bool $fragment): Response

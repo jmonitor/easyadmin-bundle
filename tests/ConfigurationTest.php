@@ -130,6 +130,51 @@ final class ConfigurationTest extends TestCase
         $this->process(['components' => ['mysql' => ['connection' => 'a', 'connections' => ['b']]]]);
     }
 
+    /**
+     * @return iterable<string, array{list<array<string, mixed>>, string}>
+     */
+    public static function provideDeprecatedOptionsAndConnectionsInSeparateFiles(): iterable
+    {
+        yield 'connection then connections' => [[['mysql' => ['connection' => 'a']], ['mysql' => ['connections' => ['b']]]], 'You cannot set both "connection" and "connections" for the mysql component.'];
+        yield 'connections then connection' => [[['postgresql' => ['connections' => ['b']]], ['postgresql' => ['connection' => 'a']]], 'You cannot set both "connection" and "connections" for the postgresql component.'];
+        yield 'redis dsn then connections' => [[['redis' => ['dsn' => 'redis://a']], ['redis' => ['connections' => ['cache' => 'redis://b']]]], 'You cannot set both "dsn" and "connections" for the redis component.'];
+        yield 'redis connections then service' => [[['redis' => ['connections' => ['cache' => 'redis://b']]], ['redis' => ['service' => 'app.redis']]], 'You cannot set both "service" and "connections" for the redis component.'];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $files
+     */
+    #[DataProvider('provideDeprecatedOptionsAndConnectionsInSeparateFiles')]
+    public function testTheDeprecatedOptionsAndConnectionsAreExclusiveAcrossFiles(array $files, string $message): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->process(...array_map(static fn(array $components): array => ['components' => $components], $files));
+    }
+
+    public function testADeprecatedOptionGivesTheSameEntryAsConnections(): void
+    {
+        $deprecated = $this->process(['components' => ['mysql' => ['connection' => 'a'], 'postgresql' => ['connection' => 'a'], 'redis' => ['service' => 'app.redis']]]);
+        $connections = $this->process(['components' => ['mysql' => ['connections' => ['a']], 'postgresql' => ['connections' => ['a']], 'redis' => ['connections' => ['default' => ['service' => 'app.redis']]]]]);
+
+        foreach (['mysql', 'postgresql', 'redis'] as $component) {
+            self::assertSame($connections['components'][$component]['connections'], $deprecated['components'][$component]['connections'], 'the entry is built by hand, without the defaults of the prototype: ' . $component);
+        }
+    }
+
+    public function testALaterFileOverridesTheDeprecatedOptions(): void
+    {
+        $config = $this->process(
+            ['components' => ['mysql' => ['connection' => 'a'], 'postgresql' => ['connection' => 'a'], 'redis' => ['dsn' => 'redis://a']]],
+            ['components' => ['mysql' => ['connection' => 'b'], 'postgresql' => ['connection' => 'b'], 'redis' => ['dsn' => 'redis://b']]],
+        );
+
+        self::assertSame(['b' => []], $config['components']['mysql']['connections']);
+        self::assertSame(['b' => ['schema' => null]], $config['components']['postgresql']['connections']);
+        self::assertSame(['default' => ['dsn' => 'redis://b', 'service' => null]], $config['components']['redis']['connections']);
+    }
+
     public function testMysqlConnectionsTakeNoOption(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -244,10 +289,13 @@ final class ConfigurationTest extends TestCase
         $this->process(['components' => ['redis' => ['dsn' => 'redis://a', 'connections' => ['cache' => 'redis://b']]]]);
     }
 
-    private function process(array $config): array
+    /**
+     * @param array<string, mixed> ...$configs one per configuration file
+     */
+    private function process(array ...$configs): array
     {
         $configuration = (new JmonitorEasyAdminBundle())->getContainerExtension()->getConfiguration([], new ContainerBuilder());
 
-        return (new Processor())->processConfiguration($configuration, ['jmonitor_easyadmin' => $config]);
+        return (new Processor())->processConfiguration($configuration, $configs);
     }
 }

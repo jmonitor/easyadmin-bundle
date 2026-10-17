@@ -231,7 +231,7 @@ final class Payloads
     public static function postgresqlSlowQueries(): array
     {
         return ['min_calls' => 1, 'min_avg_time_ms' => 0.0, 'limit' => 10, 'order_by' => 'avg', 'slow_queries' => [
-            ['query_sample' => 'SELECT * FROM customer WHERE email = $1', 'exec_count' => 120, 'total_time_ms' => 36_000.0, 'avg_time_ms' => 300.0, 'max_time_ms' => 1_200.0, 'stddev_time_ms' => 50.0, 'rows' => 2_400, 'shared_blks_hit' => 9_900, 'shared_blks_read' => 100],
+            ['query_sample' => 'SELECT * FROM customer WHERE email = $1', 'exec_count' => 120, 'total_time_ms' => '36000.00', 'avg_time_ms' => '300.25', 'max_time_ms' => '1200.00', 'stddev_time_ms' => '50.00', 'rows' => 2_400, 'shared_blks_hit' => 9_900, 'shared_blks_read' => 100],
         ]];
     }
 }

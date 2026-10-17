@@ -92,11 +92,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards, for the connections without their own.');
                         }, self::connectionsNode('PostgreSQL', static function (NodeBuilder $children): void {
                             $children->scalarNode('schema')->defaultNull()->cannotBeEmpty()->info('Schema of this connection, defaults to the component "schema".');
-                        })))
+                        }), connectionDefaults: ['schema' => null]))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
-                            // Declared without default so that the keys never reach the processed configuration:
-                            // the config builders keep their dsn() and service() methods, the values are merged
-                            // into "connections" before normalization.
+                            // Kept for the config builders and their dsn() and service() methods; declared without
+                            // default and merged into "connections" below, they never reach the processed configuration.
                             foreach (['dsn', 'service'] as $option) {
                                 $children->scalarNode($option)
                                     ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', sprintf(self::REDIS_OPTION_DEPRECATION, $option))
@@ -105,7 +104,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             }
 
                             $children->append(self::redisConnectionsNode());
-                        }, beforeNormalization: static fn(array $v): array => self::mergeDeprecatedRedisOptions($v)))
+                        }, merge: static fn(array $v): array => self::mergeDeprecatedRedisOptions($v)))
                     ->end()
                 ->end()
             ->end()
@@ -115,11 +114,12 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     /**
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
-     * @param (callable(NodeBuilder): void)|null              $options
-     * @param ?ArrayNodeDefinition                             $connections         the "connections" node of a database component
-     * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $beforeNormalization applied to the array form of the component
+     * @param (callable(NodeBuilder): void)|null                         $options
+     * @param ?ArrayNodeDefinition                                        $connections        the "connections" node of a database component
+     * @param array<string, mixed>                                        $connectionDefaults a "connections" entry without any option
+     * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $merge              applied to the component once every file is merged
      */
-    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, ?\Closure $beforeNormalization = null): ArrayNodeDefinition
+    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, array $connectionDefaults = [], ?\Closure $merge = null): ArrayNodeDefinition
     {
         $node = new ArrayNodeDefinition($name);
         $node
@@ -131,20 +131,14 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ->end()
         ;
 
-        if ($beforeNormalization !== null) {
-            $node
-                ->beforeNormalization()
-                    ->ifArray()
-                    ->then($beforeNormalization)
-                ->end()
-            ;
+        if ($connections !== null) {
+            $merge = static fn(array $v): array => self::mergeDeprecatedConnection($name, $v, $connectionDefaults);
         }
 
-        if ($connections !== null) {
+        if ($merge !== null) {
             $node
-                ->beforeNormalization()
-                    ->ifTrue(static fn($v): bool => is_array($v) && array_key_exists('connection', $v))
-                    ->then(static fn(array $v): array => self::mergeDeprecatedConnection($name, $v))
+                ->validate()
+                    ->always($merge)
                 ->end()
             ;
         }
@@ -157,8 +151,8 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
 
         if ($connections !== null) {
-            // Declared without default so that the key never reaches the processed configuration:
-            // the config builders keep their connection() method, the value is merged above.
+            // Kept for the config builders and their connection() method; declared without default and
+            // merged into "connections" above, it never reaches the processed configuration.
             $children->scalarNode('connection')
                 ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', sprintf(self::CONNECTION_DEPRECATION, $name))
                 ->info('Deprecated, use "connections".')
@@ -198,29 +192,28 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     }
 
     /**
-     * The former "connection" option is an entry of "connections"; merged before normalization so
-     * that the entry gets the defaults of a connection.
+     * The former "connection" option is an entry of "connections"; merged once every file is merged,
+     * so that a later file overrides it and "connections" set in another file is refused.
      *
      * @param array<string, mixed> $component
+     * @param array<string, mixed> $defaults
      *
      * @return array<string, mixed>
      */
-    private static function mergeDeprecatedConnection(string $name, array $component): array
+    private static function mergeDeprecatedConnection(string $name, array $component, array $defaults): array
     {
-        $connection = $component['connection'];
+        $connection = $component['connection'] ?? null;
         unset($component['connection']);
 
         if ($connection === null) {
             return $component;
         }
 
-        trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', self::CONNECTION_DEPRECATION, $name);
-
-        if (!empty($component['connections'])) {
+        if ($component['connections'] !== []) {
             throw new InvalidConfigurationException(sprintf('You cannot set both "connection" and "connections" for the %s component.', $name));
         }
 
-        $component['connections'] = [$connection];
+        $component['connections'] = [$connection => $defaults];
 
         return $component;
     }
@@ -283,8 +276,9 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     }
 
     /**
-     * The former "dsn" and "service" options are the "default" entry of "connections"; merged before
-     * normalization so that the entry gets the defaults of a connection.
+     * The former "dsn" and "service" options are the "default" entry of "connections"; merged once
+     * every file is merged, so that a later file overrides them and "connections" set in another file
+     * is refused.
      *
      * @param array<string, mixed> $component
      *
@@ -308,21 +302,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             return $component;
         }
 
-        foreach (array_keys($set) as $option) {
-            trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', self::REDIS_OPTION_DEPRECATION, $option);
-        }
-
         if (count($set) === 2) {
             throw new InvalidConfigurationException('You cannot set both "dsn" and "service" for the redis component. Please choose one.');
         }
 
         $option = array_key_first($set);
 
-        if (!empty($component['connections'])) {
+        if ($component['connections'] !== []) {
             throw new InvalidConfigurationException(sprintf('You cannot set both "%s" and "connections" for the redis component.', $option));
         }
 
-        $component['connections'] = ['default' => [$option => $set[$option]]];
+        $component['connections'] = ['default' => [$option => $set[$option]] + ['dsn' => null, 'service' => null]];
 
         return $component;
     }

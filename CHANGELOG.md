@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `components.mysql.connection` and `components.postgresql.connection`: use `connections` instead.
 - `components.redis.dsn` and `components.redis.service`: use `connections` instead.
 
+### Fixed
+
+- The cumulated ratios and the deadlocks total of the PostgreSQL tab say "since stats reset" instead of "since server start": the `pg_stat_database` counters survive a restart and are cleared by `pg_stat_reset()`.
+- Refresh on a component with a single connection goes back to the page without the `connection` parameter, as it was opened.
+- Screen readers announce the "Detection failed" marker of a connection pill in error.
+- The deprecated `connection` option of MySQL and PostgreSQL set in several configuration files is overridden by the last one instead of adding a connection; this option or the deprecated `dsn` and `service` options of Redis are refused with `connections` set in another file, like in the same one.
+
 ## [1.0.1] - 2026-10-16
 
 ### Changed

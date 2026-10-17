@@ -7,11 +7,12 @@ namespace Jmonitor\EasyAdminBundle\Metric;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 
 /**
- * Ratios of counters, from a recent delta when there is one, else cumulated since the server started.
+ * Ratios of counters, from a recent delta when there is one, else cumulated since the server started
+ * (or since $since, for counters that do not start with the server).
  */
 final class Ratios
 {
-    public static function share(?Delta $delta, string $partKey, string $otherKey, int|float|null $part, int|float|null $other): Rate
+    public static function share(?Delta $delta, string $partKey, string $otherKey, int|float|null $part, int|float|null $other, string $since = Rate::SINCE_SERVER_START): Rate
     {
         if ($delta !== null) {
             $p = $delta->getValue($partKey);
@@ -23,13 +24,13 @@ final class Ratios
         }
 
         if ($part !== null && $other !== null && $part + $other > 0) {
-            return new Rate(round($part / ($part + $other) * 100, 2), RateSource::SinceStart, '%', $part, $part + $other);
+            return new Rate(round($part / ($part + $other) * 100, 2), RateSource::SinceStart, '%', $part, $part + $other, $since);
         }
 
         return Rate::unavailable('%');
     }
 
-    public static function percent(?Delta $delta, string $partKey, string $totalKey, int|float|null $part, int|float|null $total): Rate
+    public static function percent(?Delta $delta, string $partKey, string $totalKey, int|float|null $part, int|float|null $total, string $since = Rate::SINCE_SERVER_START): Rate
     {
         if ($delta !== null) {
             $p = $delta->getValue($partKey);
@@ -41,13 +42,13 @@ final class Ratios
         }
 
         if ($part !== null && $total !== null && $total > 0) {
-            return new Rate(round($part / $total * 100, 2), RateSource::SinceStart, '%', $part, $total);
+            return new Rate(round($part / $total * 100, 2), RateSource::SinceStart, '%', $part, $total, $since);
         }
 
         return Rate::unavailable('%');
     }
 
-    public static function complement(?Delta $delta, string $partKey, string $totalKey, int|float|null $part, int|float|null $total): Rate
+    public static function complement(?Delta $delta, string $partKey, string $totalKey, int|float|null $part, int|float|null $total, string $since = Rate::SINCE_SERVER_START): Rate
     {
         if ($delta !== null) {
             $p = $delta->getValue($partKey);
@@ -59,7 +60,7 @@ final class Ratios
         }
 
         if ($part !== null && $total !== null && $total > 0) {
-            return new Rate(round(($total - $part) / $total * 100, 2), RateSource::SinceStart, '%', $part, $total);
+            return new Rate(round(($total - $part) / $total * 100, 2), RateSource::SinceStart, '%', $part, $total, $since);
         }
 
         return Rate::unavailable('%');

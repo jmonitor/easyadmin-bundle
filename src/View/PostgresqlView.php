@@ -15,6 +15,9 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class PostgresqlView
 {
+    /** pg_stat_database and pg_stat_user_tables survive a restart; pg_stat_reset() clears them. */
+    private const SINCE_STATS_RESET = 'since stats reset';
+
     public ?string $version;
     public ?string $majorVersion;
     /** @var array<string, mixed> */
@@ -106,9 +109,9 @@ final readonly class PostgresqlView
         $this->commitsPerSec = Ratios::perSecond($delta, 'database_stats.xact_commit', 'tx/s');
         $this->rollbacksPerSec = Ratios::perSecond($delta, 'database_stats.xact_rollback', 'tx/s');
         $this->transactionsPerSec = self::sum($this->commitsPerSec, $this->rollbacksPerSec, 'tx/s');
-        $rollbackRatio = Ratios::share($delta, 'database_stats.xact_rollback', 'database_stats.xact_commit', Values::int($stats['xact_rollback'] ?? null), Values::int($stats['xact_commit'] ?? null));
+        $rollbackRatio = Ratios::share($delta, 'database_stats.xact_rollback', 'database_stats.xact_commit', Values::int($stats['xact_rollback'] ?? null), Values::int($stats['xact_commit'] ?? null), self::SINCE_STATS_RESET);
         $this->rollbackRatio = $gauges->fromRate('postgres.rollback_ratio', 'Rollback ratio', $rollbackRatio, 2, $rollbackRatio->fraction());
-        $cacheHitRatio = Ratios::share($delta, 'database_stats.blks_hit', 'database_stats.blks_read', Values::int($stats['blks_hit'] ?? null), Values::int($stats['blks_read'] ?? null));
+        $cacheHitRatio = Ratios::share($delta, 'database_stats.blks_hit', 'database_stats.blks_read', Values::int($stats['blks_hit'] ?? null), Values::int($stats['blks_read'] ?? null), self::SINCE_STATS_RESET);
         $this->cacheHitRatio = $gauges->fromRate('postgres.cache_hit_ratio', 'Cache hit ratio', $cacheHitRatio, 2, $cacheHitRatio->fraction());
         $this->diskReadsPerSec = Ratios::perSecond($delta, 'database_stats.blks_read', 'blocks/s');
         $this->tempFilesPerSec = Ratios::perSecond($delta, 'database_stats.temp_files', 'files/s');
@@ -122,7 +125,7 @@ final readonly class PostgresqlView
         $this->liveTuples = Values::int($tables['live_tuples'] ?? null);
         $this->deadTuples = Values::int($tables['dead_tuples'] ?? null);
         $this->deadTupleRatio = $gauges->create('postgres.dead_tuple_ratio', 'Dead rows ratio', Values::percent($this->deadTuples, $this->liveTuples === null || $this->deadTuples === null ? null : $this->liveTuples + $this->deadTuples), 2);
-        $indexUsage = Ratios::share($databaseDelta, 'tables.idx_scans', 'tables.seq_scans', Values::int($tables['idx_scans'] ?? null), Values::int($tables['seq_scans'] ?? null));
+        $indexUsage = Ratios::share($databaseDelta, 'tables.idx_scans', 'tables.seq_scans', Values::int($tables['idx_scans'] ?? null), Values::int($tables['seq_scans'] ?? null), self::SINCE_STATS_RESET);
         $this->indexUsageRatio = $gauges->fromRate('postgres.index_usage_ratio', 'Index usage', $indexUsage, 2, $indexUsage->fraction());
         $this->seqScansPerSec = Ratios::perSecond($databaseDelta, 'tables.seq_scans', 'scans/s');
         $this->idxScansPerSec = Ratios::perSecond($databaseDelta, 'tables.idx_scans', 'scans/s');
@@ -135,7 +138,7 @@ final readonly class PostgresqlView
         $this->blockedQueries = self::rows($sessions['blocked_queries'] ?? null, 'blocked_pid');
 
         $this->slowQueriesAvailable = $snapshot->has('postgresql.slow_queries');
-        $this->slowQueries = array_map(self::withCacheHit(...), self::rows($slow['slow_queries'] ?? null, 'query_sample'));
+        $this->slowQueries = array_map(self::slowQuery(...), self::rows($slow['slow_queries'] ?? null, 'query_sample'));
         $this->slowQueriesMinAvgTimeMs = Values::float($slow['min_avg_time_ms'] ?? null);
         $this->slowQueriesMinCalls = Values::int($slow['min_calls'] ?? null);
         $this->slowQueriesOrderBy = Values::string($slow['order_by'] ?? null);
@@ -218,16 +221,23 @@ final readonly class PostgresqlView
     }
 
     /**
+     * pdo_pgsql gives the ROUND(...::numeric) columns as strings.
+     *
      * @param array<string, mixed> $row
      *
      * @return array<string, mixed>
      */
-    private static function withCacheHit(array $row): array
+    private static function slowQuery(array $row): array
     {
         $hit = Values::int($row['shared_blks_hit'] ?? null);
         $read = Values::int($row['shared_blks_read'] ?? null);
         $ratio = Values::percent($hit, $hit === null || $read === null ? null : $hit + $read);
 
-        return $row + ['cache_hit' => $ratio === null ? null : round($ratio, 2)];
+        return [
+            'exec_count' => Values::int($row['exec_count'] ?? null),
+            'avg_time_ms' => Values::float($row['avg_time_ms'] ?? null),
+            'max_time_ms' => Values::float($row['max_time_ms'] ?? null),
+            'cache_hit' => $ratio === null ? null : round($ratio, 2),
+        ] + $row;
     }
 }
