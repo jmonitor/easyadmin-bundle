@@ -66,7 +66,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             '$connections' => service_locator([]),
             '$connectionNames' => [],
-            '$connection' => array_key_first($config['components']['postgresql']['connections']),
+            '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
