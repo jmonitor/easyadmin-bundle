@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Fixtures\App;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\InstancesDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\ThrowingDetector;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Redis\FakeRedisClient;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * WebTestCase instantiates the kernel itself, so the configuration is set on static properties
@@ -31,12 +35,16 @@ final class ConfigurableAdminKernel extends TestKernel
     public static ?array $mysqlInstances = null;
     /** @var list<string> ids registered as FakeRedisClient services */
     public static array $redisServices = [];
+    /** @var array{sapi: string, metrics: ?string, version: ?string}|null the SAPI, the Caddy export and the "frankenphp version" output */
+    public static ?array $frankenphp = null;
 
     private readonly ?string $detectorFailure;
     /** @var list<string> */
     private readonly array $fakeRedisServices;
     /** @var non-empty-list<array{id: string, detail?: ?string, error?: string}>|null */
     private readonly ?array $instances;
+    /** @var array{sapi: string, metrics: ?string, version: ?string}|null */
+    private readonly ?array $frankenphpFixtures;
 
     public function __construct(string $environment = 'test', bool $debug = true)
     {
@@ -44,6 +52,7 @@ final class ConfigurableAdminKernel extends TestKernel
         $this->detectorFailure = self::$mysqlDetectorFailure;
         $this->instances = self::$mysqlInstances;
         $this->fakeRedisServices = self::$redisServices;
+        $this->frankenphpFixtures = self::$frankenphp;
     }
 
     public static function reset(): void
@@ -52,17 +61,18 @@ final class ConfigurableAdminKernel extends TestKernel
         self::$mysqlDetectorFailure = null;
         self::$mysqlInstances = null;
         self::$redisServices = [];
+        self::$frankenphp = null;
     }
 
     public function getCacheDir(): string
     {
         $replacement = $this->mysqlDetector();
 
-        if ($replacement === null && $this->fakeRedisServices === []) {
+        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null) {
             return parent::getCacheDir();
         }
 
-        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices]));
+        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures]));
     }
 
     protected function build(ContainerBuilder $container): void
@@ -80,6 +90,26 @@ final class ConfigurableAdminKernel extends TestKernel
                     }
                 }
             }, PassConfig::TYPE_BEFORE_OPTIMIZATION);
+        }
+
+        if ($this->frankenphpFixtures !== null) {
+            $container->addCompilerPass(new class ($this->frankenphpFixtures) implements CompilerPassInterface {
+                /** @param array{sapi: string, metrics: ?string, version: ?string} $fixtures */
+                public function __construct(private readonly array $fixtures) {}
+
+                public function process(ContainerBuilder $container): void
+                {
+                    $definition = new Definition(FrankenPhpDetector::class, [
+                        'http://localhost:2019/metrics',
+                        new Reference('cache.app'),
+                        3600,
+                        $this->fixtures['sapi'],
+                        new Definition(FixtureUrlFetcher::class, [$this->fixtures['metrics']]),
+                        new Definition(FixtureShellExecutor::class, [$this->fixtures['version']]),
+                    ]);
+                    $container->setDefinition(FrankenPhpDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value]));
+                }
+            }, PassConfig::TYPE_BEFORE_REMOVING);
         }
 
         $replacement = $this->mysqlDetector();
