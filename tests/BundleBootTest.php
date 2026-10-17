@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests;
 
+use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +58,33 @@ final class BundleBootTest extends TestCase
         $deltas->track('test.long_polling', ['count' => 1], 1_000);
 
         self::assertSame(2, $deltas->track('test.long_polling', ['count' => 3], 1_600)?->getValue('count'));
+
+        $kernel->shutdown();
+    }
+
+    public function testTheDatabaseDetectorsShareTheSkippedConnectionReporter(): void
+    {
+        $kernel = new TestKernel();
+        $kernel->boot();
+
+        $container = $kernel->getContainer()->get('test.service_container');
+        $reporter = $container->get(SkippedConnectionReporter::class);
+
+        foreach ([MysqlDetector::class, PostgresqlDetector::class] as $detector) {
+            self::assertSame($reporter, (new \ReflectionProperty($detector, 'skipped'))->getValue($container->get($detector)), $detector);
+        }
+
+        $kernel->shutdown();
+    }
+
+    public function testTheReporterKnowsTheConnectionsShownByAnEnabledComponent(): void
+    {
+        $kernel = new TestKernel(['components' => ['mysql' => ['connections' => ['default', 'legacy']], 'postgresql' => ['enabled' => false, 'connections' => ['dwh']]]]);
+        $kernel->boot();
+
+        $reporter = $kernel->getContainer()->get('test.service_container')->get(SkippedConnectionReporter::class);
+
+        self::assertSame(['default', 'legacy'], (new \ReflectionProperty(SkippedConnectionReporter::class, 'shown'))->getValue($reporter));
 
         $kernel->shutdown();
     }

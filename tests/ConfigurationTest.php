@@ -96,16 +96,23 @@ final class ConfigurationTest extends TestCase
         }, E_USER_DEPRECATED);
 
         try {
-            $config = $this->process(['components' => ['mysql' => ['connection' => 'reporting'], 'postgresql' => ['connection' => 'dwh']]]);
+            $config = $this->process(['components' => ['mysql' => ['connection' => 'reporting']]]);
         } finally {
             restore_error_handler();
         }
 
-        self::assertCount(2, $deprecations);
+        self::assertCount(1, $deprecations);
         self::assertStringContainsString('Since jmonitor/easyadmin-bundle 1.1: The "connection" option of the mysql component is deprecated, use "connections" instead.', $deprecations[0]);
         self::assertSame(['reporting' => []], $config['components']['mysql']['connections']);
-        self::assertSame(['dwh' => ['schema' => null]], $config['components']['postgresql']['connections']);
-        self::assertArrayNotHasKey('connection', $config['components']['postgresql']);
+        self::assertArrayNotHasKey('connection', $config['components']['mysql']);
+    }
+
+    public function testPostgresqlHasNoConnectionOption(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Unrecognized option "connection"');
+
+        $this->process(['components' => ['postgresql' => ['connection' => 'dwh']]]);
     }
 
     public function testTheDeprecatedConnectionOptionStaysInTheTreeForTheConfigBuilders(): void
@@ -113,7 +120,7 @@ final class ConfigurationTest extends TestCase
         $configuration = (new JmonitorEasyAdminBundle())->getContainerExtension()->getConfiguration([], new ContainerBuilder());
         $components = $configuration->getConfigTreeBuilder()->buildTree()->getChildren()['components']->getChildren();
 
-        foreach ([['mysql', 'connection'], ['postgresql', 'connection'], ['redis', 'dsn'], ['redis', 'service']] as [$component, $option]) {
+        foreach ([['mysql', 'connection'], ['redis', 'dsn'], ['redis', 'service']] as [$component, $option]) {
             $node = $components[$component]->getChildren()[$option] ?? null;
 
             self::assertNotNull($node, $component . '.' . $option);
@@ -136,7 +143,7 @@ final class ConfigurationTest extends TestCase
     public static function provideDeprecatedOptionsAndConnectionsInSeparateFiles(): iterable
     {
         yield 'connection then connections' => [[['mysql' => ['connection' => 'a']], ['mysql' => ['connections' => ['b']]]], 'You cannot set both "connection" and "connections" for the mysql component.'];
-        yield 'connections then connection' => [[['postgresql' => ['connections' => ['b']]], ['postgresql' => ['connection' => 'a']]], 'You cannot set both "connection" and "connections" for the postgresql component.'];
+        yield 'connections then connection' => [[['mysql' => ['connections' => ['b']]], ['mysql' => ['connection' => 'a']]], 'You cannot set both "connection" and "connections" for the mysql component.'];
         yield 'redis dsn then connections' => [[['redis' => ['dsn' => 'redis://a']], ['redis' => ['connections' => ['cache' => 'redis://b']]]], 'You cannot set both "dsn" and "connections" for the redis component.'];
         yield 'redis connections then service' => [[['redis' => ['connections' => ['cache' => 'redis://b']]], ['redis' => ['service' => 'app.redis']]], 'You cannot set both "service" and "connections" for the redis component.'];
     }
@@ -155,10 +162,10 @@ final class ConfigurationTest extends TestCase
 
     public function testADeprecatedOptionGivesTheSameEntryAsConnections(): void
     {
-        $deprecated = $this->process(['components' => ['mysql' => ['connection' => 'a'], 'postgresql' => ['connection' => 'a'], 'redis' => ['service' => 'app.redis']]]);
-        $connections = $this->process(['components' => ['mysql' => ['connections' => ['a']], 'postgresql' => ['connections' => ['a']], 'redis' => ['connections' => ['default' => ['service' => 'app.redis']]]]]);
+        $deprecated = $this->process(['components' => ['mysql' => ['connection' => 'a'], 'redis' => ['service' => 'app.redis']]]);
+        $connections = $this->process(['components' => ['mysql' => ['connections' => ['a']], 'redis' => ['connections' => ['default' => ['service' => 'app.redis']]]]]);
 
-        foreach (['mysql', 'postgresql', 'redis'] as $component) {
+        foreach (['mysql', 'redis'] as $component) {
             self::assertSame($connections['components'][$component]['connections'], $deprecated['components'][$component]['connections'], 'the entry is built by hand, without the defaults of the prototype: ' . $component);
         }
     }
@@ -166,12 +173,11 @@ final class ConfigurationTest extends TestCase
     public function testALaterFileOverridesTheDeprecatedOptions(): void
     {
         $config = $this->process(
-            ['components' => ['mysql' => ['connection' => 'a'], 'postgresql' => ['connection' => 'a'], 'redis' => ['dsn' => 'redis://a']]],
-            ['components' => ['mysql' => ['connection' => 'b'], 'postgresql' => ['connection' => 'b'], 'redis' => ['dsn' => 'redis://b']]],
+            ['components' => ['mysql' => ['connection' => 'a'], 'redis' => ['dsn' => 'redis://a']]],
+            ['components' => ['mysql' => ['connection' => 'b'], 'redis' => ['dsn' => 'redis://b']]],
         );
 
         self::assertSame(['b' => []], $config['components']['mysql']['connections']);
-        self::assertSame(['b' => ['schema' => null]], $config['components']['postgresql']['connections']);
         self::assertSame(['default' => ['dsn' => 'redis://b', 'service' => null]], $config['components']['redis']['connections']);
     }
 

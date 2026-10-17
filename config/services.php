@@ -13,6 +13,7 @@ use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
+use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
@@ -53,11 +54,29 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Symfony->value])
     ;
 
+    $shownConnections = [];
+
+    foreach (['mysql', 'postgresql'] as $component) {
+        if ($config['components'][$component]['enabled'] !== false) {
+            array_push($shownConnections, ...array_map(strval(...), array_keys($config['components'][$component]['connections'])));
+        }
+    }
+
+    $services->set(SkippedConnectionReporter::class)
+        ->args([
+            service($config['cache_pool']),
+            service(MinimumLevelLogger::class),
+            $config['static_ttl'],
+            $shownConnections,
+        ])
+    ;
+
     $services->set(MysqlDetector::class)
         ->args([
             '$connections' => service_locator([]),
             '$connectionNames' => [],
             '$configured' => $config['components']['mysql']['connections'],
+            '$skipped' => service(SkippedConnectionReporter::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
@@ -68,6 +87,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connectionNames' => [],
             '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
+            '$skipped' => service(SkippedConnectionReporter::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
     ;

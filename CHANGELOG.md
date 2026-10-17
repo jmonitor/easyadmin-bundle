@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The Redis tab shows every server of the new `components.redis.connections` option (an id mapped to a DSN, `{dsn}` or `{service}`), one pill per server, selected with the `connection` query parameter, each one with its own cache and Refresh.
-- The MySQL and PostgreSQL tabs show every Doctrine connection of their driver, one pill per database; the connection is selected with the `connection` query parameter (`/jmonitor/mysql?connection=legacy`), each one with its own cache and Refresh. The new `connections` option restricts them to the ones listed, and takes a `schema` per PostgreSQL connection.
+- The MySQL and PostgreSQL tabs show every Doctrine connection of their driver, one pill per database; the connection is selected with the `connection` query parameter (`/jmonitor/mysql?connection=legacy`), each one with its own cache and Refresh. The new `connections` option restricts them to the ones listed, and takes a `schema` per PostgreSQL connection. A connection whose service cannot be built and is not listed in `connections` is skipped and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl`.
 - A PostgreSQL tab, detected from the Doctrine connections: connections, transactions, cache hit ratio, temp files, rows written, slow queries (`pg_stat_statements`), dead rows and index usage, blocked sessions and blocking chain, storage, with the configuration cards.
 
 ### Changed
@@ -20,15 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- `components.mysql.connection` and `components.postgresql.connection`: use `connections` instead.
-- `components.redis.dsn` and `components.redis.service`: use `connections` instead.
-
-### Fixed
-
-- The cumulated ratios and the deadlocks total of the PostgreSQL tab say "since stats reset" instead of "since server start": the `pg_stat_database` counters survive a restart and are cleared by `pg_stat_reset()`.
-- Refresh on a component with a single connection goes back to the page without the `connection` parameter, as it was opened.
-- Screen readers announce the "Detection failed" marker of a connection pill in error.
-- The deprecated `connection` option of MySQL and PostgreSQL set in several configuration files is overridden by the last one instead of adding a connection; this option or the deprecated `dsn` and `service` options of Redis are refused with `connections` set in another file, like in the same one.
+- `components.mysql.connection`: use `connections` instead, which cannot be set alongside it, even in another configuration file.
+- `components.redis.dsn` and `components.redis.service`: use `connections` instead, which cannot be set alongside them, even in another configuration file.
 
 ## [1.0.1] - 2026-10-16
 

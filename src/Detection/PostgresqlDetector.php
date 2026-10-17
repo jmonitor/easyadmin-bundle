@@ -41,6 +41,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
         private string $schema = 'public',
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
+        private ?SkippedConnectionReporter $skipped = null,
     ) {}
 
     public function component(): Component
@@ -58,6 +59,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
             self::isPostgresql(...),
             fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
             'PostgreSQL',
+            $this->skipped,
         );
     }
 
