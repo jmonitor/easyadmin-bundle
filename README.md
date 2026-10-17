@@ -143,7 +143,7 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 
 Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. The **Refresh** button drops the cache, for instance after a server restart.
 
-A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL detection and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds.
+A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL tabs and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds; a connection listed in `connections` is shown in its tab with the error instead.
 
 Several web servers behind a load balancer are not well handled yet: the System and PHP values depend on the server that answered, and may change from one refresh to the next.
 

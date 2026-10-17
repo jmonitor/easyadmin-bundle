@@ -77,6 +77,18 @@ final class BundleBootTest extends TestCase
         $kernel->shutdown();
     }
 
+    public function testTheReporterKnowsTheConnectionsShownByAnEnabledComponent(): void
+    {
+        $kernel = new TestKernel(['components' => ['mysql' => ['connections' => ['default', 'legacy']], 'postgresql' => ['enabled' => false, 'connections' => ['dwh']]]]);
+        $kernel->boot();
+
+        $reporter = $kernel->getContainer()->get('test.service_container')->get(SkippedConnectionReporter::class);
+
+        self::assertSame(['default', 'legacy'], (new \ReflectionProperty(SkippedConnectionReporter::class, 'shown'))->getValue($reporter));
+
+        $kernel->shutdown();
+    }
+
     public function testTheCacheRedisProviderIsPickedUp(): void
     {
         $kernel = new TestKernel([], ['cache' => ['default_redis_provider' => 'redis://cache.internal']]);

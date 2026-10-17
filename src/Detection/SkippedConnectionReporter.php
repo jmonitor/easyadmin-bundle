@@ -14,26 +14,38 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class SkippedConnectionReporter
 {
+    /**
+     * @param list<string> $shown connections configured for an enabled component, whose tab shows the error
+     */
     public function __construct(
         private CacheItemPoolInterface $cache,
         private LoggerInterface $logger,
         private int $lifetime,
+        private array $shown = [],
     ) {}
 
     public function report(string $connection, \Throwable $error): void
     {
-        $item = $this->cache->getItem('jmonitor_easyadmin.skipped_connection.' . hash('xxh128', $connection . "\0" . $error->getMessage()));
-
-        if ($item->isHit()) {
+        if (in_array($connection, $this->shown, true)) {
             return;
         }
 
-        $this->logger->warning('Doctrine connection "{connection}" could not be read, the monitoring skips it: {error}', [
-            'connection' => $connection,
-            'error' => $error->getMessage(),
-            'exception' => $error,
-        ]);
+        // Called while detecting: a failing cache or logger must not cost the other connections.
+        try {
+            $item = $this->cache->getItem('jmonitor_easyadmin.skipped_connection.' . hash('xxh128', $connection . "\0" . $error->getMessage()));
 
-        $this->cache->save($item->set(true)->expiresAfter($this->lifetime));
+            if ($item->isHit()) {
+                return;
+            }
+
+            $this->logger->warning('Doctrine connection "{connection}" could not be read, the monitoring skips it: {error}', [
+                'connection' => $connection,
+                'error' => $error->getMessage(),
+                'exception' => $error,
+            ]);
+
+            $this->cache->save($item->set(true)->expiresAfter($this->lifetime));
+        } catch (\Throwable) {
+        }
     }
 }
