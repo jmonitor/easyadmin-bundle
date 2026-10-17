@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- FrankenPHP tab.
 - PostgreSQL tab.
 - The MySQL and PostgreSQL tabs show every Doctrine connection.
 - The Redis tab shows several servers.
