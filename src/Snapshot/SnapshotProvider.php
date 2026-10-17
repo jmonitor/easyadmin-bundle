@@ -7,19 +7,17 @@ namespace Jmonitor\EasyAdminBundle\Snapshot;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
-use Jmonitor\EasyAdminBundle\Component;
-use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * Collects a component's data behind the cache: each collector has its own lifetime,
+ * Collects an instance's data behind the cache: each collector has its own lifetime,
  * a failure is cached for the dynamic lifetime so a dead service is not hammered.
  */
 final readonly class SnapshotProvider
 {
     public function __construct(
-        private ComponentRegistry $registry,
         private CollectorRunner $runner,
         private DeltaCalculator $deltas,
         private CacheItemPoolInterface $cache,
@@ -28,33 +26,31 @@ final readonly class SnapshotProvider
         private int $staticTtl,
     ) {}
 
-    public function get(Component $component): ComponentSnapshot
+    public function get(Instance $instance): ComponentSnapshot
     {
-        $set = $this->registry->collectorsFor($component);
-
-        if ($set === null) {
-            return new ComponentSnapshot($component, [], $this->registry->errorFor($component) ?? 'This component is not available.');
+        if ($instance->collectors === null) {
+            return new ComponentSnapshot($instance->component, [], $instance->error ?? 'This component is not available.');
         }
 
         $results = [];
 
-        foreach ($set->specs as $spec) {
-            $results[$spec->name] = $this->result($spec);
+        foreach ($instance->collectors->specs as $spec) {
+            $results[$spec->name] = $this->result($spec, $instance->keyPrefix());
         }
 
-        return new ComponentSnapshot($component, $results);
+        return new ComponentSnapshot($instance->component, $results);
     }
 
-    public function refresh(Component $component): void
+    public function refresh(Instance $instance): void
     {
-        foreach ($this->registry->collectorsFor($component)?->names() ?? [] as $name) {
-            $this->cache->deleteItem(self::cacheKey($name));
+        foreach ($instance->collectors?->names() ?? [] as $name) {
+            $this->cache->deleteItem(self::cacheKey($name, $instance->keyPrefix()));
         }
     }
 
-    public static function cacheKey(string $name): string
+    public static function cacheKey(string $name, string $prefix = ''): string
     {
-        return 'jmonitor_easyadmin.collect.' . $name;
+        return 'jmonitor_easyadmin.collect.' . $prefix . $name;
     }
 
     private static function describe(\Throwable $e): string
@@ -68,9 +64,9 @@ final readonly class SnapshotProvider
         return sprintf('%s (%s)', $e->getMessage(), $cause);
     }
 
-    private function result(CollectorSpec $spec): CollectorResult
+    private function result(CollectorSpec $spec, string $prefix): CollectorResult
     {
-        $item = $this->cache->getItem(self::cacheKey($spec->name));
+        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
 
         if ($item->isHit() && CollectorResult::isValidArray($item->get())) {
             return CollectorResult::fromArray($spec->name, $item->get());
@@ -86,7 +82,7 @@ final readonly class SnapshotProvider
             $error = self::describe($e);
         }
 
-        $delta = $error === null && $spec->trackDelta ? $this->deltas->track($spec->name, $data, $now) : null;
+        $delta = $error === null && $spec->trackDelta ? $this->deltas->track($prefix . $spec->name, $data, $now) : null;
         $result = new CollectorResult($spec->name, $data, $error, $now, $delta);
         $lifetime = $error === null ? $spec->lifetime : Lifetime::Dynamic;
 

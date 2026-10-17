@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Detection;
 
-use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -66,16 +65,6 @@ final class ComponentRegistry implements ResetInterface
         }
 
         return null;
-    }
-
-    public function collectorsFor(Component $component): ?CollectorSet
-    {
-        return $this->instance($component, null)?->collectors;
-    }
-
-    public function errorFor(Component $component): ?string
-    {
-        return $this->instance($component, null)?->error;
     }
 
     public function reset(): void

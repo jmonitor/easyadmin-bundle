@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -67,22 +68,20 @@ final class MonitoringController
     #[AdminRoute(path: '/{component}/refresh', name: 'refresh', options: self::COMPONENT_OPTIONS + ['methods' => ['POST']])]
     public function refresh(Request $request, Component $component): Response
     {
-        $this->denyUnlessAvailable($component);
+        $instance = $this->instanceOr404($component);
 
         if ($this->csrfTokenManager !== null && !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::REFRESH_TOKEN_ID, $request->request->getString('_token')))) {
             throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
 
-        $this->snapshots->refresh($component);
+        $this->snapshots->refresh($instance);
 
         return new RedirectResponse($this->componentUrl($component));
     }
 
     private function render(Component $component, bool $fragment): Response
     {
-        $this->denyUnlessAvailable($component);
-
-        $snapshot = $this->snapshots->get($component);
+        $snapshot = $this->snapshots->get($this->instanceOr404($component));
 
         return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component) + [
             'snapshot' => $snapshot,
@@ -121,10 +120,8 @@ final class MonitoringController
         return $context->getDashboardRouteName() . '_jmonitor_' . $action;
     }
 
-    private function denyUnlessAvailable(Component $component): void
+    private function instanceOr404(Component $component): Instance
     {
-        if (!$this->registry->isAvailable($component)) {
-            throw new NotFoundHttpException(sprintf('The "%s" component is not available.', $component->label()));
-        }
+        return $this->registry->instance($component, null) ?? throw new NotFoundHttpException(sprintf('The "%s" component is not available.', $component->label()));
     }
 }
