@@ -24,10 +24,11 @@ final class FrankenPhpViewTest extends TestCase
         self::assertSame('1.4.0', $view->version);
         self::assertSame('Worker', $view->mode?->label);
         self::assertSame(BadgeStyle::Success, $view->mode->style);
-        self::assertSame(3, $view->busyThreads);
+        self::assertSame(13, $view->busyThreads);
         self::assertSame(16, $view->totalThreads);
-        self::assertSame(18.75, $view->busyThreadsPercent->value);
-        self::assertSame('3 / 16', $view->busyThreadsPercent->detail);
+        self::assertSame(25.0, $view->busyThreadsPercent->value, 'the 12 worker threads always count as busy: 1 of the 4 regular threads is');
+        self::assertSame('1 / 4 regular threads', $view->busyThreadsPercent->detail);
+        self::assertSame('12 threads run the workers', $view->busyThreadsPercent->hint);
         self::assertSame(BadgeStyle::Success, $view->busyThreadsPercent->badge?->style);
         self::assertSame(0, $view->queueDepth);
         self::assertTrue($view->workerMode);
@@ -76,6 +77,32 @@ final class FrankenPhpViewTest extends TestCase
         self::assertFalse($view->workerMode);
         self::assertSame([], $view->workers);
         self::assertSame(18.75, $view->busyThreadsPercent->value);
+        self::assertSame('3 / 16', $view->busyThreadsPercent->detail);
+        self::assertNull($view->busyThreadsPercent->hint);
+    }
+
+    public function testWorkersTakingEveryThreadLeaveNoGauge(): void
+    {
+        $payload = Payloads::frankenphpWorker();
+        $payload['total_threads'] = 12;
+        $payload['busy_threads'] = 12;
+
+        $view = new FrankenPhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertNull($view->busyThreadsPercent->value);
+        self::assertNull($view->busyThreadsPercent->detail);
+        self::assertSame('12 threads run the workers', $view->busyThreadsPercent->hint);
+    }
+
+    public function testBusyThreadsBelowTheWorkerThreadsIsZero(): void
+    {
+        $payload = Payloads::frankenphpWorker();
+        $payload['busy_threads'] = 10;
+
+        $view = new FrankenPhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertSame(0.0, $view->busyThreadsPercent->value, 'workers still starting');
+        self::assertSame('0 / 4 regular threads', $view->busyThreadsPercent->detail);
     }
 
     public function testARenamedWorkerIgnoresTheDelta(): void
@@ -102,6 +129,19 @@ final class FrankenPhpViewTest extends TestCase
 
         self::assertNull($view->workers[0]->restartsDelta);
         self::assertSame(10.0, $view->workers[0]->requestsPerSec->value, 'the other counters still have their delta');
+    }
+
+    public function testARequestCounterResetGivesNoRateAndACumulatedAverage(): void
+    {
+        $previous = self::previous();
+        $previous['workers.0.worker_request_count'] = 10_500;
+        $delta = new Delta($previous, Delta::flatten(Payloads::frankenphpWorker()), 10);
+
+        $view = new FrankenPhpView($this->snapshot(Payloads::frankenphpWorker(), $delta), $this->gauges());
+
+        self::assertTrue($view->workers[0]->requestsPerSec->isUnavailable(), 'no negative rate');
+        self::assertTrue($view->workers[0]->avgExecTime->isSinceStart());
+        self::assertSame(1, $view->workers[0]->restartsDelta, 'the other counters still have their delta');
     }
 
     public function testAWorkerWithoutTotalHasNoGauge(): void

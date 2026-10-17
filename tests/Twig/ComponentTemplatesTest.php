@@ -338,7 +338,9 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('aria-label="Help: Mode"', $html);
         self::assertStringContainsString('Busy threads', $html);
         self::assertStringContainsString('aria-label="Help: Busy threads"', $html);
-        self::assertStringContainsString('3 / 16', $html);
+        self::assertStringContainsString('13 / 16', $html, 'the raw busy / total threads');
+        self::assertStringContainsString('1 / 4 regular threads', $html);
+        self::assertStringContainsString('12 threads run the workers', $html);
         self::assertStringContainsString('aria-label="Help: Threads"', $html);
         self::assertStringContainsString('Queue depth', $html);
         self::assertStringContainsString('<span>index.php</span>', $html, 'a worker card is titled by the file name');

@@ -248,7 +248,7 @@ final class Payloads
      */
     public static function frankenphpWorker(): array
     {
-        return ['version' => '1.4.0', 'mode' => 'worker', 'busy_threads' => 3, 'total_threads' => 16, 'queue_depth' => 0, 'workers' => [
+        return ['version' => '1.4.0', 'mode' => 'worker', 'busy_threads' => 13, 'total_threads' => 16, 'queue_depth' => 0, 'workers' => [
             ['name' => '/app/public/index.php', 'total_workers' => 8, 'busy_workers' => 2, 'worker_request_time' => 125.5, 'worker_request_count' => 10_000, 'ready_workers' => 8, 'worker_crashes' => 1, 'worker_restarts' => 3, 'worker_queue_depth' => 0],
             ['name' => 'api', 'total_workers' => 4, 'busy_workers' => 4, 'worker_request_time' => 40.0, 'worker_request_count' => 2_000, 'ready_workers' => 4, 'worker_crashes' => 0, 'worker_restarts' => 0, 'worker_queue_depth' => 2],
         ]];

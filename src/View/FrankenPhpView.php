@@ -39,7 +39,6 @@ final readonly class FrankenPhpView
 
         $this->busyThreads = Values::int($data['busy_threads'] ?? null);
         $this->totalThreads = Values::int($data['total_threads'] ?? null);
-        $this->busyThreadsPercent = $gauges->create('frankenphp.busy_threads_percent', 'Busy threads', Values::percent($this->busyThreads, $this->totalThreads), 2, $this->busyThreads === null || $this->totalThreads === null ? null : $this->busyThreads . ' / ' . $this->totalThreads);
         $this->queueDepth = Values::int($data['queue_depth'] ?? null);
 
         $this->workerMode = $mode === 'worker';
@@ -52,5 +51,24 @@ final readonly class FrankenPhpView
         }
 
         $this->workers = $workers;
+        $this->busyThreadsPercent = $this->threadsGauge($gauges);
+    }
+
+    /**
+     * A running worker always holds a thread, so in worker mode the gauge covers the regular threads only.
+     */
+    private function threadsGauge(GaugeFactory $gauges): Gauge
+    {
+        $workerThreads = array_sum(array_map(static fn(FrankenPhpWorkerView $worker): int => $worker->total ?? 0, $this->workers));
+
+        if (!$this->workerMode || $workerThreads === 0) {
+            return $gauges->create('frankenphp.busy_threads_percent', 'Busy threads', Values::percent($this->busyThreads, $this->totalThreads), 2, $this->busyThreads === null || $this->totalThreads === null ? null : $this->busyThreads . ' / ' . $this->totalThreads);
+        }
+
+        $total = $this->totalThreads === null ? null : $this->totalThreads - $workerThreads;
+        $busy = $this->busyThreads === null ? null : max(0, $this->busyThreads - $workerThreads);
+        $percent = Values::percent($busy, $total);
+
+        return $gauges->create('frankenphp.busy_threads_percent', 'Busy threads', $percent, 2, $percent === null ? null : $busy . ' / ' . $total . ' regular threads', sprintf('%d threads run the workers', $workerThreads));
     }
 }

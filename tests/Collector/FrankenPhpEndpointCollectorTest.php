@@ -35,6 +35,7 @@ final class FrankenPhpEndpointCollectorTest extends TestCase
 
         self::assertSame('worker', $payload['mode']);
         self::assertSame(16, $payload['total_threads']);
+        self::assertSame(13, $payload['busy_threads'], 'the 12 worker threads count as busy, plus one regular request');
         self::assertCount(2, $payload['workers']);
         self::assertSame([
             'name' => '/app/public/index.php',
