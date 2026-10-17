@@ -1,6 +1,6 @@
 {
     "name": "jmonitor/easyadmin-bundle",
-    "description": "Live monitoring pages inside EasyAdmin: system, PHP, MySQL, PostgreSQL, Redis and Symfony metrics collected when you open the page, no worker required.",
+    "description": "Live monitoring pages inside EasyAdmin: system, PHP, FrankenPHP, MySQL, PostgreSQL, Redis and Symfony metrics collected when you open the page, no worker required.",
     "keywords": [
         "monitoring",
         "metrics",
@@ -10,6 +10,7 @@
         "postgresql",
         "redis",
         "php",
+        "frankenphp",
         "system",
         "opcache"
     ],
