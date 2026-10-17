@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\InstancesDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\ThrowingDetector;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Redis\FakeRedisClient;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -20,13 +21,20 @@ use Symfony\Component\DependencyInjection\Definition;
  */
 final class ConfigurableAdminKernel extends TestKernel
 {
+    /** The Symfony component without its sub-collectors, which run console or composer processes. */
+    public const QUIET_SYMFONY = ['enabled' => 'auto', 'messenger' => false, 'scheduler' => false, 'flex' => false];
+
     /** @var array<string, mixed> */
     public static array $bundleConfiguration = [];
     public static ?string $mysqlDetectorFailure = null;
     /** @var non-empty-list<array{id: string, detail?: ?string, error?: string}>|null */
     public static ?array $mysqlInstances = null;
+    /** @var list<string> ids registered as FakeRedisClient services */
+    public static array $redisServices = [];
 
     private readonly ?string $detectorFailure;
+    /** @var list<string> */
+    private readonly array $fakeRedisServices;
     /** @var non-empty-list<array{id: string, detail?: ?string, error?: string}>|null */
     private readonly ?array $instances;
 
@@ -35,6 +43,7 @@ final class ConfigurableAdminKernel extends TestKernel
         parent::__construct(self::$bundleConfiguration);
         $this->detectorFailure = self::$mysqlDetectorFailure;
         $this->instances = self::$mysqlInstances;
+        $this->fakeRedisServices = self::$redisServices;
     }
 
     public static function reset(): void
@@ -42,17 +51,37 @@ final class ConfigurableAdminKernel extends TestKernel
         self::$bundleConfiguration = [];
         self::$mysqlDetectorFailure = null;
         self::$mysqlInstances = null;
+        self::$redisServices = [];
     }
 
     public function getCacheDir(): string
     {
         $replacement = $this->mysqlDetector();
 
-        return parent::getCacheDir() . ($replacement === null ? '' : '-' . md5(serialize($replacement->getArguments())));
+        if ($replacement === null && $this->fakeRedisServices === []) {
+            return parent::getCacheDir();
+        }
+
+        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices]));
     }
 
     protected function build(ContainerBuilder $container): void
     {
+        if ($this->fakeRedisServices !== []) {
+            // Before the optimization passes, so that the ignoreOnInvalid references of the Redis locator see them.
+            $container->addCompilerPass(new class ($this->fakeRedisServices) implements CompilerPassInterface {
+                /** @param list<string> $ids */
+                public function __construct(private readonly array $ids) {}
+
+                public function process(ContainerBuilder $container): void
+                {
+                    foreach ($this->ids as $id) {
+                        $container->setDefinition($id, new Definition(FakeRedisClient::class));
+                    }
+                }
+            }, PassConfig::TYPE_BEFORE_OPTIMIZATION);
+        }
+
         $replacement = $this->mysqlDetector();
 
         if ($replacement === null) {

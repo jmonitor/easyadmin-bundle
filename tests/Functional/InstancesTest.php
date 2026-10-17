@@ -14,7 +14,6 @@ use Symfony\Component\Security\Core\User\InMemoryUser;
  */
 final class InstancesTest extends WebTestCase
 {
-    private const QUIET_SYMFONY = ['enabled' => 'auto', 'messenger' => false, 'scheduler' => false, 'flex' => false];
     private const TWO_INSTANCES = [['id' => 'default', 'detail' => 'shop'], ['id' => 'legacy', 'detail' => 'erp']];
 
     protected static function getKernelClass(): string
@@ -147,7 +146,7 @@ final class InstancesTest extends WebTestCase
     private function adminClient(array $instances, array $components = []): KernelBrowser
     {
         ConfigurableAdminKernel::$mysqlInstances = $instances;
-        ConfigurableAdminKernel::$bundleConfiguration = ['components' => $components + ['mysql' => true, 'redis' => false, 'symfony' => self::QUIET_SYMFONY]];
+        ConfigurableAdminKernel::$bundleConfiguration = ['components' => $components + ['mysql' => true, 'redis' => false, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY]];
         $client = static::createClient();
         $client->loginUser(new InMemoryUser('admin', 'admin', ['ROLE_ADMIN']));
 

@@ -76,8 +76,10 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     $redisProvider = $builder->hasParameter('jmonitor_easyadmin.framework_redis_provider') ? $builder->getParameter('jmonitor_easyadmin.framework_redis_provider') : null;
     $redisServices = [];
 
-    if ($redisConfig['service'] !== null) {
-        $redisServices[$redisConfig['service']] = service($redisConfig['service']);
+    foreach ($redisConfig['connections'] as $connection) {
+        if ($connection['service'] !== null) {
+            $redisServices[$connection['service']] = service($connection['service'])->ignoreOnInvalid();
+        }
     }
 
     if (is_string($redisProvider) && !str_starts_with($redisProvider, '%') && !RedisDetector::isDsn($redisProvider)) {
@@ -87,8 +89,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     $services->set(RedisDetector::class)
         ->args([
             service_locator($redisServices),
-            $redisConfig['service'],
-            $redisConfig['dsn'],
+            $redisConfig['connections'],
             $redisProvider !== null ? '%jmonitor_easyadmin.framework_redis_provider%' : null,
             env('default::REDIS_URL'),
         ])
