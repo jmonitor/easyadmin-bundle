@@ -12,8 +12,6 @@ use Symfony\Component\Security\Core\User\InMemoryUser;
 
 final class RobustnessTest extends WebTestCase
 {
-    private const QUIET_SYMFONY = ['enabled' => 'auto', 'messenger' => false, 'scheduler' => false, 'flex' => false];
-
     protected static function getKernelClass(): string
     {
         return ConfigurableAdminKernel::class;
@@ -46,7 +44,7 @@ final class RobustnessTest extends WebTestCase
 
     public function testAComponentForcedOnWhoseDetectionFailsShowsTheReason(): void
     {
-        $client = $this->adminClient(['components' => ['mysql' => true, 'redis' => true, 'symfony' => self::QUIET_SYMFONY]]);
+        $client = $this->adminClient(['components' => ['mysql' => true, 'redis' => true, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY]]);
 
         $client->request('GET', '/admin/jmonitor/mysql');
         self::assertResponseIsSuccessful();
@@ -63,7 +61,7 @@ final class RobustnessTest extends WebTestCase
     public function testAThrowingDetectorKeepsTheOtherTabsUp(): void
     {
         ConfigurableAdminKernel::$mysqlDetectorFailure = 'Malformed DSN';
-        $client = $this->adminClient(['components' => ['mysql' => true, 'redis' => false, 'symfony' => self::QUIET_SYMFONY]]);
+        $client = $this->adminClient(['components' => ['mysql' => true, 'redis' => false, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY]]);
 
         $client->request('GET', '/admin/jmonitor/php');
         self::assertResponseIsSuccessful();
@@ -76,7 +74,7 @@ final class RobustnessTest extends WebTestCase
     public function testAFailingCollectorShowsItsErrorInsideTheTab(): void
     {
         $client = $this->adminClient(['components' => [
-            'redis' => ['enabled' => true, 'connections' => ['cache' => 'redis://127.0.0.1:1']], 'mysql' => false, 'symfony' => self::QUIET_SYMFONY,
+            'redis' => ['enabled' => true, 'connections' => ['cache' => 'redis://127.0.0.1:1']], 'mysql' => false, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY,
         ]]);
 
         $client->request('GET', '/admin/jmonitor/redis');
@@ -87,7 +85,7 @@ final class RobustnessTest extends WebTestCase
 
     public function testCachedDataOfAnotherVersionIsCollectedAgain(): void
     {
-        $client = $this->adminClient(['components' => ['mysql' => false, 'redis' => false, 'symfony' => self::QUIET_SYMFONY]]);
+        $client = $this->adminClient(['components' => ['mysql' => false, 'redis' => false, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY]]);
         /** @var CacheItemPoolInterface $cache */
         $cache = self::getContainer()->get('cache.app');
         $cache->save($cache->getItem('jmonitor_easyadmin.collect.php')->set(['data' => 'not an array']));

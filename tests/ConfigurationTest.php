@@ -165,9 +165,17 @@ final class ConfigurationTest extends TestCase
         self::assertSame([1 => ['dsn' => 'redis://a', 'service' => null]], $config['components']['redis']['connections']);
     }
 
+    public function testRedisIdsNamedNameAndDsnStayTwoConnections(): void
+    {
+        $config = $this->process(['components' => ['redis' => ['connections' => ['name' => 'redis://a', 'dsn' => 'redis://b']]]]);
+
+        self::assertSame(['name' => ['dsn' => 'redis://a', 'service' => null], 'dsn' => ['dsn' => 'redis://b', 'service' => null]], $config['components']['redis']['connections']);
+    }
+
     public function testRedisConnectionsRefuseAListOfDsns(): void
     {
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Redis connections need an id: use a map id => DSN');
 
         $this->process(['components' => ['redis' => ['connections' => ['redis://a']]]]);
     }

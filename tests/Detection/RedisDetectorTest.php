@@ -147,6 +147,15 @@ final class RedisDetectorTest extends TestCase
         self::assertTrue($detector->detect()->isFound());
     }
 
+    public function testAFrameworkProviderServiceThatThrowsIsUnavailableWithItsContext(): void
+    {
+        $locator = new ServiceLocator(['app.redis' => static fn(): object => throw new \RuntimeException('boom')]);
+        $detection = (new RedisDetector($locator, [], 'app.redis', null))->detect();
+
+        self::assertFalse($detection->isFound());
+        self::assertSame('The Redis provider of the Symfony cache, service "app.redis", could not be created: boom', $detection->error);
+    }
+
     public function testAFrameworkProviderServiceIdThatIsMissingIsUnavailable(): void
     {
         $detection = (new RedisDetector(new ServiceLocator([]), [], 'app.redis', 'redis://127.0.0.1:1'))->detect();

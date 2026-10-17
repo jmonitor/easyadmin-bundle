@@ -21,6 +21,9 @@ use Symfony\Component\DependencyInjection\Definition;
  */
 final class ConfigurableAdminKernel extends TestKernel
 {
+    /** The Symfony component without its sub-collectors, which run console or composer processes. */
+    public const QUIET_SYMFONY = ['enabled' => 'auto', 'messenger' => false, 'scheduler' => false, 'flex' => false];
+
     /** @var array<string, mixed> */
     public static array $bundleConfiguration = [];
     public static ?string $mysqlDetectorFailure = null;

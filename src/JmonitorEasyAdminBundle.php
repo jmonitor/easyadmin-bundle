@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle;
 
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
+use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -240,10 +241,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                 ->ifArray()
                 ->then(static function (array $v): array {
                     if (array_is_list($v)) {
+                        foreach ($v as $entry) {
+                            if (is_string($entry)) {
+                                throw new InvalidConfigurationException('Redis connections need an id: use a map id => DSN, {dsn} or {service}.');
+                            }
+                        }
+
                         return $v;
                     }
 
-                    if (is_string($v['name'] ?? null) && (is_string($v['dsn'] ?? null) || is_string($v['service'] ?? null))) {
+                    // In the map form the value of a "name" id would be a DSN.
+                    if (is_string($v['name'] ?? null) && !RedisDetector::isDsn($v['name']) && (is_string($v['dsn'] ?? null) || is_string($v['service'] ?? null))) {
                         return [$v];
                     }
 

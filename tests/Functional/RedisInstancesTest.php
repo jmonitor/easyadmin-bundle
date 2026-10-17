@@ -15,7 +15,6 @@ use Symfony\Component\Security\Core\User\InMemoryUser;
  */
 final class RedisInstancesTest extends WebTestCase
 {
-    private const QUIET_SYMFONY = ['enabled' => 'auto', 'messenger' => false, 'scheduler' => false, 'flex' => false];
     private const TWO = ['cache' => 'redis://127.0.0.1:1', 'queue' => ['service' => 'app.redis_queue']];
 
     protected static function getKernelClass(): string
@@ -108,13 +107,13 @@ final class RedisInstancesTest extends WebTestCase
     /**
      * @param array<string, mixed> $connections
      */
-    private function adminClient(array $connections, string|bool $enabled = 'auto'): KernelBrowser
+    private function adminClient(array $connections): KernelBrowser
     {
         ConfigurableAdminKernel::$redisServices = ['app.redis_queue'];
         ConfigurableAdminKernel::$bundleConfiguration = ['components' => [
             'mysql' => false,
-            'symfony' => self::QUIET_SYMFONY,
-            'redis' => ['enabled' => $enabled, 'connections' => $connections],
+            'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY,
+            'redis' => ['connections' => $connections],
         ]];
         $client = static::createClient();
         $client->loginUser(new InMemoryUser('admin', 'admin', ['ROLE_ADMIN']));

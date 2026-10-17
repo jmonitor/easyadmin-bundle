@@ -56,7 +56,13 @@ final readonly class RedisDetector implements ComponentDetectorInterface
                 return Detection::unavailable(sprintf('The Redis provider of the Symfony cache is the service "%s", which is not available to the bundle.', $this->frameworkProvider));
             }
 
-            return Detection::found(self::collectors(new RedisCollector($this->services->get($this->frameworkProvider))));
+            try {
+                $client = $this->services->get($this->frameworkProvider);
+            } catch (\Throwable $e) {
+                return Detection::unavailable(sprintf('The Redis provider of the Symfony cache, service "%s", could not be created: %s', $this->frameworkProvider, $e->getMessage()));
+            }
+
+            return Detection::found(self::collectors(new RedisCollector($client)));
         }
 
         if ($this->envUrl !== null && $this->envUrl !== '') {
