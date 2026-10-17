@@ -234,4 +234,23 @@ final class Payloads
             ['query_sample' => 'SELECT * FROM customer WHERE email = $1', 'exec_count' => 120, 'total_time_ms' => '36000.00', 'avg_time_ms' => '300.25', 'max_time_ms' => '1200.00', 'stddev_time_ms' => '50.00', 'rows' => 2_400, 'shared_blks_hit' => 9_900, 'shared_blks_read' => 100],
         ]];
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function frankenphpClassic(): array
+    {
+        return ['version' => '1.4.0', 'mode' => 'classic', 'busy_threads' => 3, 'total_threads' => 16, 'queue_depth' => 0, 'workers' => []];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function frankenphpWorker(): array
+    {
+        return ['version' => '1.4.0', 'mode' => 'worker', 'busy_threads' => 3, 'total_threads' => 16, 'queue_depth' => 0, 'workers' => [
+            ['name' => '/app/public/index.php', 'total_workers' => 8, 'busy_workers' => 2, 'worker_request_time' => 125.5, 'worker_request_count' => 10_000, 'ready_workers' => 8, 'worker_crashes' => 1, 'worker_restarts' => 3, 'worker_queue_depth' => 0],
+            ['name' => 'api', 'total_workers' => 4, 'busy_workers' => 4, 'worker_request_time' => 40.0, 'worker_request_count' => 2_000, 'ready_workers' => 4, 'worker_crashes' => 0, 'worker_restarts' => 0, 'worker_queue_depth' => 2],
+        ]];
+    }
 }

@@ -29,6 +29,7 @@ final readonly class ViewFactory
         return match ($component) {
             Component::System => new SystemView($snapshot, $this->gauges),
             Component::Php => new PhpView($snapshot, $this->gauges),
+            Component::FrankenPhp => new FrankenPhpView($snapshot, $this->gauges),
             Component::Mysql => new MysqlView($snapshot, $this->gauges, $this->clock->now()->getTimestamp()),
             Component::Postgresql => new PostgresqlView($snapshot, $this->gauges),
             Component::Redis => new RedisView($snapshot, $this->gauges),
