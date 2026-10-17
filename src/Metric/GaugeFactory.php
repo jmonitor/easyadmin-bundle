@@ -23,6 +23,6 @@ final readonly class GaugeFactory
 
     public function fromRate(string $metric, string $label, Rate $rate, int $precision = 1, ?string $detail = null): Gauge
     {
-        return $this->create($metric, $label, $rate->value, $precision, $detail, $rate->isSinceStart() ? 'since server start' : null);
+        return $this->create($metric, $label, $rate->value, $precision, $detail, $rate->hint());
     }
 }

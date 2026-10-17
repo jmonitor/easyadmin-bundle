@@ -41,6 +41,18 @@ final class RatiosTest extends TestCase
         self::assertSame('%', $rate->unit);
     }
 
+    public function testTheCumulativeFallbackNamesWhereItsCountersStart(): void
+    {
+        $delta = new Delta(['hits' => 1000, 'misses' => 100], ['hits' => 1090, 'misses' => 110], 10);
+
+        self::assertSame('since server start', Ratios::share(null, 'hits', 'misses', 900, 100)->hint());
+        self::assertSame('since stats reset', Ratios::share(null, 'hits', 'misses', 900, 100, 'since stats reset')->hint());
+        self::assertSame('since stats reset', Ratios::percent(null, 'disk', 'all', 15, 150, 'since stats reset')->hint());
+        self::assertSame('since stats reset', Ratios::complement(null, 'reads', 'requests', 7, 1100, 'since stats reset')->hint());
+        self::assertNull(Ratios::share($delta, 'hits', 'misses', 1090, 110, 'since stats reset')->hint());
+        self::assertNull(Ratios::share(null, 'hits', 'misses', null, null, 'since stats reset')->hint());
+    }
+
     public function testPercentAndComplement(): void
     {
         $delta = new Delta(['disk' => 10, 'all' => 100, 'reads' => 5, 'requests' => 1000], ['disk' => 15, 'all' => 150, 'reads' => 7, 'requests' => 1100], 10);

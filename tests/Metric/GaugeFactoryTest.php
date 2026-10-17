@@ -59,4 +59,11 @@ final class GaugeFactoryTest extends TestCase
         self::assertNull($live->hint);
         self::assertFalse($none->available());
     }
+
+    public function testFromRateCarriesTheOriginOfTheCounters(): void
+    {
+        $gauge = $this->factory->fromRate('postgres.cache_hit_ratio', 'Cache hit ratio', new Rate(99.5, RateSource::SinceStart, '%', since: 'since stats reset'));
+
+        self::assertSame('since stats reset', $gauge->hint);
+    }
 }

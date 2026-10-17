@@ -108,9 +108,11 @@ final class PostgresqlViewTest extends TestCase
         $view = $this->view(withDeltas: false, withRam: false);
 
         self::assertSame(0.99, $view->rollbackRatio->value);
-        self::assertSame('since server start', $view->rollbackRatio->hint);
+        self::assertSame('since stats reset', $view->rollbackRatio->hint, 'pg_stat_database survives a restart, pg_stat_reset() clears it');
         self::assertSame(99.5, $view->cacheHitRatio->value);
+        self::assertSame('since stats reset', $view->cacheHitRatio->hint);
         self::assertSame(95.0, $view->indexUsageRatio->value);
+        self::assertSame('since stats reset', $view->indexUsageRatio->hint);
         self::assertTrue($view->transactionsPerSec->isUnavailable());
         self::assertTrue($view->seqScansPerSec->isUnavailable());
         self::assertNull($view->ramRatio);
@@ -127,7 +129,7 @@ final class PostgresqlViewTest extends TestCase
         self::assertTrue($view->commitsPerSec->isUnavailable());
         self::assertTrue($view->transactionsPerSec->isUnavailable());
         self::assertSame(1.0, $view->rollbacksPerSec->value);
-        self::assertSame('since server start', $view->rollbackRatio->hint);
+        self::assertSame('since stats reset', $view->rollbackRatio->hint);
     }
 
     public function testEverythingIsNullSafeWhenTheCollectorsFailed(): void

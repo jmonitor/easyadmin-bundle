@@ -198,7 +198,7 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Deadlocks', metric: 'postgres.deadlocks_per_sec'} %}
                 {% block body %}
                     <div class="jm-stat mb-3">{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.deadlocksPerSec}) }}</div>
-                    {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Since server start', value: view.deadlocksTotal}) }}
+                    {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Since stats reset', value: view.deadlocksTotal}) }}
                 {% endblock %}
             {% endembed %}
         </div>

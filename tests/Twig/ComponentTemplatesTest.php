@@ -144,6 +144,9 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('No active transaction', $html, 'a null oldest transaction means the sub-query failed, not that there is none');
         self::assertStringNotContainsString('Longest running transaction', $html);
         self::assertStringNotContainsString('RAM ratio', $html, 'PostgreSQL is not on this host');
+        self::assertStringContainsString('since stats reset', $html, 'no delta: the ratios are cumulated');
+        self::assertStringContainsString('Since stats reset', $html, 'the deadlocks total');
+        self::assertStringNotContainsString('server start', $html);
     }
 
     public function testThePostgresqlFragmentRendersWithoutAnyData(): void

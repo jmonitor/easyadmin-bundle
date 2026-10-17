@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `components.mysql.connection` and `components.postgresql.connection`: use `connections` instead.
 - `components.redis.dsn` and `components.redis.service`: use `connections` instead.
 
+### Fixed
+
+- The cumulated ratios and the deadlocks total of the PostgreSQL tab say "since stats reset" instead of "since server start": the `pg_stat_database` counters survive a restart and are cleared by `pg_stat_reset()`.
+
 ## [1.0.1] - 2026-10-16
 
 ### Changed
