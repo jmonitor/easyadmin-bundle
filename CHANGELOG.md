@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refresh on a component with a single connection goes back to the page without the `connection` parameter, as it was opened.
 - Screen readers announce the "Detection failed" marker of a connection pill in error.
 - The deprecated `connection` option of MySQL and PostgreSQL and the `dsn` and `service` options of Redis are merged into `connections` once every configuration file is loaded: a later file overrides them instead of adding a connection, and setting `connections` in another file is refused like in the same one.
-- A Doctrine connection that cannot be read, skipped by the MySQL or PostgreSQL detection, is logged as a warning on the `jmonitor_easyadmin` channel.
 
 ## [1.0.1] - 2026-10-16
 

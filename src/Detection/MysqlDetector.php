@@ -19,8 +19,6 @@ use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\Utils\DatabaseAdapter\DoctrineAdapter;
 use Psr\Container\ContainerInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * Detection reads the connection parameters only and never opens the connection: a server
@@ -41,7 +39,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         private array $configured,
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
-        private LoggerInterface $logger = new NullLogger(),
     ) {}
 
     public function component(): Component
@@ -59,7 +56,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
             self::isMysql(...),
             fn(Connection $connection, array $params): CollectorSet => $this->collectors($connection, DoctrineParams::database($params) ?? '', DoctrineParams::isLocal($params)),
             'MySQL or MariaDB',
-            $this->logger,
         );
     }
 
