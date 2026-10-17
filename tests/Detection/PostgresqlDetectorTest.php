@@ -44,14 +44,14 @@ final class PostgresqlDetectorTest extends TestCase
 
         self::assertSame(Component::Postgresql, $detector->component());
         self::assertTrue($detection->isFound());
-        self::assertSame(['postgresql.activity', 'postgresql.settings', 'postgresql.database', 'postgresql.slow_queries'], $detection->collectors?->names());
-        self::assertSame(Lifetime::Dynamic, $detection->collectors->get('postgresql.activity')?->lifetime);
-        self::assertTrue($detection->collectors->get('postgresql.activity')->trackDelta);
-        self::assertSame(Lifetime::Static, $detection->collectors->get('postgresql.settings')?->lifetime);
-        self::assertSame(Lifetime::Minute, $detection->collectors->get('postgresql.database')?->lifetime);
-        self::assertTrue($detection->collectors->get('postgresql.database')->trackDelta);
-        self::assertSame(Lifetime::Minute, $detection->collectors->get('postgresql.slow_queries')?->lifetime);
-        self::assertFalse($detection->collectors->get('postgresql.slow_queries')->trackDelta);
+        self::assertSame(['postgresql.activity', 'postgresql.settings', 'postgresql.database', 'postgresql.slow_queries'], $detection->instances[0]->collectors?->names());
+        self::assertSame(Lifetime::Dynamic, $detection->instances[0]->collectors->get('postgresql.activity')?->lifetime);
+        self::assertTrue($detection->instances[0]->collectors->get('postgresql.activity')->trackDelta);
+        self::assertSame(Lifetime::Static, $detection->instances[0]->collectors->get('postgresql.settings')?->lifetime);
+        self::assertSame(Lifetime::Minute, $detection->instances[0]->collectors->get('postgresql.database')?->lifetime);
+        self::assertTrue($detection->instances[0]->collectors->get('postgresql.database')->trackDelta);
+        self::assertSame(Lifetime::Minute, $detection->instances[0]->collectors->get('postgresql.slow_queries')?->lifetime);
+        self::assertFalse($detection->instances[0]->collectors->get('postgresql.slow_queries')->trackDelta);
     }
 
     public function testTheFirstPostgresqlConnectionWinsUnlessOneIsConfigured(): void
@@ -85,7 +85,7 @@ final class PostgresqlDetectorTest extends TestCase
     {
         $detector = new PostgresqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default'], null, 'app');
 
-        $collector = $detector->detect()->collectors?->get('postgresql.database')?->collector;
+        $collector = $detector->detect()->instances[0]->collectors?->get('postgresql.database')?->collector;
 
         self::assertInstanceOf(PostgresqlDatabaseCollector::class, $collector);
         self::assertSame('app', (new \ReflectionProperty(PostgresqlDatabaseCollector::class, 'schema'))->getValue($collector));
@@ -114,9 +114,9 @@ final class PostgresqlDetectorTest extends TestCase
 
         $detection = (new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'public', 'Linux', $system))->detect();
 
-        self::assertSame($local, \in_array('system.ram_total', $detection->collectors?->names() ?? [], true));
+        self::assertSame($local, \in_array('system.ram_total', $detection->instances[0]->collectors?->names() ?? [], true));
         if ($local) {
-            self::assertSame(Lifetime::Static, $detection->collectors?->get('system.ram_total')?->lifetime);
+            self::assertSame(Lifetime::Static, $detection->instances[0]->collectors?->get('system.ram_total')?->lifetime);
         }
     }
 
@@ -126,7 +126,7 @@ final class PostgresqlDetectorTest extends TestCase
         $connection->method('getParams')->willReturn(['driver' => 'pdo_pgsql', 'host' => 'localhost', 'dbname' => 'app']);
         $detector = new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'public', 'Windows');
 
-        self::assertNotContains('system.ram_total', $detector->detect()->collectors?->names() ?? []);
+        self::assertNotContains('system.ram_total', $detector->detect()->instances[0]->collectors?->names() ?? []);
     }
 
     public function testUnknownConfiguredConnection(): void

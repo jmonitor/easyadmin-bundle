@@ -18,10 +18,10 @@ final class SystemDetectorTest extends TestCase
         $detection = (new SystemDetector('Linux', new RandomAdapter()))->detect();
 
         self::assertTrue($detection->isFound());
-        self::assertSame(Component::System, $detection->collectors?->component);
-        self::assertSame(['system'], $detection->collectors->names());
-        self::assertSame(Lifetime::Dynamic, $detection->collectors->get('system')?->lifetime);
-        self::assertInstanceOf(SystemCollector::class, $detection->collectors->get('system')->collector);
+        self::assertSame(Component::System, $detection->instances[0]->collectors?->component);
+        self::assertSame(['system'], $detection->instances[0]->collectors->names());
+        self::assertSame(Lifetime::Dynamic, $detection->instances[0]->collectors->get('system')?->lifetime);
+        self::assertInstanceOf(SystemCollector::class, $detection->instances[0]->collectors->get('system')->collector);
     }
 
     public function testOtherFamiliesAreUnavailableWithoutAnExplicitAdapter(): void

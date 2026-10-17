@@ -42,7 +42,9 @@ final class ComponentRegistry implements ResetInterface
 
     public function collectorsFor(Component $component): ?CollectorSet
     {
-        return ($this->detections()[$component->value] ?? null)?->collectors;
+        $detection = $this->detections()[$component->value] ?? null;
+
+        return ($detection?->instances[0] ?? null)?->collectors;
     }
 
     public function errorFor(Component $component): ?string

@@ -42,12 +42,12 @@ final class MysqlDetectorTest extends TestCase
         $detection = $detector->detect();
 
         self::assertTrue($detection->isFound());
-        self::assertSame(['mysql.status', 'mysql.variables', 'mysql.information_schema', 'mysql.slow_queries'], $detection->collectors?->names());
-        self::assertTrue($detection->collectors->get('mysql.status')?->trackDelta);
-        self::assertSame(Lifetime::Dynamic, $detection->collectors->get('mysql.status')->lifetime);
-        self::assertSame(Lifetime::Static, $detection->collectors->get('mysql.variables')?->lifetime);
-        self::assertSame(Lifetime::Static, $detection->collectors->get('mysql.information_schema')?->lifetime);
-        self::assertSame(Lifetime::Minute, $detection->collectors->get('mysql.slow_queries')?->lifetime);
+        self::assertSame(['mysql.status', 'mysql.variables', 'mysql.information_schema', 'mysql.slow_queries'], $detection->instances[0]->collectors?->names());
+        self::assertTrue($detection->instances[0]->collectors->get('mysql.status')?->trackDelta);
+        self::assertSame(Lifetime::Dynamic, $detection->instances[0]->collectors->get('mysql.status')->lifetime);
+        self::assertSame(Lifetime::Static, $detection->instances[0]->collectors->get('mysql.variables')?->lifetime);
+        self::assertSame(Lifetime::Static, $detection->instances[0]->collectors->get('mysql.information_schema')?->lifetime);
+        self::assertSame(Lifetime::Minute, $detection->instances[0]->collectors->get('mysql.slow_queries')?->lifetime);
     }
 
     public function testTheFirstMysqlConnectionWinsUnlessOneIsConfigured(): void
@@ -93,9 +93,9 @@ final class MysqlDetectorTest extends TestCase
 
         $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'Linux', $system))->detect();
 
-        self::assertSame($local, \in_array('system.ram_total', $detection->collectors?->names() ?? [], true));
+        self::assertSame($local, \in_array('system.ram_total', $detection->instances[0]->collectors?->names() ?? [], true));
         if ($local) {
-            self::assertSame(Lifetime::Static, $detection->collectors?->get('system.ram_total')?->lifetime);
+            self::assertSame(Lifetime::Static, $detection->instances[0]->collectors?->get('system.ram_total')?->lifetime);
         }
     }
 
@@ -105,7 +105,7 @@ final class MysqlDetectorTest extends TestCase
         $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'localhost', 'dbname' => 'app']);
         $detector = new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], null, 'Windows');
 
-        self::assertNotContains('system.ram_total', $detector->detect()->collectors?->names() ?? []);
+        self::assertNotContains('system.ram_total', $detector->detect()->instances[0]->collectors?->names() ?? []);
     }
 
     public function testUnknownConfiguredConnection(): void
@@ -150,7 +150,7 @@ final class MysqlDetectorTest extends TestCase
         self::assertTrue($detection->isFound(), 'the tab stays, the outage is shown inside it');
 
         try {
-            (new CollectorRunner())->run($detection->collectors->get('mysql.status')->collector);
+            (new CollectorRunner())->run($detection->instances[0]->collectors->get('mysql.status')->collector);
             self::fail('Collecting from a dead server must fail');
         } catch (\Throwable $e) {
             self::assertStringContainsString('Connection refused', $e->getPrevious()?->getMessage() ?? $e->getMessage());

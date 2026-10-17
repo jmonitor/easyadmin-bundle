@@ -26,7 +26,7 @@ final class RedisDetectorTest extends TestCase
         $detection = (new RedisDetector(new ServiceLocator([]), null, 'redis://127.0.0.1:1', null, null))->detect();
 
         self::assertTrue($detection->isFound());
-        $spec = $detection->collectors?->get('redis');
+        $spec = $detection->instances[0]->collectors?->get('redis');
         self::assertNotNull($spec);
         self::assertInstanceOf(RedisCollector::class, $spec->collector);
         self::assertSame(Lifetime::Dynamic, $spec->lifetime);
@@ -35,7 +35,7 @@ final class RedisDetectorTest extends TestCase
 
     public function testAnUnreachableServerFailsAtCollectTimeWithAMessage(): void
     {
-        $spec = (new RedisDetector(new ServiceLocator([]), null, 'redis://127.0.0.1:1', null, null))->detect()->collectors?->get('redis');
+        $spec = (new RedisDetector(new ServiceLocator([]), null, 'redis://127.0.0.1:1', null, null))->detect()->instances[0]->collectors?->get('redis');
 
         try {
             (new CollectorRunner())->run($spec->collector);
