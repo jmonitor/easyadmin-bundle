@@ -106,10 +106,10 @@ jmonitor_easyadmin:
             flex: true         # runs "composer recipes", defaults to true when Flex is installed
         mysql:
             enabled: auto
-            connection: null   # a Doctrine connection name, defaults to the first MySQL one
+            connections: []    # Doctrine connection names, empty = every MySQL/MariaDB connection
         postgresql:
             enabled: auto
-            connection: null   # a Doctrine connection name, defaults to the first PostgreSQL one
+            connections: []    # Doctrine connection names, empty = every PostgreSQL connection
             schema: public     # schema whose tables feed the storage, scans and dead rows cards
         redis:
             enabled: auto
@@ -118,6 +118,8 @@ jmonitor_easyadmin:
 ```
 
 `auto` shows the component when it is detected. `true` always shows it, with the detection error when it fails. `false` removes it.
+
+`connections` lists the Doctrine connections to show, each one becoming a pill under the tabs; a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
 
 ## Compared to jmonitor.io
 

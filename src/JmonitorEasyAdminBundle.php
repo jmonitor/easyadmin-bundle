@@ -7,6 +7,7 @@ namespace Jmonitor\EasyAdminBundle;
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -82,13 +83,12 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');
                             $children->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").');
                         }))
-                        ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
-                            $children->scalarNode('connection')->defaultNull()->info('Doctrine connection name (e.g. "default"). Defaults to the first MySQL/MariaDB connection found.');
-                        }))
+                        ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', connections: self::connectionsNode('MySQL/MariaDB')))
                         ->append($this->componentNode('postgresql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
-                            $children->scalarNode('connection')->defaultNull()->info('Doctrine connection name (e.g. "default"). Defaults to the first PostgreSQL connection found.');
-                            $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards.');
-                        }))
+                            $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards, for the connections without their own.');
+                        }, self::connectionsNode('PostgreSQL', static function (NodeBuilder $children): void {
+                            $children->scalarNode('schema')->defaultNull()->info('Schema of this connection, defaults to the component "schema".');
+                        })))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
                             $children->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.');
@@ -107,8 +107,9 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
      * @param (callable(NodeBuilder): void)|null $options
+     * @param ?ArrayNodeDefinition                $connections the "connections" node of a database component
      */
-    private function componentNode(string $name, string $info, ?callable $options = null): ArrayNodeDefinition
+    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null): ArrayNodeDefinition
     {
         $node = new ArrayNodeDefinition($name);
         $node
@@ -120,6 +121,15 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ->end()
         ;
 
+        if ($connections !== null) {
+            $node
+                ->beforeNormalization()
+                    ->ifTrue(static fn($v): bool => is_array($v) && array_key_exists('connection', $v))
+                    ->then(static fn(array $v): array => self::mergeDeprecatedConnection($name, $v))
+                ->end()
+            ;
+        }
+
         $children = $node->children();
         $children->enumNode('enabled')->values(['auto', true, false])->defaultValue('auto');
 
@@ -127,6 +137,66 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             $options($children);
         }
 
+        if ($connections !== null) {
+            $children->append($connections);
+        }
+
         return $node;
+    }
+
+    /**
+     * "connections" lists the Doctrine connections to show: a list of names, or a map name => options.
+     *
+     * @param (callable(NodeBuilder): void)|null $options the options of one connection
+     */
+    private static function connectionsNode(string $product, ?callable $options = null): ArrayNodeDefinition
+    {
+        $node = new ArrayNodeDefinition('connections');
+        $node
+            ->info(sprintf('Doctrine connection names to show, empty for every %s connection found.', $product))
+            ->useAttributeAsKey('name')
+            ->normalizeKeys(false)
+            ->beforeNormalization()
+                ->ifArray()
+                ->then(static fn(array $v): array => array_is_list($v) ? array_fill_keys($v, []) : $v)
+            ->end()
+        ;
+
+        $prototype = $node->arrayPrototype();
+        $prototype->beforeNormalization()->ifNull()->then(static fn(): array => [])->end();
+
+        if ($options !== null) {
+            $options($prototype->children());
+        }
+
+        return $node;
+    }
+
+    /**
+     * The former "connection" option is an entry of "connections"; merged before normalization so
+     * that the entry gets the defaults of a connection.
+     *
+     * @param array<string, mixed> $component
+     *
+     * @return array<string, mixed>
+     */
+    private static function mergeDeprecatedConnection(string $name, array $component): array
+    {
+        $connection = $component['connection'];
+        unset($component['connection']);
+
+        if ($connection === null) {
+            return $component;
+        }
+
+        trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', 'The "connection" option of the %s component is deprecated, use "connections" instead.', $name);
+
+        if (!empty($component['connections'])) {
+            throw new InvalidConfigurationException(sprintf('You cannot set both "connection" and "connections" for the %s component.', $name));
+        }
+
+        $component['connections'] = [$connection];
+
+        return $component;
     }
 }
