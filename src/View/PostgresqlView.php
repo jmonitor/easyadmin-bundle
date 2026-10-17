@@ -138,7 +138,7 @@ final readonly class PostgresqlView
         $this->blockedQueries = self::rows($sessions['blocked_queries'] ?? null, 'blocked_pid');
 
         $this->slowQueriesAvailable = $snapshot->has('postgresql.slow_queries');
-        $this->slowQueries = array_map(self::withCacheHit(...), self::rows($slow['slow_queries'] ?? null, 'query_sample'));
+        $this->slowQueries = array_map(self::slowQuery(...), self::rows($slow['slow_queries'] ?? null, 'query_sample'));
         $this->slowQueriesMinAvgTimeMs = Values::float($slow['min_avg_time_ms'] ?? null);
         $this->slowQueriesMinCalls = Values::int($slow['min_calls'] ?? null);
         $this->slowQueriesOrderBy = Values::string($slow['order_by'] ?? null);
@@ -221,16 +221,25 @@ final readonly class PostgresqlView
     }
 
     /**
+     * pdo_pgsql gives the ROUND(...::numeric) columns as strings.
+     *
      * @param array<string, mixed> $row
      *
      * @return array<string, mixed>
      */
-    private static function withCacheHit(array $row): array
+    private static function slowQuery(array $row): array
     {
         $hit = Values::int($row['shared_blks_hit'] ?? null);
         $read = Values::int($row['shared_blks_read'] ?? null);
         $ratio = Values::percent($hit, $hit === null || $read === null ? null : $hit + $read);
 
-        return $row + ['cache_hit' => $ratio === null ? null : round($ratio, 2)];
+        return [
+            'exec_count' => Values::int($row['exec_count'] ?? null),
+            'total_time_ms' => Values::float($row['total_time_ms'] ?? null),
+            'avg_time_ms' => Values::float($row['avg_time_ms'] ?? null),
+            'max_time_ms' => Values::float($row['max_time_ms'] ?? null),
+            'stddev_time_ms' => Values::float($row['stddev_time_ms'] ?? null),
+            'cache_hit' => $ratio === null ? null : round($ratio, 2),
+        ] + $row;
     }
 }
