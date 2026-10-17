@@ -23,7 +23,7 @@
     <div class="jm-monitoring"
         {% if current and polling_interval > 0 %}
             data-live
-            data-live-url="{{ path(routes.fragment, {component: current.value}) }}"
+            data-live-url="{{ path(routes.fragment, {component: current.value, connection: instance.id}) }}"
             data-live-index-url="{{ path(routes.index) }}"
             data-live-interval="{{ polling_interval }}"
         {% endif %}
@@ -47,7 +47,7 @@
                             <div class="small text-muted" data-live-status>Last update: <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span><span data-live-failed hidden> · refresh failed</span></div>
                         </div>
                     {% endif %}
-                    <form method="post" action="{{ path(routes.refresh, {component: current.value}) }}">
+                    <form method="post" action="{{ path(routes.refresh, {component: current.value, connection: instance.id}) }}">
                         {% guard function csrf_token %}
                             <input type="hidden" name="_token" value="{{ csrf_token('jmonitor_refresh') }}">
                         {% endguard %}
@@ -56,6 +56,18 @@
                 </div>
             {% endif %}
         </div>
+
+        {% if instances|length > 1 %}
+            <ul class="nav nav-pills jm-instances mb-3">
+                {% for item in instances %}
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2{{ item is same as(instance) ? ' active' }}"{% if item is same as(instance) %} aria-current="true"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.id}) }}">
+                            {{ item.id }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
 
         <div data-live-content>
             {% block jm_content %}{% endblock %}
