@@ -76,7 +76,7 @@ final class RobustnessTest extends WebTestCase
     public function testAFailingCollectorShowsItsErrorInsideTheTab(): void
     {
         $client = $this->adminClient(['components' => [
-            'redis' => ['enabled' => true, 'dsn' => 'redis://127.0.0.1:1'], 'mysql' => false, 'symfony' => self::QUIET_SYMFONY,
+            'redis' => ['enabled' => true, 'connections' => ['cache' => 'redis://127.0.0.1:1']], 'mysql' => false, 'symfony' => self::QUIET_SYMFONY,
         ]]);
 
         $client->request('GET', '/admin/jmonitor/redis');

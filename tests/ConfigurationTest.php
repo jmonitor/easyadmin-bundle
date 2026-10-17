@@ -29,8 +29,9 @@ final class ConfigurationTest extends TestCase
         self::assertSame([], $config['components']['postgresql']['connections']);
         self::assertArrayNotHasKey('connection', $config['components']['mysql']);
         self::assertSame('public', $config['components']['postgresql']['schema']);
-        self::assertNull($config['components']['redis']['dsn']);
-        self::assertNull($config['components']['redis']['service']);
+        self::assertSame([], $config['components']['redis']['connections']);
+        self::assertArrayNotHasKey('dsn', $config['components']['redis']);
+        self::assertArrayNotHasKey('service', $config['components']['redis']);
         self::assertIsBool($config['components']['symfony']['messenger']);
     }
 
@@ -55,7 +56,7 @@ final class ConfigurationTest extends TestCase
         $config = $this->process(['components' => [
             'mysql' => ['connections' => ['default', 'legacy']],
             'postgresql' => ['connections' => ['default' => null, 'dwh' => ['schema' => 'analytics']], 'schema' => 'app'],
-            'redis' => ['dsn' => 'redis://cache'],
+            'redis' => ['connections' => ['cache' => 'redis://cache', 'sessions' => ['dsn' => 'redis://sessions:6379/1'], 'queue' => ['service' => 'app.redis_queue']]],
             'symfony' => ['flex' => false],
         ]]);
 
@@ -63,7 +64,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame(['default' => [], 'legacy' => []], $config['components']['mysql']['connections']);
         self::assertSame(['default' => ['schema' => null], 'dwh' => ['schema' => 'analytics']], $config['components']['postgresql']['connections']);
         self::assertSame('app', $config['components']['postgresql']['schema']);
-        self::assertSame('redis://cache', $config['components']['redis']['dsn']);
+        self::assertEquals([
+            'cache' => ['dsn' => 'redis://cache', 'service' => null],
+            'sessions' => ['dsn' => 'redis://sessions:6379/1', 'service' => null],
+            'queue' => ['dsn' => null, 'service' => 'app.redis_queue'],
+        ], $config['components']['redis']['connections']);
         self::assertFalse($config['components']['symfony']['flex']);
     }
 
@@ -108,12 +113,12 @@ final class ConfigurationTest extends TestCase
         $configuration = (new JmonitorEasyAdminBundle())->getContainerExtension()->getConfiguration([], new ContainerBuilder());
         $components = $configuration->getConfigTreeBuilder()->buildTree()->getChildren()['components']->getChildren();
 
-        foreach (['mysql', 'postgresql'] as $component) {
-            $connection = $components[$component]->getChildren()['connection'] ?? null;
+        foreach ([['mysql', 'connection'], ['postgresql', 'connection'], ['redis', 'dsn'], ['redis', 'service']] as [$component, $option]) {
+            $node = $components[$component]->getChildren()[$option] ?? null;
 
-            self::assertNotNull($connection, $component);
-            self::assertTrue($connection->isDeprecated(), $component);
-            self::assertFalse($connection->hasDefaultValue(), 'without a default the key does not reach the processed configuration');
+            self::assertNotNull($node, $component . '.' . $option);
+            self::assertTrue($node->isDeprecated(), $component . '.' . $option);
+            self::assertFalse($node->hasDefaultValue(), 'without a default the key does not reach the processed configuration');
         }
     }
 
@@ -139,12 +144,89 @@ final class ConfigurationTest extends TestCase
         $this->process(['components' => ['postgresql' => ['schema' => '']]]);
     }
 
+    public function testRedisConnectionsAcceptAListOfNamedEntries(): void
+    {
+        $config = $this->process(['components' => ['redis' => ['connections' => [['name' => 'cache', 'dsn' => 'redis://cache'], ['name' => 'queue', 'service' => 'app.redis_queue']]]]]);
+
+        self::assertEquals(['cache' => ['dsn' => 'redis://cache', 'service' => null], 'queue' => ['dsn' => null, 'service' => 'app.redis_queue']], $config['components']['redis']['connections']);
+    }
+
+    public function testRedisConnectionsKeepANumericId(): void
+    {
+        $config = $this->process(['components' => ['redis' => ['connections' => [1 => 'redis://a']]]]);
+
+        self::assertSame([1 => ['dsn' => 'redis://a', 'service' => null]], $config['components']['redis']['connections']);
+    }
+
+    public function testRedisConnectionsRefuseAListOfDsns(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['components' => ['redis' => ['connections' => ['redis://a']]]]);
+    }
+
+    public function testARedisConnectionNeedsADsnOrAService(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The Redis connection "cache" needs a "dsn" or a "service".');
+
+        $this->process(['components' => ['redis' => ['connections' => ['cache' => []]]]]);
+    }
+
+    public function testARedisConnectionCannotHaveBothADsnAndAService(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The Redis connection "cache" cannot have both a "dsn" and a "service".');
+
+        $this->process(['components' => ['redis' => ['connections' => ['cache' => ['dsn' => 'redis://a', 'service' => 'app.redis']]]]]);
+    }
+
     public function testRedisDsnAndServiceAreExclusive(): void
     {
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('You cannot set both "dsn" and "service"');
+        $this->expectExceptionMessage('You cannot set both "dsn" and "service" for the redis component');
 
         $this->process(['components' => ['redis' => ['dsn' => 'redis://cache', 'service' => 'app.redis']]]);
+    }
+
+    public function testTheDeprecatedRedisDsnAndServiceBecomeTheDefaultConnection(): void
+    {
+        $deprecations = [];
+        set_error_handler(static function (int $level, string $message) use (&$deprecations): bool {
+            $deprecations[] = $message;
+
+            return true;
+        }, E_USER_DEPRECATED);
+
+        try {
+            $dsn = $this->process(['components' => ['redis' => ['dsn' => 'redis://cache']]]);
+            $service = $this->process(['components' => ['redis' => ['service' => 'app.redis']]]);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertCount(2, $deprecations);
+        self::assertStringContainsString('Since jmonitor/easyadmin-bundle 1.1: The "dsn" option of the redis component is deprecated, use "connections" instead.', $deprecations[0]);
+        self::assertStringContainsString('Since jmonitor/easyadmin-bundle 1.1: The "service" option of the redis component is deprecated, use "connections" instead.', $deprecations[1]);
+        self::assertSame(['default' => ['dsn' => 'redis://cache', 'service' => null]], $dsn['components']['redis']['connections']);
+        self::assertEquals(['default' => ['dsn' => null, 'service' => 'app.redis']], $service['components']['redis']['connections']);
+        self::assertArrayNotHasKey('dsn', $dsn['components']['redis']);
+        self::assertArrayNotHasKey('service', $dsn['components']['redis']);
+    }
+
+    public function testANullDeprecatedRedisOptionIsIgnored(): void
+    {
+        $config = $this->process(['components' => ['redis' => ['dsn' => null, 'service' => null]]]);
+
+        self::assertSame([], $config['components']['redis']['connections']);
+    }
+
+    public function testTheDeprecatedRedisOptionsAndConnectionsAreExclusive(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('You cannot set both "dsn" and "connections" for the redis component.');
+
+        $this->process(['components' => ['redis' => ['dsn' => 'redis://a', 'connections' => ['cache' => 'redis://b']]]]);
     }
 
     private function process(array $config): array

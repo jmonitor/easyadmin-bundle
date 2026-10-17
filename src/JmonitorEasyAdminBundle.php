@@ -20,6 +20,7 @@ use Symfony\Flex\SymfonyBundle;
 final class JmonitorEasyAdminBundle extends AbstractBundle
 {
     private const CONNECTION_DEPRECATION = 'The "connection" option of the %s component is deprecated, use "connections" instead.';
+    private const REDIS_OPTION_DEPRECATION = 'The "%s" option of the redis component is deprecated, use "connections" instead.';
 
     protected string $extensionAlias = 'jmonitor_easyadmin';
 
@@ -92,15 +93,20 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->scalarNode('schema')->defaultNull()->cannotBeEmpty()->info('Schema of this connection, defaults to the component "schema".');
                         })))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
-                            $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
-                            $children->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.');
-                        }))
+                            // Declared without default so that the keys never reach the processed configuration:
+                            // the config builders keep their dsn() and service() methods, the values are merged
+                            // into "connections" before normalization.
+                            foreach (['dsn', 'service'] as $option) {
+                                $children->scalarNode($option)
+                                    ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', sprintf(self::REDIS_OPTION_DEPRECATION, $option))
+                                    ->info('Deprecated, use "connections".')
+                                ;
+                            }
+
+                            $children->append(self::redisConnectionsNode());
+                        }, beforeNormalization: static fn(array $v): array => self::mergeDeprecatedRedisOptions($v)))
                     ->end()
                 ->end()
-            ->end()
-            ->validate()
-                ->ifTrue(static fn(array $config): bool => !empty($config['components']['redis']['dsn']) && !empty($config['components']['redis']['service']))
-                ->thenInvalid('You cannot set both "dsn" and "service" for the redis component. Please choose one.')
             ->end()
         ;
     }
@@ -108,10 +114,11 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     /**
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
-     * @param (callable(NodeBuilder): void)|null $options
-     * @param ?ArrayNodeDefinition                $connections the "connections" node of a database component
+     * @param (callable(NodeBuilder): void)|null              $options
+     * @param ?ArrayNodeDefinition                             $connections         the "connections" node of a database component
+     * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $beforeNormalization applied to the array form of the component
      */
-    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null): ArrayNodeDefinition
+    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, ?\Closure $beforeNormalization = null): ArrayNodeDefinition
     {
         $node = new ArrayNodeDefinition($name);
         $node
@@ -122,6 +129,15 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                 ->then(static fn($v): array => ['enabled' => $v])
             ->end()
         ;
+
+        if ($beforeNormalization !== null) {
+            $node
+                ->beforeNormalization()
+                    ->ifArray()
+                    ->then($beforeNormalization)
+                ->end()
+            ;
+        }
 
         if ($connections !== null) {
             $node
@@ -204,6 +220,91 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
 
         $component['connections'] = [$connection];
+
+        return $component;
+    }
+
+    /**
+     * "connections" maps an id to a Redis server: a DSN, {dsn} or {service}, or a list of entries
+     * carrying a "name" key (the XML form). A bare string is only a DSN in the map form: in the list
+     * form it has no id.
+     */
+    private static function redisConnectionsNode(): ArrayNodeDefinition
+    {
+        $node = new ArrayNodeDefinition('connections');
+        $node
+            ->info('Redis servers to show, keyed by an id: a DSN, or {dsn} or {service} (a \Redis, \Predis\Client or \Relay\Relay service). Empty to detect the Redis provider of the Symfony cache or REDIS_URL.')
+            ->useAttributeAsKey('name')
+            ->normalizeKeys(false)
+            ->beforeNormalization()
+                ->ifArray()
+                ->then(static fn(array $v): array => array_is_list($v) ? $v : array_map(static fn($entry) => is_string($entry) ? ['dsn' => $entry] : $entry, $v))
+            ->end()
+            ->validate()
+                ->always(static function (array $connections): array {
+                    foreach ($connections as $id => $connection) {
+                        if ($connection['dsn'] === null && $connection['service'] === null) {
+                            throw new InvalidConfigurationException(sprintf('The Redis connection "%s" needs a "dsn" or a "service".', $id));
+                        }
+
+                        if ($connection['dsn'] !== null && $connection['service'] !== null) {
+                            throw new InvalidConfigurationException(sprintf('The Redis connection "%s" cannot have both a "dsn" and a "service".', $id));
+                        }
+                    }
+
+                    return $connections;
+                })
+            ->end()
+        ;
+
+        $connection = $node->arrayPrototype()->children();
+        $connection->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
+        $connection->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.');
+
+        return $node;
+    }
+
+    /**
+     * The former "dsn" and "service" options are the "default" entry of "connections"; merged before
+     * normalization so that the entry gets the defaults of a connection.
+     *
+     * @param array<string, mixed> $component
+     *
+     * @return array<string, mixed>
+     */
+    private static function mergeDeprecatedRedisOptions(array $component): array
+    {
+        $set = [];
+
+        foreach (['dsn', 'service'] as $option) {
+            if (array_key_exists($option, $component)) {
+                if ($component[$option] !== null) {
+                    $set[$option] = $component[$option];
+                }
+
+                unset($component[$option]);
+            }
+        }
+
+        if ($set === []) {
+            return $component;
+        }
+
+        foreach (array_keys($set) as $option) {
+            trigger_deprecation('jmonitor/easyadmin-bundle', '1.1', self::REDIS_OPTION_DEPRECATION, $option);
+        }
+
+        if (count($set) === 2) {
+            throw new InvalidConfigurationException('You cannot set both "dsn" and "service" for the redis component. Please choose one.');
+        }
+
+        $option = array_key_first($set);
+
+        if (!empty($component['connections'])) {
+            throw new InvalidConfigurationException(sprintf('You cannot set both "%s" and "connections" for the redis component.', $option));
+        }
+
+        $component['connections'] = ['default' => [$option => $set[$option]]];
 
         return $component;
     }
