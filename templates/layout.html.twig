@@ -62,7 +62,7 @@
                 {% for item in instances %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2{{ item is same as(instance) ? ' active' }}"{% if item is same as(instance) %} aria-current="true"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.id}) }}">
-                            {{ item.id }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
+                            {{ item.id }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" role="img" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
                         </a>
                     </li>
                 {% endfor %}

@@ -113,6 +113,7 @@ final class InstancesTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/mysql');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.jm-instances a[href$="connection=broken"] .jm-instance-error[title=\'Unknown Doctrine connection "broken".\']');
+        self::assertSelectorExists('.jm-instances a[href$="connection=broken"] .jm-instance-error[role="img"][aria-label="Detection failed"]', 'an aria-label is only announced on an element with a role');
 
         $client->request('GET', '/admin/jmonitor/mysql?connection=broken');
         self::assertResponseIsSuccessful();
