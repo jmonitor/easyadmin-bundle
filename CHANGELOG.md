@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- `components.mysql.connection` and `components.postgresql.connection`: use `connections` instead, which cannot be set alongside them, even in another configuration file.
+- `components.mysql.connection`: use `connections` instead, which cannot be set alongside it, even in another configuration file.
 - `components.redis.dsn` and `components.redis.service`: use `connections` instead, which cannot be set alongside them, even in another configuration file.
 
 ## [1.0.1] - 2026-10-16

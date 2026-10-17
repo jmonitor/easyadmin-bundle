@@ -20,7 +20,7 @@ use Symfony\Flex\SymfonyBundle;
 
 final class JmonitorEasyAdminBundle extends AbstractBundle
 {
-    private const CONNECTION_DEPRECATION = 'The "connection" option of the %s component is deprecated, use "connections" instead.';
+    private const CONNECTION_DEPRECATION = 'The "connection" option of the mysql component is deprecated, use "connections" instead.';
     private const REDIS_OPTION_DEPRECATION = 'The "%s" option of the redis component is deprecated, use "connections" instead.';
 
     protected string $extensionAlias = 'jmonitor_easyadmin';
@@ -87,12 +87,19 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');
                             $children->booleanNode('flex')->defaultValue(class_exists(SymfonyBundle::class))->info('Check for outdated Flex recipes (runs "composer recipes").');
                         }))
-                        ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', connections: self::connectionsNode('MySQL/MariaDB')))
+                        ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
+                            // Kept for the config builders and their connection() method; declared without default and
+                            // merged into "connections" below, it never reaches the processed configuration.
+                            $children->scalarNode('connection')
+                                ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', self::CONNECTION_DEPRECATION)
+                                ->info('Deprecated, use "connections".')
+                            ;
+                        }, self::connectionsNode('MySQL/MariaDB'), static fn(array $v): array => self::mergeDeprecatedConnection($v)))
                         ->append($this->componentNode('postgresql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards, for the connections without their own.');
                         }, self::connectionsNode('PostgreSQL', static function (NodeBuilder $children): void {
                             $children->scalarNode('schema')->defaultNull()->cannotBeEmpty()->info('Schema of this connection, defaults to the component "schema".');
-                        }), connectionDefaults: ['schema' => null]))
+                        })))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
                             // Kept for the config builders and their dsn() and service() methods; declared without
                             // default and merged into "connections" below, they never reach the processed configuration.
@@ -115,11 +122,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
      * @param (callable(NodeBuilder): void)|null                         $options
-     * @param ?ArrayNodeDefinition                                        $connections        the "connections" node of a database component
-     * @param array<string, mixed>                                        $connectionDefaults a "connections" entry without any option
-     * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $merge              applied to the component once every file is merged
+     * @param ?ArrayNodeDefinition                                        $connections the "connections" node of a database component
+     * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $merge       applied to the component once every file is merged
      */
-    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, array $connectionDefaults = [], ?\Closure $merge = null): ArrayNodeDefinition
+    private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, ?\Closure $merge = null): ArrayNodeDefinition
     {
         $node = new ArrayNodeDefinition($name);
         $node
@@ -130,10 +136,6 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                 ->then(static fn($v): array => ['enabled' => $v])
             ->end()
         ;
-
-        if ($connections !== null) {
-            $merge = static fn(array $v): array => self::mergeDeprecatedConnection($name, $v, $connectionDefaults);
-        }
 
         if ($merge !== null) {
             $node
@@ -151,12 +153,6 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
 
         if ($connections !== null) {
-            // Kept for the config builders and their connection() method; declared without default and
-            // merged into "connections" above, it never reaches the processed configuration.
-            $children->scalarNode('connection')
-                ->setDeprecated('jmonitor/easyadmin-bundle', '1.1', sprintf(self::CONNECTION_DEPRECATION, $name))
-                ->info('Deprecated, use "connections".')
-            ;
             $children->append($connections);
         }
 
@@ -192,15 +188,14 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
     }
 
     /**
-     * The former "connection" option is an entry of "connections"; merged once every file is merged,
-     * so that a later file overrides it and "connections" set in another file is refused.
+     * The former "connection" option of MySQL is an entry of "connections"; merged once every file is
+     * merged, so that a later file overrides it and "connections" set in another file is refused.
      *
      * @param array<string, mixed> $component
-     * @param array<string, mixed> $defaults
      *
      * @return array<string, mixed>
      */
-    private static function mergeDeprecatedConnection(string $name, array $component, array $defaults): array
+    private static function mergeDeprecatedConnection(array $component): array
     {
         $connection = $component['connection'] ?? null;
         unset($component['connection']);
@@ -210,10 +205,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
         }
 
         if ($component['connections'] !== []) {
-            throw new InvalidConfigurationException(sprintf('You cannot set both "connection" and "connections" for the %s component.', $name));
+            throw new InvalidConfigurationException('You cannot set both "connection" and "connections" for the mysql component.');
         }
 
-        $component['connections'] = [$connection => $defaults];
+        $component['connections'] = [$connection => []];
 
         return $component;
     }
