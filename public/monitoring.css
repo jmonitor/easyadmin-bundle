@@ -8,6 +8,16 @@
     }
 }
 
+.jm-instance-error {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: .35rem;
+    border-radius: 50%;
+    background: var(--bs-warning, #ffc107);
+    vertical-align: middle;
+}
+
 .jm-gauge-card > .card-body {
     display: flex;
     flex-direction: column;

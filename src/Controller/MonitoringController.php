@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -53,38 +54,37 @@ final class MonitoringController
     }
 
     #[AdminRoute(path: '/{component}', name: 'component', options: self::COMPONENT_OPTIONS)]
-    public function component(Component $component): Response
+    public function component(Request $request, Component $component): Response
     {
-        return $this->render($component, fragment: false);
+        return $this->render($this->instanceOr404($component, $request), fragment: false);
     }
 
     #[AdminRoute(path: '/{component}/fragment', name: 'fragment', options: self::COMPONENT_OPTIONS)]
-    public function fragment(Component $component): Response
+    public function fragment(Request $request, Component $component): Response
     {
-        return $this->render($component, fragment: true);
+        return $this->render($this->instanceOr404($component, $request), fragment: true);
     }
 
     #[AdminRoute(path: '/{component}/refresh', name: 'refresh', options: self::COMPONENT_OPTIONS + ['methods' => ['POST']])]
     public function refresh(Request $request, Component $component): Response
     {
-        $this->denyUnlessAvailable($component);
+        $instance = $this->instanceOr404($component, $request);
 
         if ($this->csrfTokenManager !== null && !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::REFRESH_TOKEN_ID, $request->request->getString('_token')))) {
             throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
 
-        $this->snapshots->refresh($component);
+        $this->snapshots->refresh($instance);
 
-        return new RedirectResponse($this->componentUrl($component));
+        return new RedirectResponse($this->componentUrl($component, $instance->id));
     }
 
-    private function render(Component $component, bool $fragment): Response
+    private function render(Instance $instance, bool $fragment): Response
     {
-        $this->denyUnlessAvailable($component);
+        $component = $instance->component;
+        $snapshot = $this->snapshots->get($instance);
 
-        $snapshot = $this->snapshots->get($component);
-
-        return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component) + [
+        return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component, $instance) + [
             'snapshot' => $snapshot,
             'view' => $this->views->create($component, $snapshot),
             'fragment' => $fragment,
@@ -94,11 +94,13 @@ final class MonitoringController
     /**
      * @return array<string, mixed>
      */
-    private function context(?Component $current): array
+    private function context(?Component $current, ?Instance $instance = null): array
     {
         return [
             'components' => $this->registry->available(),
             'current' => $current,
+            'instances' => $current === null ? [] : $this->registry->instancesFor($current),
+            'instance' => $instance,
             'polling_interval' => $this->pollingInterval,
             'routes' => [
                 'index' => $this->routeName('index'),
@@ -109,9 +111,12 @@ final class MonitoringController
         ];
     }
 
-    private function componentUrl(Component $component): string
+    /**
+     * The generator leaves out a null "connection", so the implicit instance keeps the bare URL.
+     */
+    private function componentUrl(Component $component, ?string $connection = null): string
     {
-        return $this->urlGenerator->generate($this->routeName('component'), ['component' => $component->value]);
+        return $this->urlGenerator->generate($this->routeName('component'), ['component' => $component->value, 'connection' => $connection]);
     }
 
     private function routeName(string $action): string
@@ -121,10 +126,15 @@ final class MonitoringController
         return $context->getDashboardRouteName() . '_jmonitor_' . $action;
     }
 
-    private function denyUnlessAvailable(Component $component): void
+    private function instanceOr404(Component $component, Request $request): Instance
     {
         if (!$this->registry->isAvailable($component)) {
             throw new NotFoundHttpException(sprintf('The "%s" component is not available.', $component->label()));
         }
+
+        $id = $request->query->getString('connection');
+        $id = $id === '' ? null : $id;
+
+        return $this->registry->instance($component, $id) ?? throw new NotFoundHttpException(sprintf('The "%s" component has no "%s" connection.', $component->label(), $id));
     }
 }

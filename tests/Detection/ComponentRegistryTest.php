@@ -10,6 +10,7 @@ use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
 use PHPUnit\Framework\TestCase;
@@ -27,8 +28,8 @@ final class ComponentRegistryTest extends TestCase
         self::assertSame([Component::System, Component::Redis], $registry->available());
         self::assertTrue($registry->isAvailable(Component::Redis));
         self::assertFalse($registry->isAvailable(Component::Mysql));
-        self::assertNull($registry->collectorsFor(Component::Mysql));
-        self::assertNull($registry->errorFor(Component::Mysql), 'an auto component that is not found is simply absent');
+        self::assertSame([], $registry->instancesFor(Component::Mysql));
+        self::assertNull($registry->instance(Component::Mysql, null), 'an auto component that is not found is simply absent');
     }
 
     public function testForcedComponentStaysListedWithItsError(): void
@@ -38,8 +39,12 @@ final class ComponentRegistryTest extends TestCase
         ], $this->config(['mysql' => ['enabled' => true]]));
 
         self::assertSame([Component::Mysql], $registry->available());
-        self::assertNull($registry->collectorsFor(Component::Mysql));
-        self::assertSame('Connection refused', $registry->errorFor(Component::Mysql));
+        $instance = $registry->instance(Component::Mysql, null);
+        self::assertNotNull($instance);
+        self::assertFalse($instance->isFound());
+        self::assertNull($instance->id);
+        self::assertSame('Connection refused', $instance->error);
+        self::assertSame([$instance], $registry->instancesFor(Component::Mysql));
     }
 
     public function testDisabledComponentIsNeverDetected(): void
@@ -57,7 +62,7 @@ final class ComponentRegistryTest extends TestCase
         $registry = new ComponentRegistry(['php' => $detector], $this->config());
 
         $registry->available();
-        $registry->collectorsFor(Component::Php);
+        $registry->instancesFor(Component::Php);
         self::assertSame(1, $detector->calls);
 
         $registry->reset();
@@ -65,12 +70,25 @@ final class ComponentRegistryTest extends TestCase
         self::assertSame(2, $detector->calls);
     }
 
-    public function testCollectorsForReturnsTheDetectedSet(): void
+    public function testTheImplicitInstanceCarriesTheDetectedSet(): void
     {
         $set = new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php'), Lifetime::Dynamic)]);
         $registry = new ComponentRegistry(['php' => new StaticDetector(Component::Php, Detection::found($set))], $this->config());
 
-        self::assertSame($set, $registry->collectorsFor(Component::Php));
+        self::assertSame($set, $registry->instance(Component::Php, null)?->collectors);
+        self::assertNull($registry->instance(Component::Php, 'anything'), 'an implicit instance has no id');
+    }
+
+    public function testANamedInstanceIsFoundByItsIdAndTheFirstOneByDefault(): void
+    {
+        $default = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'default', 'shop');
+        $legacy = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'legacy', 'erp');
+        $registry = new ComponentRegistry(['mysql' => new StaticDetector(Component::Mysql, Detection::instances([$default, $legacy]))], $this->config());
+
+        self::assertSame([$default, $legacy], $registry->instancesFor(Component::Mysql));
+        self::assertSame($default, $registry->instance(Component::Mysql, null));
+        self::assertSame($legacy, $registry->instance(Component::Mysql, 'legacy'));
+        self::assertNull($registry->instance(Component::Mysql, 'nope'));
     }
 
     public function testAThrowingDetectorBecomesAnUnavailableComponent(): void
@@ -92,7 +110,7 @@ final class ComponentRegistryTest extends TestCase
 
         $forced = new ComponentRegistry(['mysql' => $throwing], $this->config(['mysql' => ['enabled' => true]]));
         self::assertSame([Component::Mysql], $forced->available());
-        self::assertSame('Malformed DSN', $forced->errorFor(Component::Mysql));
+        self::assertSame('Malformed DSN', $forced->instance(Component::Mysql, null)?->error);
     }
 
     private function found(Component $component): Detection

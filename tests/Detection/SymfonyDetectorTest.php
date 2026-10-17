@@ -26,7 +26,7 @@ final class SymfonyDetectorTest extends TestCase
         $detection = (new SymfonyDetector($kernel, messenger: false, scheduler: false, flex: false))->detect();
 
         self::assertTrue($detection->isFound());
-        $spec = $detection->collectors?->get('symfony');
+        $spec = $detection->instances[0]->collectors?->get('symfony');
         self::assertNotNull($spec);
         self::assertInstanceOf(SymfonyCollector::class, $spec->collector);
         self::assertSame(Lifetime::Static, $spec->lifetime);
@@ -49,7 +49,7 @@ final class SymfonyDetectorTest extends TestCase
         $detection = (new SymfonyDetector($kernel, messenger: true, scheduler: true, flex: true))->detect();
 
         self::assertTrue($detection->isFound());
-        self::assertInstanceOf(SymfonyCollector::class, $detection->collectors?->get('symfony')?->collector);
+        self::assertInstanceOf(SymfonyCollector::class, $detection->instances[0]->collectors?->get('symfony')?->collector);
 
         $kernel->shutdown();
     }

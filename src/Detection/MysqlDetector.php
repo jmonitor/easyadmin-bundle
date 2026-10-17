@@ -29,14 +29,14 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
     private const DRIVERS = ['pdo_mysql', 'mysqli'];
 
     /**
-     * @param ContainerInterface $connections     Doctrine connections, keyed by connection name
-     * @param list<string>       $connectionNames
-     * @param ?string            $connection      the configured connection name, null to take the first MySQL one
+     * @param ContainerInterface                  $connections     Doctrine connections, keyed by connection name
+     * @param list<string>                        $connectionNames
+     * @param array<string, array<string, mixed>> $configured      the configured connections, empty to take every MySQL one
      */
     public function __construct(
         private ContainerInterface $connections,
         private array $connectionNames,
-        private ?string $connection,
+        private array $configured,
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
     ) {}
@@ -48,16 +48,15 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
 
     public function detect(): Detection
     {
-        $connection = DoctrineParams::find($this->connections, $this->connectionNames, $this->connection, self::isMysql(...), 'MySQL or MariaDB');
-
-        if ($connection instanceof Detection) {
-            return $connection;
-        }
-
-        $params = $connection->getParams();
-        $database = $params['dbname'] ?? null;
-
-        return Detection::found($this->collectors($connection, is_string($database) ? $database : '', DoctrineParams::isLocal($params)));
+        return DoctrineParams::instances(
+            Component::Mysql,
+            $this->connections,
+            $this->connectionNames,
+            $this->configured,
+            self::isMysql(...),
+            fn(Connection $connection, array $params): CollectorSet => $this->collectors($connection, DoctrineParams::database($params) ?? '', DoctrineParams::isLocal($params)),
+            'MySQL or MariaDB',
+        );
     }
 
     /**

@@ -57,7 +57,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             '$connections' => service_locator([]),
             '$connectionNames' => [],
-            '$connection' => $config['components']['mysql']['connection'],
+            '$configured' => $config['components']['mysql']['connections'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
@@ -66,7 +66,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             '$connections' => service_locator([]),
             '$connectionNames' => [],
-            '$connection' => $config['components']['postgresql']['connection'],
+            '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
@@ -131,7 +131,6 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
 
     $services->set(SnapshotProvider::class)
         ->args([
-            service(ComponentRegistry::class),
             service(CollectorRunner::class),
             service(DeltaCalculator::class),
             service($config['cache_pool']),
@@ -144,6 +143,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             service(GaugeFactory::class),
             service(SnapshotProvider::class),
+            service(ComponentRegistry::class),
             service('clock'),
             $config['components']['symfony']['messenger'],
             $config['components']['symfony']['scheduler'],

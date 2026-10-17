@@ -29,15 +29,15 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
     private const DRIVERS = ['pdo_pgsql', 'pgsql'];
 
     /**
-     * @param ContainerInterface $connections     Doctrine connections, keyed by connection name
-     * @param list<string>       $connectionNames
-     * @param ?string            $connection      the configured connection name, null to take the first PostgreSQL one
-     * @param string             $schema          schema whose tables feed the database collector
+     * @param ContainerInterface                  $connections     Doctrine connections, keyed by connection name
+     * @param list<string>                        $connectionNames
+     * @param array<string, array<string, mixed>> $configured      the configured connections with their options, empty to take every PostgreSQL one
+     * @param string                              $schema          schema whose tables feed the database collector, for the connections without their own
      */
     public function __construct(
         private ContainerInterface $connections,
         private array $connectionNames,
-        private ?string $connection,
+        private array $configured,
         private string $schema = 'public',
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
@@ -50,13 +50,25 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
 
     public function detect(): Detection
     {
-        $connection = DoctrineParams::find($this->connections, $this->connectionNames, $this->connection, self::isPostgresql(...), 'PostgreSQL');
+        return DoctrineParams::instances(
+            Component::Postgresql,
+            $this->connections,
+            $this->connectionNames,
+            $this->configured,
+            self::isPostgresql(...),
+            fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
+            'PostgreSQL',
+        );
+    }
 
-        if ($connection instanceof Detection) {
-            return $connection;
-        }
+    /**
+     * @param array<string, mixed> $options
+     */
+    private static function schema(array $options): ?string
+    {
+        $schema = $options['schema'] ?? null;
 
-        return Detection::found($this->collectors($connection, DoctrineParams::isLocal($connection->getParams())));
+        return is_string($schema) && $schema !== '' ? $schema : null;
     }
 
     /**
@@ -73,13 +85,13 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
         return in_array($params['driver'] ?? null, self::DRIVERS, true);
     }
 
-    private function collectors(Connection $connection, bool $local): CollectorSet
+    private function collectors(Connection $connection, string $schema, bool $local): CollectorSet
     {
         $adapter = new DoctrineAdapter($connection);
         $specs = [
             new CollectorSpec(new PostgresqlActivityCollector($adapter), Lifetime::Dynamic, trackDelta: true),
             new CollectorSpec(new PostgresqlSettingsCollector($adapter), Lifetime::Static),
-            new CollectorSpec(new PostgresqlDatabaseCollector($adapter, $this->schema), Lifetime::Minute, trackDelta: true),
+            new CollectorSpec(new PostgresqlDatabaseCollector($adapter, $schema), Lifetime::Minute, trackDelta: true),
             new CollectorSpec(new PostgresqlSlowQueriesCollector($adapter, 10, 1, 0.0, PostgresqlSlowQueriesCollector::ORDER_BY_AVG_TIME, false), Lifetime::Minute),
         ];
 

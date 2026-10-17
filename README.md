@@ -88,7 +88,7 @@ The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboa
 
 ## Configuration
 
-Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL, the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
+Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL (every connection of their driver, one pill per database), the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
 
 ```yaml
 # config/packages/jmonitor_easyadmin.yaml
@@ -106,10 +106,10 @@ jmonitor_easyadmin:
             flex: true         # runs "composer recipes", defaults to true when Flex is installed
         mysql:
             enabled: auto
-            connection: null   # a Doctrine connection name, defaults to the first MySQL one
+            connections: []    # Doctrine connection names, empty = every MySQL/MariaDB connection
         postgresql:
             enabled: auto
-            connection: null   # a Doctrine connection name, defaults to the first PostgreSQL one
+            connections: []    # Doctrine connection names, empty = every PostgreSQL connection
             schema: public     # schema whose tables feed the storage, scans and dead rows cards
         redis:
             enabled: auto
@@ -118,6 +118,8 @@ jmonitor_easyadmin:
 ```
 
 `auto` shows the component when it is detected. `true` always shows it, with the detection error when it fails. `false` removes it.
+
+`connections` lists the Doctrine connections to show, each one becoming a pill under the tabs; a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
 
 ## Compared to jmonitor.io
 
@@ -131,8 +133,8 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
-- **MySQL**: the slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
-- **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. The storage, scans and dead rows cards cover the tables of the configured `schema`. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
+- **MySQL**: every MySQL or MariaDB connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
+- **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. Every PostgreSQL connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The storage, scans and dead rows cards cover the tables of the configured `schema`, per connection when `connections` gives one. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
 - **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats --format=json` (Symfony 7.2+) in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`. When one of them fails, its card shows the cause; set its option to `false` to remove the card.
 
 ## How it works
