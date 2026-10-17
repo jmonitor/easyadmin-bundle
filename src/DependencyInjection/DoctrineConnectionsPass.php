@@ -10,11 +10,16 @@ use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
+/**
+ * Hands the Doctrine connections, by name, to the detectors that read their parameters.
+ */
 final class DoctrineConnectionsPass implements CompilerPassInterface
 {
+    private const DETECTORS = [MysqlDetector::class, 'Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector'];
+
     public function process(ContainerBuilder $container): void
     {
-        if (!$container->hasDefinition(MysqlDetector::class) || !$container->hasParameter('doctrine.connections')) {
+        if (!$container->hasParameter('doctrine.connections')) {
             return;
         }
 
@@ -26,9 +31,15 @@ final class DoctrineConnectionsPass implements CompilerPassInterface
             $references[$name] = new Reference($serviceId);
         }
 
-        $container->getDefinition(MysqlDetector::class)
-            ->setArgument('$connections', ServiceLocatorTagPass::register($container, $references))
-            ->setArgument('$connectionNames', array_keys($connections))
-        ;
+        foreach (self::DETECTORS as $detector) {
+            if (!$container->hasDefinition($detector)) {
+                continue;
+            }
+
+            $container->getDefinition($detector)
+                ->setArgument('$connections', ServiceLocatorTagPass::register($container, $references))
+                ->setArgument('$connectionNames', array_keys($connections))
+            ;
+        }
     }
 }
