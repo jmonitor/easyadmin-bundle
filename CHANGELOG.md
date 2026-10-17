@@ -29,11 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The Flex recipes, Messenger and Scheduler cards of the Symfony tab show why their collect failed (the command error) and how to fix or hide them, instead of "not collected".
-- The cards of the Symfony sub-collectors disabled in the configuration are no longer shown.
-- `components.symfony.messenger` defaults to `false` before Symfony 7.2, whose `messenger:stats` has no JSON output.
+- The Symfony tab cards explain why their collect failed.
+- Disabled Symfony cards are hidden.
+- `components.symfony.messenger` defaults to `false` before Symfony 7.2.
 
 ### Fixed
 
-- The Scheduler card shows "No tasks" instead of "Scheduler tasks are not collected." when the scheduler has no task.
-- In debug mode, the `messenger:stats` and `composer recipes` processes no longer run at debug verbosity, so their error is no longer followed by a full exception trace.
+- The Scheduler card shows "No tasks" when there is none.
+- No more full exception trace for the Symfony commands in debug mode.
