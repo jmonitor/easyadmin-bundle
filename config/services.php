@@ -58,6 +58,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connections' => service_locator([]),
             '$connectionNames' => [],
             '$configured' => $config['components']['mysql']['connections'],
+            '$logger' => service(MinimumLevelLogger::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
@@ -68,6 +69,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connectionNames' => [],
             '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
+            '$logger' => service(MinimumLevelLogger::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
     ;

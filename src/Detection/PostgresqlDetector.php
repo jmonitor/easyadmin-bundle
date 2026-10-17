@@ -19,6 +19,8 @@ use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\Utils\DatabaseAdapter\DoctrineAdapter;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Detection reads the connection parameters only and never opens the connection: a server
@@ -41,6 +43,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
         private string $schema = 'public',
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
+        private LoggerInterface $logger = new NullLogger(),
     ) {}
 
     public function component(): Component
@@ -58,6 +61,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
             self::isPostgresql(...),
             fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
             'PostgreSQL',
+            $this->logger,
         );
     }
 

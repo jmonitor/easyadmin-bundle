@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Readings shared by the detectors built on the Doctrine DBAL connection parameters.
@@ -27,8 +28,9 @@ final class DoctrineParams
      * @param callable(array<string, mixed>): bool                     $matches         on the connection parameters
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors given the connection, its parameters and its configured options
      * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
+     * @param LoggerInterface                                          $logger          warned of the connections skipped because they cannot be read
      */
-    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product): Detection
+    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, LoggerInterface $logger): Detection
     {
         if ($configured !== []) {
             $instances = [];
@@ -58,6 +60,12 @@ final class DoctrineParams
                 $connection = $connections->get($name);
             } catch (\Throwable $e) {
                 $unreadable[$name] = $e->getMessage();
+                $logger->warning('Doctrine connection "{connection}" could not be read, the {component} tab skips it: {error}', [
+                    'connection' => $name,
+                    'component' => $component->label(),
+                    'error' => $e->getMessage(),
+                    'exception' => $e,
+                ]);
 
                 continue;
             }

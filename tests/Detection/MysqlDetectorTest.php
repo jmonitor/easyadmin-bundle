@@ -14,6 +14,8 @@ use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 
 final class MysqlDetectorTest extends TestCase
@@ -102,6 +104,33 @@ final class MysqlDetectorTest extends TestCase
         $named = (new MysqlDetector($locator, ['broken', 'default'], ['broken' => []]))->detect();
         self::assertSame('Malformed DSN', $named->instances[0]->error);
         self::assertSame('broken', $named->instances[0]->id);
+    }
+
+    public function testASkippedConnectionIsLoggedAsAWarning(): void
+    {
+        $records = [];
+        $logger = new class ($records) extends AbstractLogger {
+            public function __construct(private array &$records) {}
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = [$level, (string) $message, $context];
+            }
+        };
+        $locator = new ServiceLocator([
+            'broken' => static fn(): Connection => throw new \RuntimeException('Malformed DSN'),
+            'default' => fn(): Connection => $this->mysqlConnection('shop'),
+        ]);
+
+        (new MysqlDetector($locator, ['broken', 'default'], [], logger: $logger))->detect();
+
+        self::assertCount(1, $records);
+        self::assertSame(LogLevel::WARNING, $records[0][0]);
+        self::assertSame('Doctrine connection "{connection}" could not be read, the {component} tab skips it: {error}', $records[0][1]);
+        self::assertSame('broken', $records[0][2]['connection']);
+        self::assertSame('MySQL', $records[0][2]['component']);
+        self::assertSame('Malformed DSN', $records[0][2]['error']);
+        self::assertInstanceOf(\RuntimeException::class, $records[0][2]['exception']);
     }
 
     /**
