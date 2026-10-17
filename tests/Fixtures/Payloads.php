@@ -193,4 +193,45 @@ final class Payloads
             ],
         ];
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function postgresqlActivity(): array
+    {
+        return [
+            'database_stats' => ['numbackends' => 12, 'xact_commit' => 50_000, 'xact_rollback' => 500, 'blks_read' => 2_000, 'blks_hit' => 398_000, 'tup_returned' => 1_000_000, 'tup_fetched' => 500_000, 'tup_inserted' => 10_000, 'tup_updated' => 4_000, 'tup_deleted' => 1_000, 'conflicts' => 0, 'deadlocks' => 2, 'temp_files' => 10, 'temp_bytes' => 10_485_760],
+            'bgwriter' => ['checkpoints_timed' => 100, 'checkpoints_req' => 5, 'buffers_checkpoint' => 1_000, 'buffers_clean' => 50, 'maxwritten_clean' => 0, 'buffers_alloc' => 5_000],
+            'connections' => ['active' => 3, 'idle' => 8, 'idle in transaction' => 1],
+            'sessions' => ['oldest_transaction_seconds' => 42, 'idle_in_transaction_count' => 1, 'oldest_idle_in_transaction_seconds' => 15, 'blocked_count' => 1, 'max_wait_seconds' => 7, 'blocked_queries' => [
+                ['blocked_pid' => 101, 'blocked_wait_seconds' => 7, 'blocked_query_sample' => 'UPDATE account SET balance = balance - 1 WHERE id = 1', 'blocking_pid' => 99, 'blocking_query_sample' => 'SELECT * FROM account FOR UPDATE', 'blocking_state' => 'idle in transaction'],
+            ]],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function postgresqlSettings(): array
+    {
+        return ['server_version' => '16.4 (Debian 16.4-1.pgdg120+1)', 'max_connections' => '100', 'shared_buffers' => 134_217_728, 'effective_cache_size' => 4_294_967_296, 'work_mem' => 4_194_304, 'maintenance_work_mem' => 67_108_864, 'wal_level' => 'replica', 'max_wal_size' => 1_073_741_824, 'checkpoint_completion_target' => '0.9', 'random_page_cost' => '4', 'effective_io_concurrency' => '1', 'log_min_duration_statement' => '-1', 'TimeZone' => 'Etc/UTC', 'autovacuum' => 'on', 'autovacuum_vacuum_scale_factor' => '0.2', 'track_counts' => 'on'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function postgresqlDatabase(): array
+    {
+        return ['schema' => 'public', 'db_size' => 734_003_200, 'tables' => ['table_count' => 42, 'live_tuples' => 900_000, 'dead_tuples' => 100_000, 'seq_scans' => 5_000, 'idx_scans' => 95_000, 'total_size' => 620_000_000, 'indexes_size' => 120_000_000]];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function postgresqlSlowQueries(): array
+    {
+        return ['min_calls' => 1, 'min_avg_time_ms' => 0.0, 'limit' => 10, 'order_by' => 'avg', 'slow_queries' => [
+            ['query_sample' => 'SELECT * FROM customer WHERE email = $1', 'exec_count' => 120, 'total_time_ms' => 36_000.0, 'avg_time_ms' => 300.0, 'max_time_ms' => 1_200.0, 'stddev_time_ms' => 50.0, 'rows' => 2_400, 'shared_blks_hit' => 9_900, 'shared_blks_read' => 100],
+        ]];
+    }
 }

@@ -53,9 +53,21 @@ final class RangesTest extends TestCase
             'system.ram_usage', 'system.cpu_usage', 'system.disk_usage',
             'php.opcache_memory', 'php.opcache_hit_rate', 'php.fpm_active_processes', 'php.fpm_memory_peak_percent', 'php.apcu_memory_usage', 'php.apcu_hit_rate',
             'mysql.connections_usage', 'mysql.innodb_buffer_pool_usage', 'mysql.innodb_buffer_pool_hit_rate', 'mysql.tables_lock_waits_percent', 'mysql.thread_cache_miss', 'mysql.tmp_tables',
+            'postgres.connections_usage', 'postgres.rollback_ratio', 'postgres.cache_hit_ratio', 'postgres.dead_tuple_ratio', 'postgres.index_usage_ratio', 'postgres.shared_buffers_ram_ratio',
             'redis.memory_usage', 'redis.hit_rate',
         ] as $metric) {
             self::assertNotNull($this->ranges->badge($metric, 50), $metric);
         }
+    }
+
+    public function testPostgresThresholdsMatchJmonitorIo(): void
+    {
+        self::assertSame(BadgeStyle::Success, $this->ranges->badge('postgres.cache_hit_ratio', 99)?->style);
+        self::assertSame(BadgeStyle::Warning, $this->ranges->badge('postgres.cache_hit_ratio', 98.99)?->style);
+        self::assertSame(BadgeStyle::Danger, $this->ranges->badge('postgres.cache_hit_ratio', 94)?->style);
+        self::assertSame(BadgeStyle::Warning, $this->ranges->badge('postgres.dead_tuple_ratio', 10)?->style);
+        self::assertSame(BadgeStyle::Success, $this->ranges->badge('postgres.shared_buffers_ram_ratio', 25)?->style);
+        self::assertSame(BadgeStyle::Warning, $this->ranges->badge('postgres.shared_buffers_ram_ratio', 10)?->style);
+        self::assertSame(BadgeStyle::Warning, $this->ranges->badge('postgres.shared_buffers_ram_ratio', 50)?->style);
     }
 }

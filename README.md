@@ -1,6 +1,6 @@
 # Jmonitor EasyAdmin Bundle
 
-This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, MySQL, Redis and Symfony metrics, collected when you open the page and refreshed while it stays open.  
+This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, MySQL, PostgreSQL, Redis and Symfony metrics, collected when you open the page and refreshed while it stays open.  
 No worker to run, nothing to store.
 
 [![Packagist Version](https://img.shields.io/packagist/v/jmonitor/easyadmin-bundle?style=flat-square)](https://packagist.org/packages/jmonitor/easyadmin-bundle)
@@ -43,7 +43,7 @@ No worker to run, nothing to store.
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Runtime           | ![PHP](https://img.shields.io/badge/PHP-777BB4?style=flat-square&logo=php&logoColor=white)                                                                                                    |
 | Framework         | ![Symfony](https://img.shields.io/badge/Symfony-000000?style=flat-square&logo=symfony&logoColor=white)                                                                                        |
-| Databases & cache | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white) |
+| Databases & cache | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white) |
 | System            | ![Linux](https://img.shields.io/badge/CPU%20·%20RAM%20·%20Disk-FCC624?style=flat-square&logo=linux&logoColor=black)                                                                           |
 
 ## Requirements
@@ -88,7 +88,7 @@ The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboa
 
 ## Configuration
 
-Everything is optional. Components are detected from your application: the Doctrine connections for MySQL, the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
+Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL, the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
 
 ```yaml
 # config/packages/jmonitor_easyadmin.yaml
@@ -107,6 +107,10 @@ jmonitor_easyadmin:
         mysql:
             enabled: auto
             connection: null   # a Doctrine connection name, defaults to the first MySQL one
+        postgresql:
+            enabled: auto
+            connection: null   # a Doctrine connection name, defaults to the first PostgreSQL one
+            schema: public     # schema whose tables feed the storage, scans and dead rows cards
         redis:
             enabled: auto
             dsn: null          # redis://localhost
@@ -119,7 +123,7 @@ jmonitor_easyadmin:
 
 This bundle shows the **present** only: nothing is collected while nobody looks at the page, and nothing is kept.
 
-[jmonitor.io](https://jmonitor.io), the cloud edition (also [self-hostable](https://github.com/jmonitor/jmonitor)), collects your metrics continuously with a worker and keeps their **history**: the dashboards draw their charts, and **alerts** notify you by email when a threshold is crossed or a version reaches its end of life. It also covers Apache, Nginx, Caddy, FrankenPHP and PostgreSQL.
+[jmonitor.io](https://jmonitor.io), the cloud edition (also [self-hostable](https://github.com/jmonitor/jmonitor)), collects your metrics continuously with a worker and keeps their **history**: the dashboards draw their charts, and **alerts** notify you by email when a threshold is crossed or a version reaches its end of life.
 
 Both use the same collectors and run side by side: install [jmonitor/jmonitor-bundle](https://github.com/jmonitor/jmonitor-bundle), fill its API key and run its worker to send the same metrics to jmonitor.io.
 
@@ -128,6 +132,7 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
 - **MySQL**: the slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
+- **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. The storage, scans and dead rows cards cover the tables of the configured `schema`. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
 - **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats --format=json` (Symfony 7.2+) in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`. When one of them fails, its card shows the cause; set its option to `false` to remove the card.
 
 ## How it works
@@ -138,7 +143,7 @@ Several web servers behind a load balancer are not well handled yet: the System 
 
 ## Security
 
-- The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin). They show data meant for administrators: slow query samples with their literal values (which may hold personal data), the MySQL user and host in driver errors, the paths of the PHP INI files.
+- The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin). They show data meant for administrators: slow query samples with their literal values (which may hold personal data), the MySQL or PostgreSQL user and host in driver errors, the paths of the PHP INI files.
 - The pages are reachable under every dashboard of the application, whether its menu links to them or not: with a second dashboard for less trusted users, they answer there too.
 - EasyAdmin does not carry the `host` requirement of a dashboard over to these routes: on a dashboard restricted to one host, the pages also answer on the other hosts.
 - With a Content-Security-Policy, allow `https://dash.jmonitor.io` in `frame-src`, where the help pages behind the `?` links live; otherwise the help panel stays empty and its "Open in a new tab" link still works. The bundle loads its scripts from `bundles/jmonitoreasyadmin/`, with a nonce when `csp_nonce()` is available (NelmioSecurityBundle), and uses no inline script or style.

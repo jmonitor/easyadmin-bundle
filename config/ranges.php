@@ -84,6 +84,36 @@ return [
         [10, 25, BadgeStyle::Warning, 'Frequent Disk Tables'],
         [25, 100, BadgeStyle::Danger, 'Disk-Heavy Queries'],
     ],
+    'postgres.connections_usage' => [
+        [0, 70, BadgeStyle::Success, 'Available Capacity'],
+        [70, 85, BadgeStyle::Warning, 'High Usage'],
+        [85, 100, BadgeStyle::Danger, 'Connection Limit Risk'],
+    ],
+    'postgres.rollback_ratio' => [
+        [0, 5, BadgeStyle::Success, 'Healthy'],
+        [5, 10, BadgeStyle::Warning, 'Elevated Rollbacks'],
+        [10, 100, BadgeStyle::Danger, 'High Rollback Rate'],
+    ],
+    'postgres.cache_hit_ratio' => [
+        [99, 100, BadgeStyle::Success, 'Optimal'],
+        [95, 99, BadgeStyle::Warning, 'Suboptimal'],
+        [0, 95, BadgeStyle::Danger, 'Poor Cache Efficiency'],
+    ],
+    'postgres.dead_tuple_ratio' => [
+        [0, 10, BadgeStyle::Success, 'Healthy'],
+        [10, 20, BadgeStyle::Warning, 'Bloat Building Up'],
+        [20, 100, BadgeStyle::Danger, 'High Bloat'],
+    ],
+    'postgres.index_usage_ratio' => [
+        [95, 100, BadgeStyle::Success, 'Optimal'],
+        [80, 95, BadgeStyle::Warning, 'Frequent Sequential Scans'],
+        [0, 80, BadgeStyle::Danger, 'Index Underused'],
+    ],
+    'postgres.shared_buffers_ram_ratio' => [
+        [0, 15, BadgeStyle::Warning, 'Small'],
+        [15, 40, BadgeStyle::Success, 'Typical'],
+        [40, 100, BadgeStyle::Warning, 'Large'],
+    ],
     'redis.memory_usage' => [
         [0, 70, BadgeStyle::Success, 'Healthy'],
         [70, 90, BadgeStyle::Warning, 'Memory Pressure'],

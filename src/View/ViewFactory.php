@@ -27,6 +27,7 @@ final readonly class ViewFactory
             Component::System => new SystemView($snapshot, $this->gauges),
             Component::Php => new PhpView($snapshot, $this->gauges),
             Component::Mysql => new MysqlView($snapshot, $this->gauges, $this->clock->now()->getTimestamp()),
+            Component::Postgresql => new PostgresqlView($snapshot, $this->gauges),
             Component::Redis => new RedisView($snapshot, $this->gauges),
             Component::Symfony => new SymfonyView($snapshot, $this->snapshots->get(Component::Php), $this->messenger, $this->scheduler, $this->flex),
         };

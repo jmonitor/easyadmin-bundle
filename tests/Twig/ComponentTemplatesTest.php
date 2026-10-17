@@ -14,6 +14,7 @@ use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
+use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
 use Jmonitor\EasyAdminBundle\View\SymfonyView;
 use Jmonitor\EasyAdminBundle\View\SystemView;
@@ -89,6 +90,78 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Slow queries data are not available.', $html);
         self::assertStringContainsString('performance_schema table is not readable', $html);
         self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
+    }
+
+    public function testThePostgresqlFragmentRenders(): void
+    {
+        $activity = Payloads::postgresqlActivity();
+        $database = Payloads::postgresqlDatabase();
+        $activityPrevious = ['database_stats.xact_commit' => 49_900, 'database_stats.xact_rollback' => 490, 'database_stats.blks_read' => 1_990, 'database_stats.blks_hit' => 397_010, 'database_stats.tup_inserted' => 9_900, 'database_stats.tup_updated' => 3_950, 'database_stats.tup_deleted' => 980, 'database_stats.deadlocks' => 2, 'database_stats.temp_files' => 9, 'database_stats.temp_bytes' => 9_437_184];
+        $snapshot = new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.activity' => new CollectorResult('postgresql.activity', $activity, null, 1_000, new Delta($activityPrevious, Delta::flatten($activity), 10)),
+            'postgresql.settings' => new CollectorResult('postgresql.settings', Payloads::postgresqlSettings(), null, 1_000),
+            'postgresql.database' => new CollectorResult('postgresql.database', $database, null, 1_000, new Delta(['tables.seq_scans' => 4_940, 'tables.idx_scans' => 94_400], Delta::flatten($database), 60)),
+            'postgresql.slow_queries' => new CollectorResult('postgresql.slow_queries', Payloads::postgresqlSlowQueries(), null, 1_000),
+            'system.ram_total' => new CollectorResult('system.ram_total', ['total' => 1_073_741_824], null, 1_000),
+        ]);
+
+        $html = $this->render('postgresql', $snapshot, new PostgresqlView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('16.4 (Debian 16.4-1.pgdg120+1)', $html);
+        self::assertStringContainsString('Connections usage', $html);
+        self::assertStringContainsString('aria-label="Help: Connections usage"', $html, 'help links are named after their visible label');
+        self::assertStringContainsString('12 / 100', $html);
+        self::assertStringContainsString('11.00 <small class="text-muted">tx/s</small>', $html);
+        self::assertStringContainsString('Idle in transaction', $html);
+        self::assertStringContainsString('<code class="jm-query">SELECT * FROM customer', $html);
+        self::assertStringContainsString('99.00%', $html, 'slow query cache hit');
+        self::assertStringContainsString('UPDATE account SET balance', $html);
+        self::assertStringContainsString('Dead rows ratio', $html);
+        self::assertStringContainsString('100 000 / 1 000 000', $html, 'dead rows out of all rows, like the gauge value');
+        self::assertStringContainsString('backends of this database', $html);
+        self::assertStringContainsString('RAM ratio', $html);
+        self::assertStringContainsString('Collector configuration:', $html);
+        self::assertStringContainsString('disabled', $html, 'log_min_duration_statement badge');
+        self::assertStringNotContainsString('Help: RAM ratio', $html, 'no help page for the RAM ratio');
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testThePostgresqlFragmentWithoutSlowQueriesOrBlocking(): void
+    {
+        $activity = Payloads::postgresqlActivity();
+        $activity['sessions']['blocked_queries'] = [];
+        $activity['sessions']['oldest_transaction_seconds'] = null;
+        $snapshot = new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.activity' => new CollectorResult('postgresql.activity', $activity, null, 1_000),
+            'postgresql.settings' => new CollectorResult('postgresql.settings', Payloads::postgresqlSettings(), null, 1_000),
+            'postgresql.database' => new CollectorResult('postgresql.database', Payloads::postgresqlDatabase(), null, 1_000),
+        ]);
+
+        $html = $this->render('postgresql', $snapshot, new PostgresqlView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Slow queries data are not available.', $html);
+        self::assertStringContainsString('No blocking detected.', $html);
+        self::assertStringNotContainsString('No active transaction', $html, 'a null oldest transaction means the sub-query failed, not that there is none');
+        self::assertStringNotContainsString('Longest running transaction', $html);
+        self::assertStringNotContainsString('RAM ratio', $html, 'PostgreSQL is not on this host');
+    }
+
+    public function testThePostgresqlFragmentRendersWithoutAnyData(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.activity' => new CollectorResult('postgresql.activity', [], 'PostgreSQL is not accessible', 1_000),
+            'postgresql.settings' => new CollectorResult('postgresql.settings', [], 'PostgreSQL is not accessible', 1_000),
+            'postgresql.database' => new CollectorResult('postgresql.database', [], 'pg_stat_user_tables is not accessible', 1_000),
+            'postgresql.slow_queries' => new CollectorResult('postgresql.slow_queries', [], 'pg_stat_statements extension is not created. Run: CREATE EXTENSION pg_stat_statements', 1_000),
+        ]);
+
+        $html = $this->render('postgresql', $snapshot, new PostgresqlView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('PostgreSQL is not accessible', $html);
+        self::assertStringContainsString('CREATE EXTENSION pg_stat_statements', $html);
+        self::assertStringContainsString('n/a', $html);
+        self::assertStringNotContainsString('No blocking detected', $html, 'nothing was collected, so nothing is known');
+        self::assertStringNotContainsString('No active transaction', $html);
     }
 
     public function testTheRedisFragmentRendersWithAMemoryLimit(): void

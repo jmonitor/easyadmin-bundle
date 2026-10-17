@@ -21,11 +21,13 @@ final class ConfigurationTest extends TestCase
         self::assertSame(10, $config['polling_interval']);
         self::assertSame(3600, $config['static_ttl']);
 
-        foreach (['system', 'php', 'symfony', 'mysql', 'redis'] as $component) {
+        foreach (['system', 'php', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
         }
 
         self::assertNull($config['components']['mysql']['connection']);
+        self::assertNull($config['components']['postgresql']['connection']);
+        self::assertSame('public', $config['components']['postgresql']['schema']);
         self::assertNull($config['components']['redis']['dsn']);
         self::assertNull($config['components']['redis']['service']);
         self::assertIsBool($config['components']['symfony']['messenger']);
@@ -51,14 +53,24 @@ final class ConfigurationTest extends TestCase
     {
         $config = $this->process(['components' => [
             'mysql' => ['connection' => 'doctrine.dbal.reporting_connection'],
+            'postgresql' => ['connection' => 'analytics', 'schema' => 'app'],
             'redis' => ['dsn' => 'redis://cache'],
             'symfony' => ['flex' => false],
         ]]);
 
         self::assertSame('auto', $config['components']['mysql']['enabled']);
         self::assertSame('doctrine.dbal.reporting_connection', $config['components']['mysql']['connection']);
+        self::assertSame('analytics', $config['components']['postgresql']['connection']);
+        self::assertSame('app', $config['components']['postgresql']['schema']);
         self::assertSame('redis://cache', $config['components']['redis']['dsn']);
         self::assertFalse($config['components']['symfony']['flex']);
+    }
+
+    public function testPostgresqlSchemaCannotBeEmpty(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['components' => ['postgresql' => ['schema' => '']]]);
     }
 
     public function testRedisDsnAndServiceAreExclusive(): void

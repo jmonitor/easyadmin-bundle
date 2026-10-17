@@ -85,6 +85,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                         ->append($this->componentNode('mysql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('connection')->defaultNull()->info('Doctrine connection name (e.g. "default"). Defaults to the first MySQL/MariaDB connection found.');
                         }))
+                        ->append($this->componentNode('postgresql', 'Detected from the Doctrine DBAL connections when "auto".', static function (NodeBuilder $children): void {
+                            $children->scalarNode('connection')->defaultNull()->info('Doctrine connection name (e.g. "default"). Defaults to the first PostgreSQL connection found.');
+                            $children->scalarNode('schema')->defaultValue('public')->cannotBeEmpty()->info('Schema whose tables feed the storage, scans and dead rows cards.');
+                        }))
                         ->append($this->componentNode('redis', 'Detected from the Symfony cache configuration or a REDIS_URL env var when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('dsn')->defaultNull()->info('Redis DSN, e.g. redis://localhost.');
                             $children->scalarNode('service')->defaultNull()->info('Service id of a \Redis, \Predis\Client or \Relay\Relay instance.');

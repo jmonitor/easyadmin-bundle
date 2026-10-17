@@ -27,7 +27,6 @@ use Psr\Container\ContainerInterface;
 final readonly class MysqlDetector implements ComponentDetectorInterface
 {
     private const DRIVERS = ['pdo_mysql', 'mysqli'];
-    private const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
     /**
      * @param ContainerInterface $connections     Doctrine connections, keyed by connection name
@@ -49,35 +48,16 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
 
     public function detect(): Detection
     {
-        if ($this->connectionNames === [] && $this->connection === null) {
-            return Detection::unavailable('No Doctrine DBAL connection is configured.');
+        $connection = DoctrineParams::find($this->connections, $this->connectionNames, $this->connection, self::isMysql(...), 'MySQL or MariaDB');
+
+        if ($connection instanceof Detection) {
+            return $connection;
         }
 
-        $candidates = $this->connection !== null ? [$this->connection] : $this->connectionNames;
+        $params = $connection->getParams();
+        $database = $params['dbname'] ?? null;
 
-        foreach ($candidates as $name) {
-            if (!$this->connections->has($name)) {
-                return Detection::unavailable(sprintf('Unknown Doctrine connection "%s".', $name));
-            }
-
-            /** @var Connection $connection */
-            $connection = $this->connections->get($name);
-            $params = $connection->getParams();
-
-            if (!self::isMysql($params)) {
-                if ($this->connection !== null) {
-                    return Detection::unavailable(sprintf('Doctrine connection "%s" is not a MySQL or MariaDB connection.', $name));
-                }
-
-                continue;
-            }
-
-            $database = $params['dbname'] ?? null;
-
-            return Detection::found($this->collectors($connection, is_string($database) ? $database : '', self::isLocal($params)));
-        }
-
-        return Detection::unavailable('No MySQL or MariaDB Doctrine connection found.');
+        return Detection::found($this->collectors($connection, is_string($database) ? $database : '', DoctrineParams::isLocal($params)));
     }
 
     /**
@@ -92,24 +72,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         }
 
         return in_array($params['driver'] ?? null, self::DRIVERS, true);
-    }
-
-    /**
-     * Without a host, the drivers connect to localhost.
-     *
-     * @param array<string, mixed> $params
-     */
-    private static function isLocal(array $params): bool
-    {
-        $params = is_array($params['primary'] ?? null) ? $params['primary'] : $params;
-
-        if (is_string($params['unix_socket'] ?? null) && $params['unix_socket'] !== '') {
-            return true;
-        }
-
-        $host = $params['host'] ?? null;
-
-        return $host === null || $host === '' || (is_string($host) && in_array(strtolower($host), self::LOCAL_HOSTS, true));
     }
 
     private function collectors(Connection $connection, string $database, bool $local): CollectorSet

@@ -16,6 +16,7 @@ final class ComponentTest extends TestCase
         self::assertSame('PHP', Component::Php->label());
         self::assertSame('Symfony', Component::Symfony->label());
         self::assertSame('MySQL', Component::Mysql->label());
+        self::assertSame('PostgreSQL', Component::Postgresql->label());
         self::assertSame('Redis', Component::Redis->label());
     }
 
