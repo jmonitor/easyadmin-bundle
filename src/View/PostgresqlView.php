@@ -20,6 +20,7 @@ final readonly class PostgresqlView
     /** @var array<string, mixed> */
     private array $settings;
 
+    public bool $activityAvailable;
     public ?int $numBackends;
     public ?int $maxConnections;
     public Gauge $connectionsUsage;
@@ -93,6 +94,7 @@ final readonly class PostgresqlView
         $this->majorVersion = self::majorVersion($this->version);
         $this->settings = $settings;
 
+        $this->activityAvailable = $snapshot->has('postgresql.activity');
         $this->numBackends = Values::int($stats['numbackends'] ?? null);
         $this->maxConnections = Values::int($settings['max_connections'] ?? null);
         $this->connectionsUsage = $gauges->create('postgres.connections_usage', 'Connections usage', Values::percent($this->numBackends, $this->maxConnections));

@@ -157,6 +157,8 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('PostgreSQL is not accessible', $html);
         self::assertStringContainsString('CREATE EXTENSION pg_stat_statements', $html);
         self::assertStringContainsString('n/a', $html);
+        self::assertStringNotContainsString('No blocking detected', $html, 'nothing was collected, so nothing is known');
+        self::assertStringNotContainsString('No active transaction', $html);
     }
 
     public function testTheRedisFragmentRendersWithAMemoryLimit(): void

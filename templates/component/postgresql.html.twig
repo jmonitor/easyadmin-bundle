@@ -68,7 +68,7 @@
     <h2 class="h5 mt-4 mb-2">Connections &amp; activity</h2>
     <div class="row g-3">
         <div class="col-md-6 col-xl-3">
-            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.connectionsUsage, detail: view.maxConnections is null ? null : view.numBackends ~ ' / ' ~ view.maxConnections}) }}
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.connectionsUsage, detail: view.numBackends is null or view.maxConnections is null ? null : view.numBackends ~ ' / ' ~ view.maxConnections}) }}
         </div>
         <div class="col-md-6 col-xl-3">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Connections by state', metric: 'postgres.connections_states'} %}
@@ -217,7 +217,9 @@
         <div class="col-md-4">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Oldest transaction', metric: 'postgres.oldest_transaction'} %}
                 {% block body %}
-                    {% if view.oldestTransactionSeconds is null %}
+                    {% if not view.activityAvailable %}
+                        <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: null}) }}</div>
+                    {% elseif view.oldestTransactionSeconds is null %}
                         <div class="jm-stat text-muted">No active transaction</div>
                     {% else %}
                         <div class="jm-stat">{{ view.oldestTransactionSeconds|jm_duration }}</div>
@@ -237,7 +239,9 @@
         <div class="col-12">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Blocking chain', metric: 'postgres.blocking_chain', fill: false} %}
                 {% block body %}
-                    {% if view.blockedQueries is empty %}
+                    {% if not view.activityAvailable %}
+                        <p class="mb-0">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: null}) }}</p>
+                    {% elseif view.blockedQueries is empty %}
                         <p class="text-muted mb-0">No blocking detected.</p>
                     {% else %}
                         <div class="table-responsive">

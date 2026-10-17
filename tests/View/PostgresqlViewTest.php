@@ -28,6 +28,7 @@ final class PostgresqlViewTest extends TestCase
 
         self::assertSame('16.4 (Debian 16.4-1.pgdg120+1)', $view->version);
         self::assertSame('16', $view->majorVersion);
+        self::assertTrue($view->activityAvailable);
         self::assertSame(12, $view->numBackends);
         self::assertSame(100, $view->maxConnections);
         self::assertSame(12.0, $view->connectionsUsage->value);
@@ -139,6 +140,7 @@ final class PostgresqlViewTest extends TestCase
 
         self::assertNull($view->version);
         self::assertNull($view->majorVersion);
+        self::assertFalse($view->activityAvailable);
         self::assertFalse($view->connectionsUsage->available());
         self::assertNull($view->activeConnections);
         self::assertTrue($view->transactionsPerSec->isUnavailable());
