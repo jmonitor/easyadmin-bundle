@@ -19,6 +19,7 @@ use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
+use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
 use Jmonitor\EasyAdminBundle\View\SymfonyView;
 use Jmonitor\EasyAdminBundle\View\SystemView;
@@ -42,6 +43,7 @@ final class ViewFactoryTest extends TestCase
         self::assertInstanceOf(SystemView::class, $factory->create(Component::System, $snapshots->get(Component::System)));
         self::assertInstanceOf(PhpView::class, $factory->create(Component::Php, $snapshots->get(Component::Php)));
         self::assertInstanceOf(MysqlView::class, $factory->create(Component::Mysql, $snapshots->get(Component::Mysql)));
+        self::assertInstanceOf(PostgresqlView::class, $factory->create(Component::Postgresql, $snapshots->get(Component::Postgresql)));
         self::assertInstanceOf(RedisView::class, $factory->create(Component::Redis, $snapshots->get(Component::Redis)));
 
         $symfony = $factory->create(Component::Symfony, $snapshots->get(Component::Symfony));
