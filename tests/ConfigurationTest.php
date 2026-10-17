@@ -153,6 +153,16 @@ final class ConfigurationTest extends TestCase
         $this->process(...array_map(static fn(array $components): array => ['components' => $components], $files));
     }
 
+    public function testADeprecatedOptionGivesTheSameEntryAsConnections(): void
+    {
+        $deprecated = $this->process(['components' => ['mysql' => ['connection' => 'a'], 'postgresql' => ['connection' => 'a'], 'redis' => ['service' => 'app.redis']]]);
+        $connections = $this->process(['components' => ['mysql' => ['connections' => ['a']], 'postgresql' => ['connections' => ['a']], 'redis' => ['connections' => ['default' => ['service' => 'app.redis']]]]]);
+
+        foreach (['mysql', 'postgresql', 'redis'] as $component) {
+            self::assertSame($connections['components'][$component]['connections'], $deprecated['components'][$component]['connections'], 'the entry is built by hand, without the defaults of the prototype: ' . $component);
+        }
+    }
+
     public function testALaterFileOverridesTheDeprecatedOptions(): void
     {
         $config = $this->process(
