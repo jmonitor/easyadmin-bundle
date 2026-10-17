@@ -1,0 +1,83 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Version', metric: 'frankenphp.version', value: view.version}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Mode', metric: 'frankenphp.mode', value: view.mode}) }}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Threads</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.busyThreadsPercent}) }}
+        </div>
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Threads', metric: 'frankenphp.busy_threads', value: view.busyThreads is null or view.totalThreads is null ? null : view.busyThreads ~ ' / ' ~ view.totalThreads}) }}
+        </div>
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Queue depth', value: view.queueDepth}) }}
+        </div>
+    </div>
+
+    {% if view.workerMode %}
+        <h2 class="h5 mt-4 mb-2">Workers</h2>
+        <div class="d-flex flex-column gap-3">
+            {% for worker in view.workers %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: worker.file, fill: false} %}
+                    {% block body %}
+                        {% if worker.name != worker.file %}
+                            <div class="small text-muted jm-files mb-3">{{ worker.name }}</div>
+                        {% endif %}
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-4 col-xxl-3">
+                                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: worker.busyRate}) }}
+                            </div>
+                            <div class="col-md-8 col-xxl-9">
+                                <div class="row g-3">
+                                    <div class="col-6 col-lg-4">
+                                        {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Ready workers', metric: 'frankenphp.worker_ready_workers', value: worker.ready}) }}
+                                    </div>
+                                    <div class="col-6 col-lg-4">
+                                        {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Requests per second', metric: 'frankenphp.worker_request_per_sec', rate: worker.requestsPerSec}) }}
+                                    </div>
+                                    <div class="col-6 col-lg-4">
+                                        <div class="small text-muted">PHP avg execution time {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'frankenphp.worker_php_exec_time', label: 'PHP avg execution time'}) }}</div>
+                                        <div class="jm-rate">
+                                            {%- if worker.avgExecTime.isUnavailable() -%}
+                                                <span class="text-muted" title="Available after the next refresh">—</span>
+                                            {%- else -%}
+                                                {{ worker.avgExecTime.value|jm_duration }}
+                                                {% if worker.avgExecTime.hint() %}<small class="text-muted d-block">{{ worker.avgExecTime.hint() }}</small>{% endif %}
+                                            {%- endif -%}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-lg-4">
+                                        {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Restarts', metric: 'frankenphp.worker_worker_restarts', value: worker.restarts}) }}
+                                        {% if worker.restartsDelta is not null %}<small class="text-muted d-block">+{{ worker.restartsDelta }} in {{ worker.deltaElapsed }} s</small>{% endif %}
+                                    </div>
+                                    <div class="col-6 col-lg-4">
+                                        <div class="small text-muted">Crashes</div>
+                                        <div class="jm-rate">
+                                            {{ include('@JmonitorEasyAdmin/_value.html.twig', {value: worker.crashes}) }}
+                                            {% if worker.crashesBadge %} {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: worker.crashesBadge}) }}{% endif %}
+                                        </div>
+                                        {% if worker.crashesDelta is not null %}<small class="text-muted d-block">+{{ worker.crashesDelta }} in {{ worker.deltaElapsed }} s</small>{% endif %}
+                                    </div>
+                                    <div class="col-6 col-lg-4">
+                                        {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Queue depth', value: worker.queueDepth}) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endblock %}
+                {% endembed %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}
