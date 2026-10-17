@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\Functional;
 
 use Jmonitor\EasyAdminBundle\Tests\Collector\FrankenPhpEndpointCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\ConfigurableAdminKernel;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\User\InMemoryUser;
@@ -102,6 +103,29 @@ final class FrankenPhpTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.alert-warning', 'No FrankenPHP metrics at http://localhost:2019/metrics.');
+    }
+
+    public function testRefreshRunsTheVersionCommandAgain(): void
+    {
+        ConfigurableAdminKernel::$frankenphp = ['sapi' => 'frankenphp', 'metrics' => FrankenPhpEndpointCollectorTest::export('worker'), 'version' => null];
+        $client = $this->adminClient();
+
+        $crawler = $client->request('GET', '/admin/jmonitor/frankenphp');
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->appCache()->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'the empty version is cached');
+
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/frankenphp/refresh"]')->form());
+
+        self::assertResponseRedirects('/admin/jmonitor/frankenphp');
+        self::assertFalse($this->appCache()->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'Refresh drops the version too');
+    }
+
+    private function appCache(): CacheItemPoolInterface
+    {
+        $cache = static::getContainer()->get('cache.app');
+        assert($cache instanceof CacheItemPoolInterface);
+
+        return $cache;
     }
 
     /**

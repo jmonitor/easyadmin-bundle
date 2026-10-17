@@ -11,12 +11,14 @@ use Jmonitor\Exceptions\JmonitorException;
 /**
  * Turns an unreachable Caddy endpoint, or an export without FrankenPHP metrics, into an error
  * that says how to enable them. The cause stays chained for SnapshotProvider::describe().
+ * A Refresh also drops the cached "frankenphp version" output.
  */
-final readonly class FrankenPhpEndpointCollector implements CollectorInterface
+final readonly class FrankenPhpEndpointCollector implements CollectorInterface, RefreshableCollectorInterface
 {
     public function __construct(
         private FrankenPhpCollector $inner,
         private string $endpoint,
+        private CachedShellExecutor $shell,
     ) {}
 
     /**
@@ -35,6 +37,11 @@ final readonly class FrankenPhpEndpointCollector implements CollectorInterface
         }
 
         return $payload;
+    }
+
+    public function refresh(): void
+    {
+        $this->shell->forget();
     }
 
     public function getVersion(): int

@@ -7,6 +7,7 @@ namespace Jmonitor\EasyAdminBundle\Snapshot;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
@@ -43,8 +44,12 @@ final readonly class SnapshotProvider
 
     public function refresh(Instance $instance): void
     {
-        foreach ($instance->collectors?->names() ?? [] as $name) {
-            $this->cache->deleteItem(self::cacheKey($name, $instance->keyPrefix()));
+        foreach ($instance->collectors->specs ?? [] as $spec) {
+            $this->cache->deleteItem(self::cacheKey($spec->name, $instance->keyPrefix()));
+
+            if ($spec->collector instanceof RefreshableCollectorInterface) {
+                $spec->collector->refresh();
+            }
         }
     }
 

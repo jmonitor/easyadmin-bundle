@@ -50,6 +50,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['components']['frankenphp']['endpoint'],
             service($config['cache_pool']),
             $config['static_ttl'],
+            service(MinimumLevelLogger::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value])
     ;

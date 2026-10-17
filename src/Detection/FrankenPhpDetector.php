@@ -15,6 +15,7 @@ use Jmonitor\Prometheus\PrometheusMetricsProvider;
 use Jmonitor\Utils\ShellExecutor;
 use Jmonitor\Utils\UrlFetcher;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * FrankenPHP is detected from the SAPI of the process serving the page. The SAPI is read when the
@@ -26,6 +27,7 @@ final readonly class FrankenPhpDetector implements ComponentDetectorInterface
         private string $endpoint,
         private CacheItemPoolInterface $cache,
         private int $staticTtl,
+        private LoggerInterface $logger,
         private string $sapi = PHP_SAPI,
         private ?UrlFetcher $urlFetcher = null,
         private ?ShellExecutor $shellExecutor = null,
@@ -42,13 +44,11 @@ final readonly class FrankenPhpDetector implements ComponentDetectorInterface
             return Detection::unavailable(sprintf('FrankenPHP is not serving this page (PHP SAPI "%s").', $this->sapi));
         }
 
-        $collector = new FrankenPhpCollector(
-            new PrometheusMetricsProvider($this->endpoint, $this->urlFetcher),
-            new CachedShellExecutor($this->cache, $this->staticTtl, $this->shellExecutor),
-        );
+        $shell = new CachedShellExecutor($this->cache, $this->staticTtl, Component::FrankenPhp->value, $this->logger, $this->shellExecutor);
+        $collector = new FrankenPhpCollector(new PrometheusMetricsProvider($this->endpoint, $this->urlFetcher), $shell);
 
         return Detection::found(new CollectorSet(Component::FrankenPhp, [
-            new CollectorSpec(new FrankenPhpEndpointCollector($collector, $this->endpoint), Lifetime::Dynamic, trackDelta: true),
+            new CollectorSpec(new FrankenPhpEndpointCollector($collector, $this->endpoint, $shell), Lifetime::Dynamic, trackDelta: true),
         ]));
     }
 }
