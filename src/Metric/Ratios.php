@@ -66,6 +66,27 @@ final class Ratios
         return Rate::unavailable('%');
     }
 
+    /**
+     * Mean of a cumulated quantity per event: a total time over a request count, for instance.
+     */
+    public static function average(?Delta $delta, string $sumKey, string $countKey, int|float|null $sum, int|float|null $count, string $unit, string $since = Rate::SINCE_SERVER_START): Rate
+    {
+        if ($delta !== null) {
+            $s = $delta->getValue($sumKey);
+            $c = $delta->getValue($countKey);
+
+            if ($s !== null && $c !== null && $c > 0) {
+                return new Rate(round($s / $c, 6), RateSource::Delta, $unit, $s, $c);
+            }
+        }
+
+        if ($sum !== null && $count !== null && $count > 0) {
+            return new Rate(round($sum / $count, 6), RateSource::SinceStart, $unit, $sum, $count, $since);
+        }
+
+        return Rate::unavailable($unit);
+    }
+
     public static function perSecond(?Delta $delta, string $key, string $unit = '/s'): Rate
     {
         $value = $delta?->getPerSec($key);

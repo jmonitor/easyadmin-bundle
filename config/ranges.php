@@ -124,4 +124,14 @@ return [
         [80, 95, BadgeStyle::Warning, 'Moderate Efficiency'],
         [0, 80, BadgeStyle::Danger, 'Low Cache Efficiency'],
     ],
+    'frankenphp.busy_threads_percent' => [
+        [0, 60, BadgeStyle::Success, 'Available Capacity'],
+        [60, 85, BadgeStyle::Warning, 'High Load'],
+        [85, 100, BadgeStyle::Danger, 'Saturated'],
+    ],
+    'frankenphp.worker_busy_workers_rate' => [
+        [0, 60, BadgeStyle::Success, 'Available Capacity'],
+        [60, 85, BadgeStyle::Warning, 'High Load'],
+        [85, 100, BadgeStyle::Danger, 'Saturated'],
+    ],
 ];
