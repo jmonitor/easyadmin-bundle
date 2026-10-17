@@ -58,15 +58,21 @@ final class MonitoringExtension extends AbstractExtension
         return $formatted . ' ' . $units[$unit];
     }
 
-    public function duration(?int $seconds): string
+    public function duration(int|float|null $seconds): string
     {
         if ($seconds === null) {
             return self::EMPTY;
         }
 
-        if ($seconds < 60) {
-            return $seconds . 's';
+        if (is_float($seconds) && $seconds < 1) {
+            return self::trimZeros(number_format($seconds * 1000, 1, '.', '')) . ' ms';
         }
+
+        if ($seconds < 60) {
+            return (is_float($seconds) ? self::trimZeros(number_format($seconds, 2, '.', '')) : $seconds) . 's';
+        }
+
+        $seconds = (int) $seconds;
 
         $days = intdiv($seconds, 86_400);
         $hours = intdiv($seconds % 86_400, 3_600);
@@ -118,5 +124,10 @@ final class MonitoringExtension extends AbstractExtension
     public function helpUrl(string $metric): string
     {
         return self::HELP_URL . $metric;
+    }
+
+    private static function trimZeros(string $decimal): string
+    {
+        return str_contains($decimal, '.') ? rtrim(rtrim($decimal, '0'), '.') : $decimal;
     }
 }

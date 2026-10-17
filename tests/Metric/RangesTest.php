@@ -55,8 +55,20 @@ final class RangesTest extends TestCase
             'mysql.connections_usage', 'mysql.innodb_buffer_pool_usage', 'mysql.innodb_buffer_pool_hit_rate', 'mysql.tables_lock_waits_percent', 'mysql.thread_cache_miss', 'mysql.tmp_tables',
             'postgres.connections_usage', 'postgres.rollback_ratio', 'postgres.cache_hit_ratio', 'postgres.dead_tuple_ratio', 'postgres.index_usage_ratio', 'postgres.shared_buffers_ram_ratio',
             'redis.memory_usage', 'redis.hit_rate',
+            'frankenphp.busy_threads_percent', 'frankenphp.worker_busy_workers_rate',
         ] as $metric) {
             self::assertNotNull($this->ranges->badge($metric, 50), $metric);
+        }
+    }
+
+    public function testFrankenPhpThresholds(): void
+    {
+        foreach (['frankenphp.busy_threads_percent', 'frankenphp.worker_busy_workers_rate'] as $metric) {
+            self::assertSame(BadgeStyle::Success, $this->ranges->badge($metric, 59)?->style, $metric);
+            self::assertSame('High Load', $this->ranges->badge($metric, 60)?->label, $metric);
+            self::assertSame(BadgeStyle::Warning, $this->ranges->badge($metric, 60)?->style, $metric);
+            self::assertSame('Saturated', $this->ranges->badge($metric, 85)?->label, $metric);
+            self::assertSame(BadgeStyle::Danger, $this->ranges->badge($metric, 100)?->style, $metric);
         }
     }
 

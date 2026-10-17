@@ -1,6 +1,6 @@
 # Jmonitor EasyAdmin Bundle
 
-This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, MySQL, PostgreSQL, Redis and Symfony metrics, collected when you open the page and refreshed while it stays open.  
+This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, FrankenPHP, MySQL, PostgreSQL, Redis and Symfony metrics, collected when you open the page and refreshed while it stays open.  
 No worker to run, nothing to store.
 
 [![Packagist Version](https://img.shields.io/packagist/v/jmonitor/easyadmin-bundle?style=flat-square)](https://packagist.org/packages/jmonitor/easyadmin-bundle)
@@ -41,7 +41,7 @@ No worker to run, nothing to store.
 
 | Category          | Components                                                                                                                                                                                   |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime           | ![PHP](https://img.shields.io/badge/PHP-777BB4?style=flat-square&logo=php&logoColor=white)                                                                                                    |
+| Runtime           | ![PHP](https://img.shields.io/badge/PHP-777BB4?style=flat-square&logo=php&logoColor=white) ![FrankenPHP](https://img.shields.io/badge/FrankenPHP-000000?style=flat-square)                     |
 | Framework         | ![Symfony](https://img.shields.io/badge/Symfony-000000?style=flat-square&logo=symfony&logoColor=white)                                                                                        |
 | Databases & cache | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white) |
 | System            | ![Linux](https://img.shields.io/badge/CPU%20·%20RAM%20·%20Disk-FCC624?style=flat-square&logo=linux&logoColor=black)                                                                           |
@@ -88,7 +88,7 @@ The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboa
 
 ## Configuration
 
-Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL (every connection of their driver, one pill per database), the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, `/proc` for the system.
+Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL (every connection of their driver, one pill per database), the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, its SAPI for FrankenPHP, `/proc` for the system.
 
 ```yaml
 # config/packages/jmonitor_easyadmin.yaml
@@ -99,6 +99,9 @@ jmonitor_easyadmin:
     components:
         system: auto           # auto | true | false
         php: auto
+        frankenphp:
+            enabled: auto
+            endpoint: http://localhost:2019/metrics   # Prometheus endpoint of the Caddy admin API
         symfony:
             enabled: auto
             messenger: true    # runs "messenger:stats", defaults to true when Messenger is installed on Symfony 7.2+
@@ -134,6 +137,7 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
+- **FrankenPHP**: shown when the admin is served by FrankenPHP (PHP SAPI `frankenphp`). The metrics are read from the Prometheus endpoint of the Caddy admin API, `http://localhost:2019/metrics` by default; they need the `metrics` global option in the Caddyfile (`{ metrics }`), otherwise the tab says so. The version runs `frankenphp version`, once per `static_ttl`, so the binary should be in the `PATH` of the web process. In worker mode, every worker script gets its own card, and the Busy threads gauge covers the threads left to regular requests, since a running worker always holds one.
 - **MySQL**: every MySQL or MariaDB connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
 - **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. Every PostgreSQL connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The storage, scans and dead rows cards cover the tables of the configured `schema`, per connection when `connections` gives one. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
 - **Redis**: every server listed in `connections` gets a pill under the tabs, with its own cache and Refresh; a server that is down or a service that does not exist shows its error on its pill. Without `connections`, the Redis provider of the Symfony cache or `REDIS_URL` is monitored.
@@ -151,6 +155,7 @@ Several web servers behind a load balancer are not well handled yet: the System 
 
 - The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin). They show data meant for administrators: query texts (the slow queries are normalized, `?` in the MySQL `DIGEST_TEXT` and `$1` in PostgreSQL's `pg_stat_statements`, but the PostgreSQL Blocking chain card shows the queries of `pg_stat_activity.query` with their literal values, which may hold personal data), the MySQL or PostgreSQL user and host in driver errors, the paths of the PHP INI files.
 - The pages are reachable under every dashboard of the application, whether its menu links to them or not: with a second dashboard for less trusted users, they answer there too.
+- The FrankenPHP tab reads the Caddy admin API, which listens on `localhost:2019` by default and is not meant to be exposed: keep it there and point `components.frankenphp.endpoint` at it; the tab never writes to it.
 - EasyAdmin does not carry the `host` requirement of a dashboard over to these routes: on a dashboard restricted to one host, the pages also answer on the other hosts.
 - With a Content-Security-Policy, allow `https://dash.jmonitor.io` in `frame-src`, where the help pages behind the `?` links live; otherwise the help panel stays empty and its "Open in a new tab" link still works. The bundle loads its scripts from `bundles/jmonitoreasyadmin/`, with a nonce when `csp_nonce()` is available (NelmioSecurityBundle), and uses no inline script or style.
 

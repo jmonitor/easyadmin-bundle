@@ -34,6 +34,18 @@ final class MonitoringExtensionTest extends TestCase
         self::assertSame('12d 3h', $extension->duration(1_047_600));
     }
 
+    public function testSubSecondDurationsAreInMilliseconds(): void
+    {
+        $extension = new MonitoringExtension();
+
+        self::assertSame('12.3 ms', $extension->duration(0.0123));
+        self::assertSame('0.5 ms', $extension->duration(0.0005));
+        self::assertSame('20 ms', $extension->duration(0.02));
+        self::assertSame('1.5s', $extension->duration(1.5));
+        self::assertSame('2s', $extension->duration(2.0));
+        self::assertSame('2m 5s', $extension->duration(125.4));
+    }
+
     public function testNumber(): void
     {
         $extension = new MonitoringExtension();

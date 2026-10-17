@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
+use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
@@ -88,7 +89,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
-        self::assertStringContainsString('performance_schema table is not readable', $html);
+        self::assertStringContainsString('<div class="alert alert-warning py-2 small mb-3">mysql.slow_queries: performance_schema table is not readable</div>', $html, 'EasyAdmin removes the bottom margin of alerts');
         self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
     }
 
@@ -318,6 +319,73 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('Messenger', $html);
         self::assertStringNotContainsString('Scheduler - Next task', $html);
         self::assertStringNotContainsString('<h2 class="h5 mt-4 mb-2">Components</h2>', $html);
+    }
+
+    public function testTheFrankenPhpFragmentRendersInWorkerMode(): void
+    {
+        $previous = Payloads::frankenphpWorker();
+        $previous['workers'][0]['worker_request_count'] = 9_900;
+        $previous['workers'][0]['worker_request_time'] = 123.0;
+        $previous['workers'][0]['worker_restarts'] = 2;
+        $delta = new Delta(Delta::flatten($previous), Delta::flatten(Payloads::frankenphpWorker()), 10);
+        $snapshot = new ComponentSnapshot(Component::FrankenPhp, ['frankenphp' => new CollectorResult('frankenphp', Payloads::frankenphpWorker(), null, 1_000, $delta)]);
+
+        $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('1.4.0', $html);
+        self::assertStringContainsString('aria-label="Help: Version"', $html);
+        self::assertStringContainsString('>Worker</span>', $html);
+        self::assertStringContainsString('aria-label="Help: Mode"', $html);
+        self::assertStringContainsString('Busy threads', $html);
+        self::assertStringContainsString('aria-label="Help: Busy threads"', $html);
+        self::assertStringContainsString('13 / 16', $html, 'the raw busy / total threads');
+        self::assertStringContainsString('1 / 4 regular threads', $html);
+        self::assertStringContainsString('12 threads run the workers', $html);
+        self::assertStringContainsString('aria-label="Help: Threads"', $html);
+        self::assertStringContainsString('Queue depth', $html);
+        self::assertStringContainsString('<span>index.php</span>', $html, 'a worker card is titled by the file name');
+        self::assertStringContainsString('/app/public/index.php', $html, 'with the full path under it');
+        self::assertStringContainsString('<span>api</span>', $html);
+        self::assertStringContainsString('Busy workers', $html);
+        self::assertStringContainsString('aria-label="Help: Busy workers"', $html);
+        self::assertStringContainsString('2 / 8', $html);
+        self::assertStringContainsString('aria-label="Help: Ready workers"', $html);
+        self::assertStringContainsString('aria-label="Help: Requests per second"', $html);
+        self::assertStringContainsString('10.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('aria-label="Help: PHP avg execution time"', $html);
+        self::assertStringContainsString('25 ms', $html, 'average from the delta');
+        self::assertStringContainsString('20 ms', $html, 'average since the start for the other worker');
+        self::assertStringContainsString('since server start', $html);
+        self::assertStringContainsString('aria-label="Help: Restarts"', $html);
+        self::assertStringContainsString('+1 in 10 s', $html, 'restarts over the interval');
+        self::assertStringContainsString('Detected', $html, 'crashes badge');
+        self::assertStringNotContainsString('Help: Crashes', $html, 'no help page for the crashes');
+        self::assertStringNotContainsString('Help: Queue depth', $html, 'no help page for the queue depths');
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheFrankenPhpFragmentRendersInClassicMode(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::FrankenPhp, ['frankenphp' => new CollectorResult('frankenphp', Payloads::frankenphpClassic(), null, 1_000)]);
+
+        $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('>Classic</span>', $html);
+        self::assertStringContainsString('Busy threads', $html);
+        self::assertStringNotContainsString('Workers', $html);
+        self::assertStringNotContainsString('Busy workers', $html);
+    }
+
+    public function testAFailedFrankenPhpCollectorStillRenders(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::FrankenPhp, ['frankenphp' => new CollectorResult('frankenphp', [], 'No FrankenPHP metrics at http://localhost:2019/metrics. Enable them with the &quot;metrics&quot; global option of the Caddyfile.', 1_000)]);
+
+        $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('global option of the Caddyfile', $html);
+        self::assertStringContainsString('class="alert alert-warning mb-3"', $this->render('frankenphp', new ComponentSnapshot(Component::FrankenPhp, [], 'FrankenPHP is not serving this page (PHP SAPI "cli").'), new FrankenPhpView(new ComponentSnapshot(Component::FrankenPhp, []), $this->gauges())), 'the detection error keeps a margin too');
+        self::assertStringContainsString('n/a', $html);
+        self::assertStringNotContainsString('Workers', $html);
     }
 
     private function render(string $component, ComponentSnapshot $snapshot, object $view): string

@@ -21,7 +21,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame(10, $config['polling_interval']);
         self::assertSame(3600, $config['static_ttl']);
 
-        foreach (['system', 'php', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
+        foreach (['system', 'php', 'frankenphp', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
         }
 
@@ -33,6 +33,22 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('dsn', $config['components']['redis']);
         self::assertArrayNotHasKey('service', $config['components']['redis']);
         self::assertIsBool($config['components']['symfony']['messenger']);
+        self::assertSame('http://localhost:2019/metrics', $config['components']['frankenphp']['endpoint']);
+    }
+
+    public function testTheFrankenPhpEndpointIsConfigurable(): void
+    {
+        $config = $this->process(['components' => ['frankenphp' => ['endpoint' => 'http://caddy:2019/metrics']]]);
+
+        self::assertSame('http://caddy:2019/metrics', $config['components']['frankenphp']['endpoint']);
+        self::assertSame('auto', $config['components']['frankenphp']['enabled']);
+    }
+
+    public function testAnEmptyFrankenPhpEndpointIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['components' => ['frankenphp' => ['endpoint' => '']]]);
     }
 
     #[DataProvider('provideComponentShorthands')]

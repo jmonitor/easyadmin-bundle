@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
@@ -42,6 +43,15 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
 
     $services->set(PhpDetector::class)
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Php->value])
+    ;
+
+    $services->set(FrankenPhpDetector::class)
+        ->args([
+            $config['components']['frankenphp']['endpoint'],
+            service($config['cache_pool']),
+            $config['static_ttl'],
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value])
     ;
 
     $services->set(SymfonyDetector::class)

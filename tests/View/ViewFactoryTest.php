@@ -19,6 +19,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
+use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
@@ -45,6 +46,7 @@ final class ViewFactoryTest extends TestCase
 
         self::assertInstanceOf(SystemView::class, $factory->create(Component::System, $snapshot(Component::System)));
         self::assertInstanceOf(PhpView::class, $factory->create(Component::Php, $snapshot(Component::Php)));
+        self::assertInstanceOf(FrankenPhpView::class, $factory->create(Component::FrankenPhp, $snapshot(Component::FrankenPhp)));
         self::assertInstanceOf(MysqlView::class, $factory->create(Component::Mysql, $snapshot(Component::Mysql)));
         self::assertInstanceOf(PostgresqlView::class, $factory->create(Component::Postgresql, $snapshot(Component::Postgresql)));
         self::assertInstanceOf(RedisView::class, $factory->create(Component::Redis, $snapshot(Component::Redis)));

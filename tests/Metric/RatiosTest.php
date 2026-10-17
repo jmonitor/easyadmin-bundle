@@ -82,4 +82,38 @@ final class RatiosTest extends TestCase
         self::assertTrue(Ratios::perSecond(null, 'Questions')->isUnavailable());
         self::assertTrue(Ratios::perSecond($delta, 'Unknown')->isUnavailable());
     }
+
+    public function testAverageUsesTheDeltaWhenItHasTraffic(): void
+    {
+        $delta = new Delta(['time' => 10.0, 'count' => 100], ['time' => 12.5, 'count' => 110], 10);
+
+        $rate = Ratios::average($delta, 'time', 'count', 12.5, 110, 's');
+
+        self::assertSame(0.25, $rate->value);
+        self::assertSame(RateSource::Delta, $rate->source);
+        self::assertSame('s', $rate->unit);
+        self::assertSame(2.5, $rate->part);
+        self::assertSame(10, $rate->total);
+    }
+
+    public function testAverageFallsBackToTheCountersWithoutDeltaOrTraffic(): void
+    {
+        $sinceStart = Ratios::average(null, 'time', 'count', 12.5, 110, 's');
+        self::assertSame(round(12.5 / 110, 6), $sinceStart->value);
+        self::assertTrue($sinceStart->isSinceStart());
+        self::assertSame('since server start', $sinceStart->hint());
+
+        $quiet = new Delta(['time' => 12.5, 'count' => 110], ['time' => 12.5, 'count' => 110], 10);
+        self::assertTrue(Ratios::average($quiet, 'time', 'count', 12.5, 110, 's')->isSinceStart());
+        self::assertSame('since stats reset', Ratios::average($quiet, 'time', 'count', 12.5, 110, 's', 'since stats reset')->hint());
+    }
+
+    public function testAverageWithoutAnyCounterIsUnavailable(): void
+    {
+        $rate = Ratios::average(null, 'time', 'count', null, null, 's');
+
+        self::assertTrue($rate->isUnavailable());
+        self::assertSame('s', $rate->unit);
+        self::assertTrue(Ratios::average(null, 'time', 'count', 12.5, 0, 's')->isUnavailable(), 'no request yet');
+    }
 }

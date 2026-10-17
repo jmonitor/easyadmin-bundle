@@ -14,10 +14,18 @@ final class ComponentTest extends TestCase
     {
         self::assertSame('System', Component::System->label());
         self::assertSame('PHP', Component::Php->label());
+        self::assertSame('FrankenPHP', Component::FrankenPhp->label());
         self::assertSame('Symfony', Component::Symfony->label());
         self::assertSame('MySQL', Component::Mysql->label());
         self::assertSame('PostgreSQL', Component::Postgresql->label());
         self::assertSame('Redis', Component::Redis->label());
+    }
+
+    public function testFrankenPhpComesRightAfterPhp(): void
+    {
+        $cases = Component::cases();
+
+        self::assertSame(array_search(Component::Php, $cases, true) + 1, array_search(Component::FrankenPhp, $cases, true), 'the enum order is the tab order');
     }
 
     public function testTheControllerRouteRequirementListsEveryComponent(): void
