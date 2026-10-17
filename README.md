@@ -96,6 +96,7 @@ jmonitor_easyadmin:
     cache_pool: cache.app      # PSR-6 pool keeping the collected metrics
     polling_interval: 10       # seconds between two live refreshes, 0 disables them
     static_ttl: 3600           # seconds during which versions, configuration and OS data are kept
+    permission: ~              # role or voter attribute required to see the pages, e.g. ROLE_SUPER_ADMIN
     components:
         system: auto           # auto | true | false
         php: auto
@@ -120,6 +121,8 @@ jmonitor_easyadmin:
 ```
 
 `auto` shows the component when it is detected. `true` always shows it, with the detection error when it fails. `false` removes it.
+
+`permission` restricts the pages to the users granted that role or voter attribute, on every dashboard, on top of the security of the dashboard itself; the others get a 403. Hide the menu link the same way: `MenuItem::linkToRoute(...)->setPermission('ROLE_SUPER_ADMIN')`.
 
 `connections` lists the Doctrine connections to show, each one becoming a pill under the tabs; a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
 
@@ -153,10 +156,10 @@ Several web servers behind a load balancer are not well handled yet: the System 
 
 ## Security
 
-- The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin). They show data meant for administrators: query texts (the slow queries are normalized, `?` in the MySQL `DIGEST_TEXT` and `$1` in PostgreSQL's `pg_stat_statements`, but the PostgreSQL Blocking chain card shows the queries of `pg_stat_activity.query` with their literal values, which may hold personal data), the MySQL or PostgreSQL user and host in driver errors, the paths of the PHP INI files.
-- The pages are reachable under every dashboard of the application, whether its menu links to them or not: with a second dashboard for less trusted users, they answer there too.
+- The pages are protected like the rest of your backend, by your own security configuration (an `access_control` rule on the path of the dashboard, as recommended by EasyAdmin), and by the `permission` option when it is set. They show data meant for administrators: query texts (the slow queries are normalized, `?` in the MySQL `DIGEST_TEXT` and `$1` in PostgreSQL's `pg_stat_statements`, but the PostgreSQL Blocking chain card shows the queries of `pg_stat_activity.query` with their literal values, which may hold personal data), the MySQL or PostgreSQL user and host in driver errors, the paths of the PHP INI files.
+- The pages are reachable under every dashboard of the application, whether its menu links to them or not: with a second dashboard for less trusted users, they answer there too. Set `permission` to a role those users do not have, or add an `access_control` rule on `^/<dashboard path>/jmonitor` before the rule of that dashboard.
 - The FrankenPHP tab reads the Caddy admin API, which listens on `localhost:2019` by default and is not meant to be exposed: keep it there and point `components.frankenphp.endpoint` at it; the tab never writes to it.
-- EasyAdmin does not carry the `host` requirement of a dashboard over to these routes: on a dashboard restricted to one host, the pages also answer on the other hosts.
+- EasyAdmin applies the `host` of a dashboard to its own route only, not to the routes it generates under it, these pages included: restrict the host in the firewall or in the `access_control` rule instead.
 - With a Content-Security-Policy, allow `https://dash.jmonitor.io` in `frame-src`, where the help pages behind the `?` links live; otherwise the help panel stays empty and its "Open in a new tab" link still works. The bundle loads its scripts from `bundles/jmonitoreasyadmin/`, with a nonce when `csp_nonce()` is available (NelmioSecurityBundle), and uses no inline script or style.
 
 ## Need help?

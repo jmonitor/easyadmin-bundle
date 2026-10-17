@@ -7,6 +7,7 @@ namespace Jmonitor\EasyAdminBundle\Tests;
 use Jmonitor\EasyAdminBundle\JmonitorEasyAdminBundle;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -20,6 +21,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame('cache.app', $config['cache_pool']);
         self::assertSame(10, $config['polling_interval']);
         self::assertSame(3600, $config['static_ttl']);
+        self::assertNull($config['permission']);
 
         foreach (['system', 'php', 'frankenphp', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
@@ -34,6 +36,54 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('service', $config['components']['redis']);
         self::assertIsBool($config['components']['symfony']['messenger']);
         self::assertSame('http://localhost:2019/metrics', $config['components']['frankenphp']['endpoint']);
+    }
+
+    public function testPermissionIsAnyAttributeOfIsGranted(): void
+    {
+        self::assertSame('ROLE_SUPER_ADMIN', $this->process(['permission' => 'ROLE_SUPER_ADMIN'])['permission']);
+        self::assertSame('APP_MONITORING', $this->process(['permission' => 'APP_MONITORING'])['permission']);
+    }
+
+    public function testANullPermissionLeavesTheAccessToTheDashboard(): void
+    {
+        self::assertNull($this->process(['permission' => null])['permission']);
+    }
+
+    public function testAnEmptyPermissionIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['permission' => '']);
+    }
+
+    public function testPermissionNeedsTheSecurityBundle(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('The "permission" option of jmonitor_easyadmin needs the Security bundle');
+
+        (new JmonitorEasyAdminBundle())->getContainerExtension()->load([['permission' => 'ROLE_SUPER_ADMIN']], $this->builder([]));
+    }
+
+    public function testPermissionLoadsWithTheSecurityBundle(): void
+    {
+        $builder = $this->builder(['SecurityBundle' => SecurityBundle::class]);
+
+        (new JmonitorEasyAdminBundle())->getContainerExtension()->load([['permission' => 'ROLE_SUPER_ADMIN']], $builder);
+
+        self::assertSame('ROLE_SUPER_ADMIN', $builder->getParameter('jmonitor_easyadmin.config')['permission']);
+    }
+
+    /**
+     * @param array<string, class-string> $bundles
+     */
+    private function builder(array $bundles): ContainerBuilder
+    {
+        $builder = new ContainerBuilder();
+        $builder->setParameter('kernel.environment', 'test');
+        $builder->setParameter('kernel.build_dir', sys_get_temp_dir());
+        $builder->setParameter('kernel.bundles', $bundles);
+
+        return $builder;
     }
 
     public function testTheFrankenPhpEndpointIsConfigurable(): void

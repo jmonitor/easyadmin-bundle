@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle;
 
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
+use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -53,6 +54,12 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        $bundles = $builder->hasParameter('kernel.bundles') ? (array) $builder->getParameter('kernel.bundles') : [];
+
+        if ($config['permission'] !== null && !in_array(SecurityBundle::class, $bundles, true)) {
+            throw new \LogicException('The "permission" option of jmonitor_easyadmin needs the Security bundle: install symfony/security-bundle or remove the option.');
+        }
+
         $builder->setParameter('jmonitor_easyadmin.config', $config);
 
         $container->import('../config/services.php');
@@ -76,6 +83,14 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->defaultValue(3600)
                     ->min(1)
                     ->info('Seconds during which rarely changing data (versions, configuration, OS) is kept in cache.')
+                ->end()
+                ->scalarNode('permission')
+                    ->defaultNull()
+                    ->info('Role or voter attribute required to see the pages, checked with is_granted(). Null leaves the access to the security of the dashboard.')
+                    ->validate()
+                        ->ifTrue(static fn(mixed $v): bool => $v !== null && (!is_string($v) || $v === ''))
+                        ->thenInvalid('The permission must be a non-empty string or null, got %s.')
+                    ->end()
                 ->end()
                 ->arrayNode('components')
                     ->addDefaultsIfNotSet()

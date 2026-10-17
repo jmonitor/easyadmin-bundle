@@ -194,6 +194,8 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service('router'),
             $config['polling_interval'],
             service('security.csrf.token_manager')->nullOnInvalid(),
+            $config['permission'],
+            service('security.authorization_checker')->nullOnInvalid(),
         ])
         ->tag('controller.service_arguments')
         ->tag('ea.admin_route_controller')
