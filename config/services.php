@@ -57,7 +57,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             '$connections' => service_locator([]),
             '$connectionNames' => [],
-            '$connection' => array_key_first($config['components']['mysql']['connections']),
+            '$configured' => $config['components']['mysql']['connections'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
