@@ -50,8 +50,7 @@ final class CachedShellExecutorTest extends TestCase
         self::assertNull($executor->execute('frankenphp version'));
         self::assertSame(1, $inner->calls, 'a missing binary must not spawn a process at every poll');
         self::assertCount(1, $logger->records, 'logged once, when the command runs');
-        self::assertSame(LogLevel::WARNING, $logger->records[0][0]);
-        self::assertSame('"frankenphp version" gave no output: the binary may be missing from the PATH of the web process.', $logger->records[0][1]);
+        self::assertSame([LogLevel::WARNING, '"{command}" gave no output.', ['command' => 'frankenphp version']], $logger->records[0]);
     }
 
     public function testACachedValueOfAnotherShapeIsAMiss(): void
@@ -86,7 +85,10 @@ final class CachedShellExecutorTest extends TestCase
         self::assertSame(1, $inner->calls, 'the failure is cached like an empty output');
         self::assertCount(1, $logger->records);
         self::assertSame(LogLevel::WARNING, $logger->records[0][0]);
-        self::assertSame('Cannot run "frankenphp version": The Process class relies on proc_open, which is not available on your PHP installation.', $logger->records[0][1]);
+        self::assertSame('Cannot run "{command}": {reason}', $logger->records[0][1]);
+        self::assertSame('frankenphp version', $logger->records[0][2]['command'] ?? null);
+        self::assertSame('The Process class relies on proc_open, which is not available on your PHP installation.', $logger->records[0][2]['reason'] ?? null);
+        self::assertInstanceOf(\LogicException::class, $logger->records[0][2]['exception'] ?? null, 'the exception goes to the handlers, like the other warnings of the channel');
     }
 
     public function testForgetDropsTheCachedOutputs(): void

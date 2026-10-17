@@ -105,7 +105,7 @@ final class FrankenPhpTest extends WebTestCase
         self::assertSelectorTextContains('.alert-warning', 'No FrankenPHP metrics at http://localhost:2019/metrics.');
     }
 
-    public function testRefreshRunsTheVersionCommandAgain(): void
+    public function testRefreshDropsTheCachedVersion(): void
     {
         ConfigurableAdminKernel::$frankenphp = ['sapi' => 'frankenphp', 'metrics' => FrankenPhpEndpointCollectorTest::export('worker'), 'version' => null];
         $client = $this->adminClient();

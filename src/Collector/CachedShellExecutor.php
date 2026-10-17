@@ -11,14 +11,17 @@ use Psr\Log\NullLogger;
 
 /**
  * Keeps the outputs of the commands in one cache item per collector, so a static value such as
- * a version is not fetched by a new process at every poll. An empty output (binary not found,
- * process failure) is kept too, and logged, since the cached item hides it until the next run.
+ * a version is not fetched by a new process at every poll. A failure is kept too, and logged,
+ * since the cached item hides it until a Refresh.
  */
 final class CachedShellExecutor extends ShellExecutor
 {
     private readonly ShellExecutor $inner;
     private readonly string $key;
 
+    /**
+     * @param string $name the collector, prefixed like SnapshotProvider's keys for a named instance
+     */
     public function __construct(
         private readonly CacheItemPoolInterface $cache,
         private readonly int $ttl,
@@ -26,7 +29,7 @@ final class CachedShellExecutor extends ShellExecutor
         private readonly LoggerInterface $logger = new NullLogger(),
         ?ShellExecutor $inner = null,
     ) {
-        $this->inner = $inner ?? new ShellExecutor();
+        $this->inner = $inner ?? new ProcessShellExecutor();
         $this->key = 'jmonitor_easyadmin.shell.' . $name;
     }
 
@@ -43,11 +46,11 @@ final class CachedShellExecutor extends ShellExecutor
             $output = $this->inner->execute($command);
 
             if ($output === null) {
-                $this->logger->warning(sprintf('"%s" gave no output: the binary may be missing from the PATH of the web process.', $command));
+                $this->logger->warning('"{command}" gave no output.', ['command' => $command]);
             }
         } catch (\Throwable $e) {
-            // No proc_open, or a process that cannot start: the value is decorative.
-            $this->logger->warning(sprintf('Cannot run "%s": %s', $command, $e->getMessage()));
+            // No proc_open, a process that cannot start or fails: the value is decorative.
+            $this->logger->warning('Cannot run "{command}": {reason}', ['command' => $command, 'reason' => $e->getMessage(), 'exception' => $e]);
             $output = null;
         }
 
