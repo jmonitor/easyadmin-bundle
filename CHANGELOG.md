@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Redis tab shows several servers.
 - `connections` option for MySQL, PostgreSQL and Redis.
 - A Doctrine connection that cannot be loaded is logged as a warning.
+- `permission` option.
 
 ### Changed
 

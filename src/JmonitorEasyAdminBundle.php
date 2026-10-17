@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle;
 
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
+use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -53,6 +54,19 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        // Checked here rather than by the node: the tree validates an env placeholder with an empty string.
+        if ($config['permission'] === '') {
+            throw new InvalidConfigurationException('The "permission" option of jmonitor_easyadmin cannot be empty: give it a role or set it to null.');
+        }
+
+        // The extension is loaded in a temporary container that knows no other extension, only the parameters.
+        $bundles = $builder->hasParameter('kernel.bundles') ? (array) $builder->getParameter('kernel.bundles') : [];
+        $hasSecurity = array_filter($bundles, static fn(mixed $class): bool => is_string($class) && is_a($class, SecurityBundle::class, true)) !== [];
+
+        if ($config['permission'] !== null && !$hasSecurity) {
+            throw new \LogicException('The "permission" option of jmonitor_easyadmin needs the Security bundle: register Symfony\Bundle\SecurityBundle\SecurityBundle in config/bundles.php or remove the option.');
+        }
+
         $builder->setParameter('jmonitor_easyadmin.config', $config);
 
         $container->import('../config/services.php');
@@ -76,6 +90,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->defaultValue(3600)
                     ->min(1)
                     ->info('Seconds during which rarely changing data (versions, configuration, OS) is kept in cache.')
+                ->end()
+                ->scalarNode('permission')
+                    ->defaultNull()
+                    ->info('Role or voter attribute required to see the pages, checked with is_granted(). Null leaves the access to the security of the dashboard.')
                 ->end()
                 ->arrayNode('components')
                     ->addDefaultsIfNotSet()

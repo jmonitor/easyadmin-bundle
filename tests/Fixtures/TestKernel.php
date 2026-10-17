@@ -85,6 +85,7 @@ class TestKernel extends Kernel
             'providers' => ['in_memory' => ['memory' => ['users' => [
                 'admin' => ['password' => 'admin', 'roles' => ['ROLE_ADMIN']],
                 'viewer' => ['password' => 'viewer', 'roles' => ['ROLE_USER']],
+                'super' => ['password' => 'super', 'roles' => ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN']],
             ]]]],
             'firewalls' => ['main' => ['lazy' => true, 'provider' => 'in_memory', 'logout' => ['path' => '/logout']]],
             'access_control' => [['path' => '^/admin', 'roles' => 'ROLE_ADMIN']],

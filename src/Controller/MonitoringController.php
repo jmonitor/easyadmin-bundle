@@ -17,6 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
@@ -39,11 +41,14 @@ final class MonitoringController
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly int $pollingInterval,
         private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
+        private readonly ?string $permission = null,
+        private readonly ?AuthorizationCheckerInterface $authorizationChecker = null,
     ) {}
 
     #[AdminRoute(name: 'index')]
     public function index(): Response
     {
+        $this->denyAccessUnlessGranted();
         $available = $this->registry->available();
 
         if ($available === []) {
@@ -56,18 +61,23 @@ final class MonitoringController
     #[AdminRoute(path: '/{component}', name: 'component', options: self::COMPONENT_OPTIONS)]
     public function component(Request $request, Component $component): Response
     {
+        $this->denyAccessUnlessGranted();
+
         return $this->render($this->instanceOr404($component, $request), fragment: false);
     }
 
     #[AdminRoute(path: '/{component}/fragment', name: 'fragment', options: self::COMPONENT_OPTIONS)]
     public function fragment(Request $request, Component $component): Response
     {
+        $this->denyAccessUnlessGranted();
+
         return $this->render($this->instanceOr404($component, $request), fragment: true);
     }
 
     #[AdminRoute(path: '/{component}/refresh', name: 'refresh', options: self::COMPONENT_OPTIONS + ['methods' => ['POST']])]
     public function refresh(Request $request, Component $component): Response
     {
+        $this->denyAccessUnlessGranted();
         $instance = $this->instanceOr404($component, $request);
 
         if ($this->csrfTokenManager !== null && !$this->csrfTokenManager->isTokenValid(new CsrfToken(self::REFRESH_TOKEN_ID, $request->request->getString('_token')))) {
@@ -80,6 +90,27 @@ final class MonitoringController
         $connection = count($this->registry->instancesFor($component)) > 1 ? $instance->id : null;
 
         return new RedirectResponse($this->componentUrl($component, $connection));
+    }
+
+    /**
+     * The HTTP exception answers 403 even outside a firewall; inside one, the firewall finds
+     * Security's exception behind it and applies its access denied handling.
+     */
+    private function denyAccessUnlessGranted(): void
+    {
+        if ($this->permission === null) {
+            return;
+        }
+
+        if ($this->permission === '') {
+            throw new \LogicException('The "permission" option of jmonitor_easyadmin resolved to an empty string: give it a role or remove it.');
+        }
+
+        if (!$this->authorizationChecker?->isGranted($this->permission)) {
+            $message = sprintf('The monitoring pages need the "%s" permission.', $this->permission);
+
+            throw new AccessDeniedHttpException($message, new AccessDeniedException($message));
+        }
     }
 
     private function render(Instance $instance, bool $fragment): Response
