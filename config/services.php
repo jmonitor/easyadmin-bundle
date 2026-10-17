@@ -84,11 +84,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         $redisServices[$redisProvider] = service($redisProvider)->ignoreOnInvalid();
     }
 
+    $redisConfigured = $redisConfig['service'] !== null || $redisConfig['dsn'] !== null
+        ? ['default' => ['dsn' => $redisConfig['dsn'], 'service' => $redisConfig['service']]]
+        : [];
+
     $services->set(RedisDetector::class)
         ->args([
             service_locator($redisServices),
-            $redisConfig['service'],
-            $redisConfig['dsn'],
+            $redisConfigured,
             $redisProvider !== null ? '%jmonitor_easyadmin.framework_redis_provider%' : null,
             env('default::REDIS_URL'),
         ])
