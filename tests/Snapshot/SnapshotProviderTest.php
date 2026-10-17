@@ -8,12 +8,14 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cache\RecordingCachePool;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
+use Jmonitor\Collector\CollectorInterface;
 use Jmonitor\Exceptions\BootFailedException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
@@ -139,6 +141,40 @@ final class SnapshotProviderTest extends TestCase
         $provider->get($instance);
 
         self::assertSame(2, $variables->collects);
+    }
+
+    public function testRefreshLetsACollectorDropWhatItCachesItself(): void
+    {
+        $collector = new class implements CollectorInterface, RefreshableCollectorInterface {
+            public int $refreshes = 0;
+
+            public function collect(): array
+            {
+                return ['version' => '1.4.0'];
+            }
+
+            public function getVersion(): int
+            {
+                return 1;
+            }
+
+            public function getName(): string
+            {
+                return 'frankenphp';
+            }
+
+            public function refresh(): void
+            {
+                $this->refreshes++;
+            }
+        };
+        [$provider, $instance] = $this->provider(Component::FrankenPhp, [new CollectorSpec($collector, Lifetime::Dynamic)]);
+
+        $provider->get($instance);
+        $provider->refresh($instance);
+
+        self::assertSame(1, $collector->refreshes);
+        self::assertFalse($this->cache->hasItem(SnapshotProvider::cacheKey('frankenphp')));
     }
 
     public function testUnavailableComponentGivesAnEmptySnapshotWithTheReason(): void

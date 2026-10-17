@@ -7,6 +7,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\Fixtures\App;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\InstancesDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\ThrowingDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
@@ -103,6 +104,7 @@ final class ConfigurableAdminKernel extends TestKernel
                         'http://localhost:2019/metrics',
                         new Reference('cache.app'),
                         3600,
+                        new Reference(MinimumLevelLogger::class),
                         $this->fixtures['sapi'],
                         new Definition(FixtureUrlFetcher::class, [$this->fixtures['metrics']]),
                         new Definition(FixtureShellExecutor::class, [$this->fixtures['version']]),

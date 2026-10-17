@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Collector;
 
 use Jmonitor\Collector\FrankenPhp\FrankenPhpCollector;
+use Jmonitor\EasyAdminBundle\Collector\CachedShellExecutor;
 use Jmonitor\EasyAdminBundle\Collector\FrankenPhpEndpointCollector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\Prometheus\PrometheusMetricsProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 final class FrankenPhpEndpointCollectorTest extends TestCase
 {
@@ -85,6 +87,22 @@ final class FrankenPhpEndpointCollectorTest extends TestCase
         self::assertSame(1, $collector->getVersion());
     }
 
+    public function testRefreshForgetsTheCachedVersion(): void
+    {
+        $cache = new ArrayAdapter();
+        $shell = new FixtureShellExecutor(null);
+        $cached = new CachedShellExecutor($cache, 3600, 'frankenphp', inner: $shell);
+        $inner = new FrankenPhpCollector(new PrometheusMetricsProvider(self::ENDPOINT, new FixtureUrlFetcher(self::export('classic'))), $cached);
+        $collector = new FrankenPhpEndpointCollector($inner, self::ENDPOINT, $cached);
+
+        self::assertNull($collector->collect()['version']);
+        self::assertTrue($cache->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'the empty version is cached');
+
+        $collector->refresh();
+
+        self::assertFalse($cache->hasItem('jmonitor_easyadmin.shell.frankenphp'));
+    }
+
     public static function export(string $name): string
     {
         return (string) file_get_contents(\dirname(__DIR__) . '/Fixtures/FrankenPhp/metrics-' . $name . '.prom');
@@ -92,11 +110,9 @@ final class FrankenPhpEndpointCollectorTest extends TestCase
 
     private function collector(?string $export, ?FixtureShellExecutor $shell = null): FrankenPhpEndpointCollector
     {
-        $inner = new FrankenPhpCollector(
-            new PrometheusMetricsProvider(self::ENDPOINT, new FixtureUrlFetcher($export)),
-            $shell ?? new FixtureShellExecutor("FrankenPHP v1.4.0 PHP 8.4.1 Caddy v2.9.0\n"),
-        );
+        $cached = new CachedShellExecutor(new ArrayAdapter(), 3600, 'frankenphp', inner: $shell ?? new FixtureShellExecutor("FrankenPHP v1.4.0 PHP 8.4.1 Caddy v2.9.0\n"));
+        $inner = new FrankenPhpCollector(new PrometheusMetricsProvider(self::ENDPOINT, new FixtureUrlFetcher($export)), $cached);
 
-        return new FrankenPhpEndpointCollector($inner, self::ENDPOINT);
+        return new FrankenPhpEndpointCollector($inner, self::ENDPOINT, $cached);
     }
 }
