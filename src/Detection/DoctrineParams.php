@@ -27,8 +27,9 @@ final class DoctrineParams
      * @param callable(array<string, mixed>): bool                     $matches         on the connection parameters
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors given the connection, its parameters and its configured options
      * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
+     * @param ?SkippedConnectionReporter                               $skipped         told of the connections skipped because they cannot be read
      */
-    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product): Detection
+    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null): Detection
     {
         if ($configured !== []) {
             $instances = [];
@@ -58,6 +59,7 @@ final class DoctrineParams
                 $connection = $connections->get($name);
             } catch (\Throwable $e) {
                 $unreadable[$name] = $e->getMessage();
+                $skipped?->report($name, $e);
 
                 continue;
             }

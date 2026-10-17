@@ -39,6 +39,7 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         private array $configured,
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
+        private ?SkippedConnectionReporter $skipped = null,
     ) {}
 
     public function component(): Component
@@ -56,6 +57,7 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
             self::isMysql(...),
             fn(Connection $connection, array $params): CollectorSet => $this->collectors($connection, DoctrineParams::database($params) ?? '', DoctrineParams::isLocal($params)),
             'MySQL or MariaDB',
+            $this->skipped,
         );
     }
 

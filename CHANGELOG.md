@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The Redis tab shows every server of the new `components.redis.connections` option (an id mapped to a DSN, `{dsn}` or `{service}`), one pill per server, selected with the `connection` query parameter, each one with its own cache and Refresh.
-- The MySQL and PostgreSQL tabs show every Doctrine connection of their driver, one pill per database; the connection is selected with the `connection` query parameter (`/jmonitor/mysql?connection=legacy`), each one with its own cache and Refresh. The new `connections` option restricts them to the ones listed, and takes a `schema` per PostgreSQL connection.
+- The MySQL and PostgreSQL tabs show every Doctrine connection of their driver, one pill per database; the connection is selected with the `connection` query parameter (`/jmonitor/mysql?connection=legacy`), each one with its own cache and Refresh. The new `connections` option restricts them to the ones listed, and takes a `schema` per PostgreSQL connection. A connection whose service cannot be built is skipped and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl`.
 - A PostgreSQL tab, detected from the Doctrine connections: connections, transactions, cache hit ratio, temp files, rows written, slow queries (`pg_stat_statements`), dead rows and index usage, blocked sessions and blocking chain, storage, with the configuration cards.
 
 ### Changed
