@@ -5,24 +5,15 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Logging;
 
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Logging\RecordingLogger;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 
 final class MinimumLevelLoggerTest extends TestCase
 {
     public function testForwardsWarningsAndAboveOnly(): void
     {
-        $records = [];
-        $inner = new class ($records) extends AbstractLogger {
-            public function __construct(private array &$records) {}
-
-            public function log($level, string|\Stringable $message, array $context = []): void
-            {
-                $this->records[] = [$level, (string) $message, $context];
-            }
-        };
-
+        $inner = new RecordingLogger();
         $logger = new MinimumLevelLogger($inner);
         $logger->notice('No endpoint URL provided');
         $logger->info('Metrics collected');
@@ -34,6 +25,6 @@ final class MinimumLevelLoggerTest extends TestCase
             [LogLevel::WARNING, 'messenger:stats failed', ['exit_code' => 1]],
             [LogLevel::ERROR, 'Failed to boot collector', []],
             [LogLevel::CRITICAL, 'boom', []],
-        ], $records);
+        ], $inner->records);
     }
 }
