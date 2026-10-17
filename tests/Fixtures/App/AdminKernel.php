@@ -18,6 +18,7 @@ final class AdminKernel extends TestKernel
             'polling_interval' => self::pollingInterval(),
             'components' => [
                 'mysql' => false,
+                'postgresql' => false,
                 'redis' => false,
                 'symfony' => ['messenger' => false, 'scheduler' => false, 'flex' => false],
             ],

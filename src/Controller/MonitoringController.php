@@ -26,7 +26,7 @@ use Twig\Environment;
 #[AdminRoute('/jmonitor', name: 'jmonitor')]
 final class MonitoringController
 {
-    private const COMPONENT_OPTIONS = ['requirements' => ['component' => 'system|php|symfony|mysql|redis']];
+    private const COMPONENT_OPTIONS = ['requirements' => ['component' => 'system|php|symfony|mysql|postgresql|redis']];
     public const REFRESH_TOKEN_ID = 'jmonitor_refresh';
 
     public function __construct(
