@@ -7,3 +7,4 @@ composer.lock
 .phpunit.cache/
 .claude/settings.local.json
 /config/reference.php
+.superpowers/
