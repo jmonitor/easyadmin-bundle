@@ -15,8 +15,8 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 final class ComponentRegistry implements ResetInterface
 {
-    /** @var array<string, Detection>|null keyed by component value, in Component::cases() order */
-    private ?array $detections = null;
+    /** @var array<string, non-empty-list<Instance>>|null keyed by component value, in Component::cases() order */
+    private ?array $instances = null;
 
     /**
      * @param iterable<string, ComponentDetectorInterface>      $detectors  keyed by component value
@@ -32,38 +32,64 @@ final class ComponentRegistry implements ResetInterface
      */
     public function available(): array
     {
-        return array_map(static fn(string $value): Component => Component::from($value), array_keys($this->detections()));
+        return array_map(static fn(string $value): Component => Component::from($value), array_keys($this->instances()));
     }
 
     public function isAvailable(Component $component): bool
     {
-        return isset($this->detections()[$component->value]);
+        return isset($this->instances()[$component->value]);
+    }
+
+    /**
+     * @return list<Instance> empty when the component is not available
+     */
+    public function instancesFor(Component $component): array
+    {
+        return $this->instances()[$component->value] ?? [];
+    }
+
+    /**
+     * @param ?string $id null for the first instance
+     */
+    public function instance(Component $component, ?string $id): ?Instance
+    {
+        $instances = $this->instancesFor($component);
+
+        if ($id === null) {
+            return $instances[0] ?? null;
+        }
+
+        foreach ($instances as $instance) {
+            if ($instance->id === $id) {
+                return $instance;
+            }
+        }
+
+        return null;
     }
 
     public function collectorsFor(Component $component): ?CollectorSet
     {
-        $detection = $this->detections()[$component->value] ?? null;
-
-        return ($detection?->instances[0] ?? null)?->collectors;
+        return $this->instance($component, null)?->collectors;
     }
 
     public function errorFor(Component $component): ?string
     {
-        return ($this->detections()[$component->value] ?? null)?->error;
+        return $this->instance($component, null)?->error;
     }
 
     public function reset(): void
     {
-        $this->detections = null;
+        $this->instances = null;
     }
 
     /**
-     * @return array<string, Detection>
+     * @return array<string, non-empty-list<Instance>>
      */
-    private function detections(): array
+    private function instances(): array
     {
-        if ($this->detections !== null) {
-            return $this->detections;
+        if ($this->instances !== null) {
+            return $this->instances;
         }
 
         $detectors = [];
@@ -71,7 +97,7 @@ final class ComponentRegistry implements ResetInterface
             $detectors[$detector->component()->value] = $detector;
         }
 
-        $detections = [];
+        $instances = [];
         foreach (Component::cases() as $component) {
             $enabled = $this->components[$component->value]['enabled'] ?? 'auto';
             $detector = $detectors[$component->value] ?? null;
@@ -86,13 +112,13 @@ final class ComponentRegistry implements ResetInterface
                 $detection = Detection::unavailable($e->getMessage());
             }
 
-            if ($enabled === 'auto' && !$detection->isFound()) {
-                continue;
+            if ($detection->isFound()) {
+                $instances[$component->value] = $detection->instances;
+            } elseif ($enabled === true) {
+                $instances[$component->value] = [Instance::unavailable($component, $detection->error ?? 'This component is not available.')];
             }
-
-            $detections[$component->value] = $detection;
         }
 
-        return $this->detections = $detections;
+        return $this->instances = $instances;
     }
 }

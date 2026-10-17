@@ -35,6 +35,9 @@ final readonly class Detection
         return new self([], $reason);
     }
 
+    /**
+     * @phpstan-assert-if-true non-empty-list<Instance> $this->instances
+     */
     public function isFound(): bool
     {
         return $this->instances !== [];
