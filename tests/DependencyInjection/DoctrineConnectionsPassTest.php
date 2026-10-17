@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\DependencyInjection;
 
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -30,7 +31,7 @@ final class DoctrineConnectionsPassTest extends TestCase
 
     public function testEveryDoctrineDetectorIsFed(): void
     {
-        $postgresql = 'Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector';
+        $postgresql = PostgresqlDetector::class;
         $container = new ContainerBuilder();
         $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection', 'reporting' => 'doctrine.dbal.reporting_connection']);
         $container->setDefinition('doctrine.dbal.default_connection', new Definition(\stdClass::class));
@@ -49,7 +50,7 @@ final class DoctrineConnectionsPassTest extends TestCase
 
     public function testAMissingDetectorIsSkipped(): void
     {
-        $postgresql = 'Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector';
+        $postgresql = PostgresqlDetector::class;
         $container = new ContainerBuilder();
         $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection']);
         $container->setDefinition('doctrine.dbal.default_connection', new Definition(\stdClass::class));

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\DependencyInjection;
 
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -15,7 +16,7 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class DoctrineConnectionsPass implements CompilerPassInterface
 {
-    private const DETECTORS = [MysqlDetector::class, 'Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector'];
+    private const DETECTORS = [MysqlDetector::class, PostgresqlDetector::class];
 
     public function process(ContainerBuilder $container): void
     {

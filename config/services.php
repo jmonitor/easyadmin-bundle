@@ -11,6 +11,7 @@ use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
+use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
@@ -59,6 +60,16 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connection' => $config['components']['mysql']['connection'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
+    ;
+
+    $services->set(PostgresqlDetector::class)
+        ->args([
+            '$connections' => service_locator([]),
+            '$connectionNames' => [],
+            '$connection' => $config['components']['postgresql']['connection'],
+            '$schema' => $config['components']['postgresql']['schema'],
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
     ;
 
     $redisConfig = $config['components']['redis'];
