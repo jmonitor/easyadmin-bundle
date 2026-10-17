@@ -226,8 +226,8 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 
     /**
      * "connections" maps an id to a Redis server: a DSN, {dsn} or {service}, or a list of entries
-     * carrying a "name" key (the XML form). A bare string is only a DSN in the map form: in the list
-     * form it has no id.
+     * carrying a "name" key (the XML form, which gives a single entry as a bare map). A bare string
+     * is only a DSN in the map form: in the list form it has no id.
      */
     private static function redisConnectionsNode(): ArrayNodeDefinition
     {
@@ -238,7 +238,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ->normalizeKeys(false)
             ->beforeNormalization()
                 ->ifArray()
-                ->then(static fn(array $v): array => array_is_list($v) ? $v : array_map(static fn($entry) => is_string($entry) ? ['dsn' => $entry] : $entry, $v))
+                ->then(static function (array $v): array {
+                    if (array_is_list($v)) {
+                        return $v;
+                    }
+
+                    if (is_string($v['name'] ?? null) && (is_string($v['dsn'] ?? null) || is_string($v['service'] ?? null))) {
+                        return [$v];
+                    }
+
+                    return array_map(static fn($entry) => is_string($entry) ? ['dsn' => $entry] : $entry, $v);
+                })
             ->end()
             ->validate()
                 ->always(static function (array $connections): array {

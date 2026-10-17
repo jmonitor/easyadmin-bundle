@@ -151,6 +151,13 @@ final class ConfigurationTest extends TestCase
         self::assertEquals(['cache' => ['dsn' => 'redis://cache', 'service' => null], 'queue' => ['dsn' => null, 'service' => 'app.redis_queue']], $config['components']['redis']['connections']);
     }
 
+    public function testASingleXmlRedisConnectionIsOneEntry(): void
+    {
+        $config = $this->process(['components' => ['redis' => ['connections' => ['name' => 'cache', 'dsn' => 'redis://cache']]]]);
+
+        self::assertSame(['cache' => ['dsn' => 'redis://cache', 'service' => null]], $config['components']['redis']['connections']);
+    }
+
     public function testRedisConnectionsKeepANumericId(): void
     {
         $config = $this->process(['components' => ['redis' => ['connections' => [1 => 'redis://a']]]]);
