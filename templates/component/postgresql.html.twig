@@ -1,0 +1,282 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xxl-3">
+            <div class="d-flex flex-column gap-3 h-100">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Version', metric: 'postgres.version', fill: false} %}
+                    {% block body %}
+                        <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.majorVersion}) }}</div>
+                        {% if view.version %}<div class="small text-muted">{{ view.version }}</div>{% endif %}
+                    {% endblock %}
+                {% endembed %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Shared buffers', metric: 'postgres.capacity'} %}
+                    {% block body %}
+                        <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.sharedBuffers is null ? null : view.sharedBuffers|jm_bytes}) }}</div>
+                        {% if view.ramRatio %}
+                            <div class="mt-2">
+                                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.ramRatio, bare: true, help: false, detail: view.sharedBuffers is null or view.ramTotal is null ? null : view.sharedBuffers|jm_bytes ~ ' / ' ~ view.ramTotal|jm_bytes}) }}
+                            </div>
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+        <div class="col-md-6 col-xxl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: Memory & WAL', metric: 'postgres.config'} %}
+                {% block body %}
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'max_connections': view.maxConnections,
+                        'effective_cache_size': view.setting('effective_cache_size') is null ? null : view.setting('effective_cache_size')|jm_bytes,
+                        'work_mem': view.setting('work_mem') is null ? null : view.setting('work_mem')|jm_bytes,
+                        'maintenance_work_mem': view.setting('maintenance_work_mem') is null ? null : view.setting('maintenance_work_mem')|jm_bytes,
+                    }}) }}
+                    <hr>
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'wal_level': view.setting('wal_level'),
+                        'max_wal_size': view.setting('max_wal_size') is null ? null : view.setting('max_wal_size')|jm_bytes,
+                        'checkpoint_completion_target': view.setting('checkpoint_completion_target'),
+                    }}) }}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xxl-5">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: Planner & maintenance', metric: 'postgres.tuning'} %}
+                {% block body %}
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'random_page_cost': view.setting('random_page_cost'),
+                        'effective_io_concurrency': view.setting('effective_io_concurrency'),
+                    }}) }}
+                    <hr>
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'autovacuum': view.autovacuum,
+                        'autovacuum_vacuum_scale_factor': view.setting('autovacuum_vacuum_scale_factor'),
+                        'track_counts': view.trackCounts,
+                    }}) }}
+                    <hr>
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'log_min_duration_statement': view.logMinDurationStatement,
+                        'TimeZone': view.setting('TimeZone'),
+                    }}) }}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Connections &amp; activity</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.connectionsUsage, detail: view.maxConnections is null ? null : view.numBackends ~ ' / ' ~ view.maxConnections}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Connections by state', metric: 'postgres.connections_states'} %}
+                {% block body %}
+                    <div class="row g-2 text-center">
+                        {% for label, count in {'Active': view.activeConnections, 'Idle': view.idleConnections, 'Idle in transaction': view.idleInTransactionConnections} %}
+                            <div class="col-4">
+                                <div class="jm-tile">
+                                    <div class="jm-tile-value">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: count}) }}</div>
+                                    <div class="jm-tile-label">{{ label }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Transactions per second', metric: 'postgres.transactions_per_sec'} %}
+                {% block body %}
+                    <div class="jm-stat mb-3">{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.transactionsPerSec}) }}</div>
+                    <div class="row g-2">
+                        <div class="col-6">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Commits', rate: view.commitsPerSec}) }}</div>
+                        <div class="col-6">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Rollbacks', rate: view.rollbacksPerSec}) }}</div>
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.rollbackRatio}) }}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Cache &amp; I/O</h2>
+    <div class="row g-3">
+        <div class="col-md-4">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cacheHitRatio}) }}
+        </div>
+        <div class="col-md-4">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Disk blocks read', metric: 'postgres.disk_reads_per_sec', rate: view.diskReadsPerSec}) }}
+        </div>
+        <div class="col-md-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Temp files', metric: 'postgres.temp_files'} %}
+                {% block body %}
+                    <div class="jm-stat mb-3">{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.tempFilesPerSec}) }}</div>
+                    <div class="small text-muted">Written</div>
+                    <div class="jm-rate">
+                        {%- if view.tempBytesPerSec.isUnavailable() -%}
+                            <span class="text-muted" title="Available after the next refresh">—</span>
+                        {%- else -%}
+                            {{ view.tempBytesPerSec.value|jm_bytes }}<small class="text-muted">/s</small>
+                        {%- endif -%}
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Throughput</h2>
+    <div class="row g-3">
+        <div class="col-12">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Rows written', metric: 'postgres.rows_written_per_sec'} %}
+                {% block body %}
+                    <div class="row g-3">
+                        <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Inserted', rate: view.rowsInsertedPerSec}) }}</div>
+                        <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Updated', rate: view.rowsUpdatedPerSec}) }}</div>
+                        <div class="col-4">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Deleted', rate: view.rowsDeletedPerSec}) }}</div>
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Slow queries</h2>
+    {% if not view.slowQueriesAvailable %}
+        <p class="text-muted">Slow queries data are not available.</p>
+    {% else %}
+        {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Top slowest queries', metric: 'postgres.slow_queries_top'} %}
+            {% block body %}
+                {% if view.slowQueries is empty %}
+                    <p class="text-muted mb-0">No slow queries found.</p>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Query</th><th class="text-end">Calls</th><th class="text-end">Avg</th><th class="text-end">Max</th><th class="text-end">Cache hit</th></tr></thead>
+                            <tbody>
+                                {% for query in view.slowQueries %}
+                                    <tr>
+                                        <td><code class="jm-query">{{ query.query_sample }}</code></td>
+                                        <td class="text-end text-nowrap">{{ query.exec_count|default(null)|jm_number }}</td>
+                                        <td class="text-end text-nowrap">{{ query.avg_time_ms|default(null)|jm_number }} ms</td>
+                                        <td class="text-end text-nowrap">{{ query.max_time_ms|default(null)|jm_number }} ms</td>
+                                        <td class="text-end text-nowrap">{{ query.cache_hit is null ? '—' : query.cache_hit|jm_number(2) ~ '%' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+                <div class="small text-muted">
+                    Collector configuration:
+                    Min avg time: {{ view.slowQueriesMinAvgTimeMs is null ? '—' : view.slowQueriesMinAvgTimeMs|jm_number }}ms
+                    · Min calls: {{ view.slowQueriesMinCalls ?? '—' }}
+                    · Sort: {{ view.slowQueriesOrderBy ?? '—' }}
+                </div>
+            {% endblock %}
+        {% endembed %}
+    {% endif %}
+
+    <h2 class="h5 mt-4 mb-2">Maintenance &amp; health</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.deadTupleRatio, detail: view.deadTuples is null or view.liveTuples is null ? null : view.deadTuples|jm_number ~ ' / ' ~ view.liveTuples|jm_number}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.indexUsageRatio}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scans per second', metric: 'postgres.scans_per_sec'} %}
+                {% block body %}
+                    <div class="mb-3">{{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Sequential', rate: view.seqScansPerSec}) }}</div>
+                    {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Index', rate: view.idxScansPerSec}) }}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Deadlocks', metric: 'postgres.deadlocks_per_sec'} %}
+                {% block body %}
+                    <div class="jm-stat mb-3">{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.deadlocksPerSec}) }}</div>
+                    {{ include('@JmonitorEasyAdmin/_sub_value.html.twig', {label: 'Since server start', value: view.deadlocksTotal}) }}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Sessions &amp; locks</h2>
+    <div class="row g-3">
+        <div class="col-md-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Blocked sessions', metric: 'postgres.blocked_sessions'} %}
+                {% block body %}
+                    <div class="jm-stat{{ view.blockedCount > 0 ? ' text-warning-emphasis' }}">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.blockedCount}) }}</div>
+                    <div class="small text-muted">{{ view.maxWaitSeconds is null ? 'Sessions waiting on a lock' : 'Max wait: ' ~ view.maxWaitSeconds|jm_duration }}</div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Oldest transaction', metric: 'postgres.oldest_transaction'} %}
+                {% block body %}
+                    {% if view.oldestTransactionSeconds is null %}
+                        <div class="jm-stat text-muted">No active transaction</div>
+                    {% else %}
+                        <div class="jm-stat">{{ view.oldestTransactionSeconds|jm_duration }}</div>
+                        <div class="small text-muted">Longest running transaction</div>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Idle in transaction', metric: 'postgres.idle_in_transaction'} %}
+                {% block body %}
+                    <div class="jm-stat{{ view.idleInTransactionCount > 0 ? ' text-warning-emphasis' }}">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.idleInTransactionCount}) }}</div>
+                    <div class="small text-muted">{{ view.oldestIdleInTransactionSeconds is null ? 'Transactions left open by the application' : 'Oldest: ' ~ view.oldestIdleInTransactionSeconds|jm_duration }}</div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-12">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Blocking chain', metric: 'postgres.blocking_chain', fill: false} %}
+                {% block body %}
+                    {% if view.blockedQueries is empty %}
+                        <p class="text-muted mb-0">No blocking detected.</p>
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Blocked query</th><th class="text-end">Waiting</th><th>Blocked by</th><th>Blocker state</th></tr></thead>
+                                <tbody>
+                                    {% for row in view.blockedQueries %}
+                                        <tr>
+                                            <td><code class="jm-query">{{ row.blocked_query_sample }}</code></td>
+                                            <td class="text-end text-nowrap text-warning-emphasis">{{ row.blocked_wait_seconds|default(null) is null ? '—' : row.blocked_wait_seconds|jm_duration }}</td>
+                                            <td><code class="jm-query">{{ row.blocking_query_sample|default('—') }}</code></td>
+                                            <td class="text-nowrap">{{ row.blocking_state|default('—') }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Storage</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Database size', metric: 'postgres.database_size', value: view.dbSize is null ? null : view.dbSize|jm_bytes}) }}
+        </div>
+        <div class="col-md-6 col-xl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data vs indexes', metric: 'postgres.storage_breakdown'} %}
+                {% block body %}
+                    {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                        'Total size': view.tablesTotalSize is null ? null : view.tablesTotalSize|jm_bytes,
+                        'Indexes size': view.indexesSize is null ? null : view.indexesSize|jm_bytes,
+                        'Tables': view.tableCount,
+                        'Schema': view.schema,
+                    }}) }}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+{% endblock %}
