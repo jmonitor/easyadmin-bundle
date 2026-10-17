@@ -32,13 +32,15 @@ final class DoctrineConnectionsPass implements CompilerPassInterface
             $references[$name] = new Reference($serviceId);
         }
 
+        $locator = ServiceLocatorTagPass::register($container, $references);
+
         foreach (self::DETECTORS as $detector) {
             if (!$container->hasDefinition($detector)) {
                 continue;
             }
 
             $container->getDefinition($detector)
-                ->setArgument('$connections', ServiceLocatorTagPass::register($container, $references))
+                ->setArgument('$connections', $locator)
                 ->setArgument('$connectionNames', array_keys($connections))
             ;
         }

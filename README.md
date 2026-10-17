@@ -123,7 +123,7 @@ jmonitor_easyadmin:
 
 This bundle shows the **present** only: nothing is collected while nobody looks at the page, and nothing is kept.
 
-[jmonitor.io](https://jmonitor.io), the cloud edition (also [self-hostable](https://github.com/jmonitor/jmonitor)), collects your metrics continuously with a worker and keeps their **history**: the dashboards draw their charts, and **alerts** notify you by email when a threshold is crossed or a version reaches its end of life. It also covers Apache, Nginx, Caddy and FrankenPHP.
+[jmonitor.io](https://jmonitor.io), the cloud edition (also [self-hostable](https://github.com/jmonitor/jmonitor)), collects your metrics continuously with a worker and keeps their **history**: the dashboards draw their charts, and **alerts** notify you by email when a threshold is crossed or a version reaches its end of life.
 
 Both use the same collectors and run side by side: install [jmonitor/jmonitor-bundle](https://github.com/jmonitor/jmonitor-bundle), fill its API key and run its worker to send the same metrics to jmonitor.io.
 

@@ -117,6 +117,8 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('99.00%', $html, 'slow query cache hit');
         self::assertStringContainsString('UPDATE account SET balance', $html);
         self::assertStringContainsString('Dead rows ratio', $html);
+        self::assertStringContainsString('100 000 / 1 000 000', $html, 'dead rows out of all rows, like the gauge value');
+        self::assertStringContainsString('backends of this database', $html);
         self::assertStringContainsString('RAM ratio', $html);
         self::assertStringContainsString('Collector configuration:', $html);
         self::assertStringContainsString('disabled', $html, 'log_min_duration_statement badge');
@@ -139,7 +141,8 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
         self::assertStringContainsString('No blocking detected.', $html);
-        self::assertStringContainsString('No active transaction', $html);
+        self::assertStringNotContainsString('No active transaction', $html, 'a null oldest transaction means the sub-query failed, not that there is none');
+        self::assertStringNotContainsString('Longest running transaction', $html);
         self::assertStringNotContainsString('RAM ratio', $html, 'PostgreSQL is not on this host');
     }
 

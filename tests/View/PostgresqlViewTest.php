@@ -33,6 +33,7 @@ final class PostgresqlViewTest extends TestCase
         self::assertSame(100, $view->maxConnections);
         self::assertSame(12.0, $view->connectionsUsage->value);
         self::assertSame(BadgeStyle::Success, $view->connectionsUsage->badge?->style);
+        self::assertSame('backends of this database', $view->connectionsUsage->hint);
         self::assertSame(3, $view->activeConnections);
         self::assertSame(8, $view->idleConnections);
         self::assertSame(1, $view->idleInTransactionConnections);
@@ -220,6 +221,18 @@ final class PostgresqlViewTest extends TestCase
 
         self::assertNull($view->slowQueries[0]['cache_hit']);
         self::assertSame('SELECT * FROM customer WHERE email = $1', $view->slowQueries[0]['query_sample']);
+    }
+
+    public function testABlockedRowWithoutQueryTextIsKept(): void
+    {
+        $activity = Payloads::postgresqlActivity();
+        $activity['sessions']['blocked_queries'][0]['blocked_query_sample'] = null;
+        $view = new PostgresqlView(new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.activity' => new CollectorResult('postgresql.activity', $activity, null, 1_000),
+        ]), $this->gauges());
+
+        self::assertCount(1, $view->blockedQueries, 'the collector counted it in blocked_count');
+        self::assertNull($view->blockedQueries[0]['blocked_query_sample']);
     }
 
     public function testEmptySchema(): void

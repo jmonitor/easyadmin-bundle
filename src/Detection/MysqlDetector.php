@@ -48,35 +48,16 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
 
     public function detect(): Detection
     {
-        if ($this->connectionNames === [] && $this->connection === null) {
-            return Detection::unavailable('No Doctrine DBAL connection is configured.');
+        $connection = DoctrineParams::find($this->connections, $this->connectionNames, $this->connection, self::isMysql(...), 'MySQL or MariaDB');
+
+        if ($connection instanceof Detection) {
+            return $connection;
         }
 
-        $candidates = $this->connection !== null ? [$this->connection] : $this->connectionNames;
+        $params = $connection->getParams();
+        $database = $params['dbname'] ?? null;
 
-        foreach ($candidates as $name) {
-            if (!$this->connections->has($name)) {
-                return Detection::unavailable(sprintf('Unknown Doctrine connection "%s".', $name));
-            }
-
-            /** @var Connection $connection */
-            $connection = $this->connections->get($name);
-            $params = $connection->getParams();
-
-            if (!self::isMysql($params)) {
-                if ($this->connection !== null) {
-                    return Detection::unavailable(sprintf('Doctrine connection "%s" is not a MySQL or MariaDB connection.', $name));
-                }
-
-                continue;
-            }
-
-            $database = $params['dbname'] ?? null;
-
-            return Detection::found($this->collectors($connection, is_string($database) ? $database : '', DoctrineParams::isLocal($params)));
-        }
-
-        return Detection::unavailable('No MySQL or MariaDB Doctrine connection found.');
+        return Detection::found($this->collectors($connection, is_string($database) ? $database : '', DoctrineParams::isLocal($params)));
     }
 
     /**

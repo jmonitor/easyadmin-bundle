@@ -50,33 +50,13 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
 
     public function detect(): Detection
     {
-        if ($this->connectionNames === [] && $this->connection === null) {
-            return Detection::unavailable('No Doctrine DBAL connection is configured.');
+        $connection = DoctrineParams::find($this->connections, $this->connectionNames, $this->connection, self::isPostgresql(...), 'PostgreSQL');
+
+        if ($connection instanceof Detection) {
+            return $connection;
         }
 
-        $candidates = $this->connection !== null ? [$this->connection] : $this->connectionNames;
-
-        foreach ($candidates as $name) {
-            if (!$this->connections->has($name)) {
-                return Detection::unavailable(sprintf('Unknown Doctrine connection "%s".', $name));
-            }
-
-            /** @var Connection $connection */
-            $connection = $this->connections->get($name);
-            $params = $connection->getParams();
-
-            if (!self::isPostgresql($params)) {
-                if ($this->connection !== null) {
-                    return Detection::unavailable(sprintf('Doctrine connection "%s" is not a PostgreSQL connection.', $name));
-                }
-
-                continue;
-            }
-
-            return Detection::found($this->collectors($connection, DoctrineParams::isLocal($params)));
-        }
-
-        return Detection::unavailable('No PostgreSQL Doctrine connection found.');
+        return Detection::found($this->collectors($connection, DoctrineParams::isLocal($connection->getParams())));
     }
 
     /**

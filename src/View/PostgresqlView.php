@@ -97,7 +97,7 @@ final readonly class PostgresqlView
         $this->activityAvailable = $snapshot->has('postgresql.activity');
         $this->numBackends = Values::int($stats['numbackends'] ?? null);
         $this->maxConnections = Values::int($settings['max_connections'] ?? null);
-        $this->connectionsUsage = $gauges->create('postgres.connections_usage', 'Connections usage', Values::percent($this->numBackends, $this->maxConnections));
+        $this->connectionsUsage = $gauges->create('postgres.connections_usage', 'Connections usage', Values::percent($this->numBackends, $this->maxConnections), hint: 'backends of this database');
         $connections = $activity === [] ? null : (is_array($activity['connections'] ?? null) ? $activity['connections'] : []);
         $this->activeConnections = $connections === null ? null : Values::int($connections['active'] ?? 0);
         $this->idleConnections = $connections === null ? null : Values::int($connections['idle'] ?? 0);
@@ -132,7 +132,7 @@ final readonly class PostgresqlView
         $this->oldestTransactionSeconds = Values::int($sessions['oldest_transaction_seconds'] ?? null);
         $this->idleInTransactionCount = Values::int($sessions['idle_in_transaction_count'] ?? null);
         $this->oldestIdleInTransactionSeconds = Values::int($sessions['oldest_idle_in_transaction_seconds'] ?? null);
-        $this->blockedQueries = self::rows($sessions['blocked_queries'] ?? null, 'blocked_query_sample');
+        $this->blockedQueries = self::rows($sessions['blocked_queries'] ?? null, 'blocked_pid');
 
         $this->slowQueriesAvailable = $snapshot->has('postgresql.slow_queries');
         $this->slowQueries = array_map(self::withCacheHit(...), self::rows($slow['slow_queries'] ?? null, 'query_sample'));
