@@ -83,7 +83,6 @@ final class PostgresqlViewTest extends TestCase
         self::assertSame(99.0, $view->slowQueries[0]['cache_hit']);
         self::assertSame(300.25, $view->slowQueries[0]['avg_time_ms'], 'pdo_pgsql gives ROUND(...::numeric) as a string');
         self::assertSame(1_200.0, $view->slowQueries[0]['max_time_ms']);
-        self::assertSame(36_000.0, $view->slowQueries[0]['total_time_ms']);
         self::assertSame(120, $view->slowQueries[0]['exec_count']);
         self::assertSame(0.0, $view->slowQueriesMinAvgTimeMs);
         self::assertSame(1, $view->slowQueriesMinCalls);

@@ -235,10 +235,8 @@ final readonly class PostgresqlView
 
         return [
             'exec_count' => Values::int($row['exec_count'] ?? null),
-            'total_time_ms' => Values::float($row['total_time_ms'] ?? null),
             'avg_time_ms' => Values::float($row['avg_time_ms'] ?? null),
             'max_time_ms' => Values::float($row['max_time_ms'] ?? null),
-            'stddev_time_ms' => Values::float($row['stddev_time_ms'] ?? null),
             'cache_hit' => $ratio === null ? null : round($ratio, 2),
         ] + $row;
     }
