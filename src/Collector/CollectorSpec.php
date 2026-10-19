@@ -14,6 +14,7 @@ final readonly class CollectorSpec
         public CollectorInterface $collector,
         public Lifetime $lifetime,
         public bool $trackDelta = false,
+        public bool $perServer = false,
     ) {
         $this->name = $collector->getName();
     }

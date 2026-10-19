@@ -123,6 +123,26 @@ final class DoctrineParams
     }
 
     /**
+     * @param array<string, mixed> $params
+     */
+    public static function server(array $params): Server
+    {
+        $params = self::primary($params);
+        $socket = $params['unix_socket'] ?? null;
+
+        if (is_string($socket) && $socket !== '') {
+            return new Server('socket:' . $socket, 'localhost', null);
+        }
+
+        $host = $params['host'] ?? null;
+        $host = is_string($host) && $host !== '' ? strtolower($host) : 'localhost';
+        $port = $params['port'] ?? null;
+        $port = is_int($port) || (is_string($port) && ctype_digit($port)) ? (int) $port : 3306;
+
+        return new Server($host . ':' . $port, $host, $port);
+    }
+
+    /**
      * @param list<string> $patterns
      */
     private static function isExcluded(string $name, array $patterns): bool

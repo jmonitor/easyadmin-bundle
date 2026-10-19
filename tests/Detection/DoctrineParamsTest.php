@@ -35,4 +35,29 @@ final class DoctrineParamsTest extends TestCase
     {
         self::assertSame($local, DoctrineParams::isLocal($params));
     }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, array{string, string, ?int}}>
+     */
+    public static function servers(): iterable
+    {
+        yield 'no host' => [[], ['localhost:3306', 'localhost', 3306]];
+        yield 'localhost' => [['host' => 'localhost'], ['localhost:3306', 'localhost', 3306]];
+        yield 'uppercase host with default port' => [['host' => 'LOCALHOST', 'port' => 3306], ['localhost:3306', 'localhost', 3306]];
+        yield 'remote host with a string port' => [['host' => 'db1.internal', 'port' => '3307'], ['db1.internal:3307', 'db1.internal', 3307]];
+        yield 'socket' => [['host' => 'db.internal', 'unix_socket' => '/run/mysqld/mysqld.sock'], ['socket:/run/mysqld/mysqld.sock', 'localhost', null]];
+        yield 'primary' => [['primary' => ['host' => 'db1.internal'], 'replica' => [['host' => 'db2.internal']]], ['db1.internal:3306', 'db1.internal', 3306]];
+    }
+
+    /**
+     * @param array<string, mixed>        $params
+     * @param array{string, string, ?int} $expected
+     */
+    #[DataProvider('servers')]
+    public function testServer(array $params, array $expected): void
+    {
+        $server = DoctrineParams::server($params);
+
+        self::assertSame($expected, [$server->key, $server->host, $server->port]);
+    }
 }

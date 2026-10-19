@@ -22,6 +22,12 @@ final class CollectorSetTest extends TestCase
         self::assertTrue($spec->trackDelta);
     }
 
+    public function testSpecIsNotPerServerByDefault(): void
+    {
+        self::assertFalse((new CollectorSpec(new FakeCollector('a'), Lifetime::Static))->perServer);
+        self::assertTrue((new CollectorSpec(new FakeCollector('a'), Lifetime::Static, perServer: true))->perServer);
+    }
+
     public function testSetExposesNamesAndLookup(): void
     {
         $status = new CollectorSpec(new FakeCollector('mysql.status'), Lifetime::Dynamic);

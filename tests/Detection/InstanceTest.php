@@ -7,6 +7,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\Detection;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Jmonitor\EasyAdminBundle\Detection\Server;
 use PHPUnit\Framework\TestCase;
 
 final class InstanceTest extends TestCase
@@ -46,5 +47,20 @@ final class InstanceTest extends TestCase
         self::assertNull($instance->collectors);
         self::assertSame('Unknown Doctrine connection "dwh".', $instance->error);
         self::assertSame('postgresql.dwh.', $instance->keyPrefix());
+    }
+
+    public function testTheServerPrefixNeverCollidesWithAConnectionPrefix(): void
+    {
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), '%server', null, new Server('x', 'localhost', 3306));
+
+        self::assertSame('mysql.%25server.', $instance->keyPrefix());
+        self::assertFalse(str_starts_with($instance->keyPrefix(), 'mysql.%server.'));
+        self::assertSame('mysql.%server.' . hash('xxh128', 'x') . '.', $instance->serverKeyPrefix());
+    }
+
+    public function testThereIsNoServerPrefixWithoutServer(): void
+    {
+        self::assertNull(Instance::unavailable(Component::Mysql, 'error', 'a')->serverKeyPrefix());
+        self::assertNull(Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'a')->serverKeyPrefix());
     }
 }

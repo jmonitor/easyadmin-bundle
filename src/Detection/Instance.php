@@ -21,11 +21,12 @@ final readonly class Instance
         public ?string $detail,
         public ?CollectorSet $collectors,
         public ?string $error,
+        public ?Server $server = null,
     ) {}
 
-    public static function found(Component $component, CollectorSet $collectors, ?string $id = null, ?string $detail = null): self
+    public static function found(Component $component, CollectorSet $collectors, ?string $id = null, ?string $detail = null, ?Server $server = null): self
     {
-        return new self($component, $id, $detail, $collectors, null);
+        return new self($component, $id, $detail, $collectors, null, $server);
     }
 
     public static function unavailable(Component $component, string $error, ?string $id = null, ?string $detail = null): self
@@ -48,5 +49,14 @@ final readonly class Instance
     public function keyPrefix(): string
     {
         return $this->id === null ? '' : $this->component->value . '.' . rawurlencode($this->id) . '.';
+    }
+
+    /**
+     * Namespace of the entries shared by the instances of one server. The unencoded "%server" segment
+     * cannot appear in keyPrefix(), where rawurlencode() turns any "%" into "%25".
+     */
+    public function serverKeyPrefix(): ?string
+    {
+        return $this->server === null ? null : $this->component->value . '.%server.' . hash('xxh128', $this->server->key) . '.';
     }
 }
