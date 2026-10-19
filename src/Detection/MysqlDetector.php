@@ -61,6 +61,7 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
             'MySQL or MariaDB',
             $this->skipped,
             $this->exclude,
+            byServer: true,
         );
     }
 
@@ -82,14 +83,14 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
     {
         $adapter = new FailFastDoctrineAdapter($connection);
         $specs = [
-            new CollectorSpec(new MysqlStatusCollector($adapter), Lifetime::Dynamic, trackDelta: true),
-            new CollectorSpec(new MysqlVariablesCollector($adapter), Lifetime::Static),
+            new CollectorSpec(new MysqlStatusCollector($adapter), Lifetime::Dynamic, trackDelta: true, perServer: true),
+            new CollectorSpec(new MysqlVariablesCollector($adapter), Lifetime::Static, perServer: true),
             new CollectorSpec(new MysqlInformationSchemaCollector($adapter, $database), Lifetime::Static),
             new CollectorSpec(new MysqlSlowQueriesCollector($adapter, $database, 10, 1, 0, MysqlSlowQueriesCollector::ORDER_BY_AVG_TIME), Lifetime::Minute),
         ];
 
         if ($local && ($this->systemAdapter !== null || $this->osFamily === 'Linux')) {
-            $specs[] = new CollectorSpec(new HostRamCollector($this->systemAdapter ?? new LinuxAdapter()), Lifetime::Static);
+            $specs[] = new CollectorSpec(new HostRamCollector($this->systemAdapter ?? new LinuxAdapter()), Lifetime::Static, perServer: true);
         }
 
         return new CollectorSet(Component::Mysql, $specs);

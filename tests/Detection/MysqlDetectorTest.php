@@ -265,6 +265,43 @@ final class MysqlDetectorTest extends TestCase
         }
     }
 
+    public function testConnectionsOfTheSameServerShareIt(): void
+    {
+        $locator = new ServiceLocator([
+            'default' => fn(): Connection => $this->serverConnection('db.internal', null, 'shop'),
+            'reporting' => fn(): Connection => $this->serverConnection('DB.internal', 3306, 'reports'),
+            'legacy' => fn(): Connection => $this->serverConnection('db2.internal', null, 'old'),
+        ]);
+
+        $detection = (new MysqlDetector($locator, ['default', 'reporting', 'legacy'], []))->detect();
+
+        self::assertSame(['db.internal:3306', 'db.internal:3306', 'db2.internal:3306'], array_map(static fn(Instance $instance): ?string => $instance->server?->key, $detection->instances));
+
+        $configured = (new MysqlDetector($locator, ['default', 'reporting', 'legacy'], ['reporting' => []]))->detect();
+
+        self::assertSame('db.internal:3306', $configured->instances[0]->server?->key);
+    }
+
+    public function testServerCollectorsAreSharedAndDatabaseCollectorsAreNot(): void
+    {
+        $connection = $this->serverConnection('localhost', null, 'app');
+        $system = $this->createMock(AdapterInterface::class);
+
+        $collectors = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'Linux', $system))->detect()->instances[0]->collectors;
+
+        self::assertSame(
+            ['mysql.status' => true, 'mysql.variables' => true, 'mysql.information_schema' => false, 'mysql.slow_queries' => false, 'system.ram_total' => true],
+            array_combine($collectors?->names() ?? [], array_map(static fn($spec): bool => $spec->perServer, $collectors?->specs ?? [])),
+        );
+    }
+
+    public function testAConnectionInErrorHasNoServer(): void
+    {
+        $detection = (new MysqlDetector(new ServiceLocator([]), ['default'], ['missing' => []]))->detect();
+
+        self::assertNull($detection->instances[0]->server);
+    }
+
     /**
      * @param list<Instance> $instances
      *
@@ -273,6 +310,14 @@ final class MysqlDetectorTest extends TestCase
     private static function ids(array $instances): array
     {
         return array_map(static fn(Instance $instance): ?string => $instance->id, $instances);
+    }
+
+    private function serverConnection(string $host, ?int $port, string $database): Connection
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => $host, 'dbname' => $database] + ($port === null ? [] : ['port' => $port]));
+
+        return $connection;
     }
 
     private function mysqlConnection(string $database): Connection

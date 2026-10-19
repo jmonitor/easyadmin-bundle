@@ -55,6 +55,16 @@ final class PostgresqlDetectorTest extends TestCase
         self::assertFalse($detection->instances[0]->collectors->get('postgresql.slow_queries')->trackDelta);
     }
 
+    public function testInstancesAreNotGroupedByServer(): void
+    {
+        $instance = (new PostgresqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default'], []))->detect()->instances[0];
+
+        self::assertNull($instance->server);
+        foreach ($instance->collectors?->specs ?? [] as $spec) {
+            self::assertFalse($spec->perServer, $spec->name);
+        }
+    }
+
     public function testEveryPostgresqlConnectionGivesAnInstanceUnlessSomeAreConfigured(): void
     {
         $sqlite = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
