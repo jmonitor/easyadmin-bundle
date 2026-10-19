@@ -125,7 +125,7 @@ jmonitor_easyadmin:
 
 `permission` restricts the pages to the users granted that role or voter attribute, on every dashboard, on top of the security of the dashboard itself; the others get a 403. Hide the menu link the same way: `MenuItem::linkToRoute(...)->setPermission('ROLE_SUPER_ADMIN')`.
 
-`connections` lists the Doctrine connections to show, each one becoming a pill under the tabs; a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
+`connections` lists the Doctrine connections to show, each one becoming a pill under the tabs (MySQL groups them by server: a pill per server, then the databases of the selected server); a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
 
 `exclude_connections` leaves out of the MySQL and PostgreSQL tabs the Doctrine connections whose name matches one of its patterns, with the `*` and `?` wildcards: the connections your application declares but does not serve, for instance `exclude_connections: ['*_backup']`. These connections are not even built, which matters when Doctrine opens a connection to read its server version (`mapping_types` without `server_version`). A connection listed in `connections` cannot match it.
 
