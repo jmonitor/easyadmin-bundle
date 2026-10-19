@@ -23,7 +23,7 @@ final class DoctrineConnections implements ResetInterface
     /** Only what the detectors read: the credentials never reach the cache. */
     private const PARAMS = ['driver', 'driverClass', 'dbname', 'host', 'port', 'unix_socket'];
 
-    /** @var ?array<string, array{params: array<string, mixed>, until: int}|array{error: string, until: int}> */
+    /** @var ?array<string, array{params: ?array<string, mixed>, error: ?string, until: int}> */
     private ?array $entries = null;
 
     /**
@@ -75,7 +75,7 @@ final class DoctrineConnections implements ResetInterface
                 $changed = true;
             }
 
-            $read[$name] = $entry['params'] ?? $entry['error'];
+            $read[$name] = $entry['params'] ?? (string) $entry['error'];
         }
 
         if ($changed) {
@@ -104,7 +104,7 @@ final class DoctrineConnections implements ResetInterface
     }
 
     /**
-     * @return array<string, array{params: array<string, mixed>, until: int}|array{error: string, until: int}>
+     * @return array<string, array{params: ?array<string, mixed>, error: ?string, until: int}>
      */
     private function load(): array
     {
@@ -122,9 +122,9 @@ final class DoctrineConnections implements ResetInterface
             }
 
             if (is_array($entry['params'] ?? null)) {
-                $entries[(string) $name] = ['params' => $entry['params'], 'until' => $entry['until']];
+                $entries[(string) $name] = ['params' => $entry['params'], 'error' => null, 'until' => $entry['until']];
             } elseif (is_string($entry['error'] ?? null)) {
-                $entries[(string) $name] = ['error' => $entry['error'], 'until' => $entry['until']];
+                $entries[(string) $name] = ['params' => null, 'error' => $entry['error'], 'until' => $entry['until']];
             }
         }
 
@@ -132,14 +132,14 @@ final class DoctrineConnections implements ResetInterface
     }
 
     /**
-     * @return array{params: array<string, mixed>, until: int}|array{error: string, until: int}
+     * @return array{params: ?array<string, mixed>, error: ?string, until: int}
      */
     private function describe(string $name, int $now): array
     {
         try {
-            return ['params' => self::strip($this->get($name)->getParams()), 'until' => $now + $this->lifetime];
+            return ['params' => self::strip($this->get($name)->getParams()), 'error' => null, 'until' => $now + $this->lifetime];
         } catch (\Throwable $e) {
-            return ['error' => self::message($e), 'until' => $now + $this->errorLifetime];
+            return ['params' => null, 'error' => self::message($e), 'until' => $now + $this->errorLifetime];
         }
     }
 
