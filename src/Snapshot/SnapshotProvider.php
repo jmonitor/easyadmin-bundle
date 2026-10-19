@@ -8,16 +8,21 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
+use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
 
 /**
  * Collects an instance's data behind the cache: each collector has its own lifetime,
- * a failure is cached for the dynamic lifetime so a dead service is not hammered.
+ * a failure is cached for the dynamic lifetime so a dead service is not hammered, an
+ * unreachable server for at least a minute since each attempt may wait for a timeout.
+ * One request at a time collects an instance: the others do not pile up on the same timeout.
  */
 final readonly class SnapshotProvider
 {
+    public const IN_PROGRESS = 'Another request is collecting these metrics, they show on the next refresh.';
+
     public function __construct(
         private CollectorRunner $runner,
         private DeltaCalculator $deltas,
@@ -33,10 +38,28 @@ final readonly class SnapshotProvider
             return new ComponentSnapshot($instance->component, [], $instance->error);
         }
 
+        $prefix = $instance->keyPrefix();
+        $lockKey = self::lockKey($instance);
+        $locked = null;
         $results = [];
 
-        foreach ($instance->collectors->specs as $spec) {
-            $results[$spec->name] = $this->result($spec, $instance->keyPrefix());
+        try {
+            foreach ($instance->collectors->specs as $spec) {
+                $result = $this->cached($spec, $prefix);
+
+                if ($result === null) {
+                    $locked ??= $this->lock($lockKey);
+                    $result = $locked
+                        ? $this->collect($spec, $prefix)
+                        : new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp());
+                }
+
+                $results[$spec->name] = $result;
+            }
+        } finally {
+            if ($locked === true) {
+                $this->cache->deleteItem($lockKey);
+            }
         }
 
         return new ComponentSnapshot($instance->component, $results);
@@ -69,30 +92,71 @@ final readonly class SnapshotProvider
         return sprintf('%s (%s)', $e->getMessage(), $cause);
     }
 
-    private function result(CollectorSpec $spec, string $prefix): CollectorResult
+    private static function lockKey(Instance $instance): string
     {
-        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
+        return 'jmonitor_easyadmin.collecting.' . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
+    }
 
-        if ($item->isHit() && CollectorResult::isValidArray($item->get())) {
-            return CollectorResult::fromArray($spec->name, $item->get());
+    private static function isUnreachable(\Throwable $e): bool
+    {
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof UnreachableServerException) {
+                return true;
+            }
         }
 
+        return false;
+    }
+
+    /**
+     * Best effort, the cache offers no atomic write: two requests may still both collect.
+     * The marker expires on its own when the request holding it dies.
+     */
+    private function lock(string $key): bool
+    {
+        $item = $this->cache->getItem($key);
+
+        if ($item->isHit()) {
+            return false;
+        }
+
+        $this->cache->save($item->set(true)->expiresAfter($this->unreachableTtl()));
+
+        return true;
+    }
+
+    private function unreachableTtl(): int
+    {
+        return max(Lifetime::Minute->ttl($this->pollingInterval, $this->staticTtl), Lifetime::Dynamic->ttl($this->pollingInterval, $this->staticTtl));
+    }
+
+    private function cached(CollectorSpec $spec, string $prefix): ?CollectorResult
+    {
+        $values = $this->cache->getItem(self::cacheKey($spec->name, $prefix))->get();
+
+        return CollectorResult::isValidArray($values) ? CollectorResult::fromArray($spec->name, $values) : null;
+    }
+
+    private function collect(CollectorSpec $spec, string $prefix): CollectorResult
+    {
         $now = $this->clock->now()->getTimestamp();
 
         try {
             $data = $this->runner->run($spec->collector);
             $error = null;
+            $ttl = $spec->lifetime->ttl($this->pollingInterval, $this->staticTtl);
         } catch (\Throwable $e) {
             $data = [];
             $error = self::describe($e);
+            $ttl = self::isUnreachable($e) ? $this->unreachableTtl() : Lifetime::Dynamic->ttl($this->pollingInterval, $this->staticTtl);
         }
 
         $delta = $error === null && $spec->trackDelta ? $this->deltas->track($prefix . $spec->name, $data, $now) : null;
         $result = new CollectorResult($spec->name, $data, $error, $now, $delta);
-        $lifetime = $error === null ? $spec->lifetime : Lifetime::Dynamic;
+        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
 
         $item->set($result->toArray());
-        $item->expiresAfter($lifetime->ttl($this->pollingInterval, $this->staticTtl));
+        $item->expiresAfter($ttl);
         $this->cache->save($item);
 
         return $result;

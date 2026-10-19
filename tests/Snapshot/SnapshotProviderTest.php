@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
+use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
@@ -105,6 +106,102 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame('performance_schema table is not readable', $snapshot->result('mysql.slow_queries')?->error);
         self::assertSame(1, $slow->collects, 'the failure is cached too');
         self::assertSame(10, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.slow_queries')], 'but only for the dynamic lifetime, not the collector one');
+    }
+
+    public function testAnUnreachableServerIsCachedForAMinute(): void
+    {
+        $unreachable = new UnreachableServerException('SQLSTATE[HY000] [2002] Connection timed out');
+        $status = new FakeCollector('mysql.status', bootFailure: new BootFailedException('SHOW GLOBAL STATUS is not accessible', $unreachable));
+        [$provider, $instance] = $this->provider(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]);
+
+        $snapshot = $provider->get($instance);
+
+        self::assertSame('SHOW GLOBAL STATUS is not accessible (SQLSTATE[HY000] [2002] Connection timed out)', $snapshot->result('mysql.status')?->error);
+        self::assertSame(60, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.status')]);
+    }
+
+    public function testAnUnreachableServerIsCachedForThePollingIntervalWhenLonger(): void
+    {
+        $status = new FakeCollector('mysql.status', collectFailure: new UnreachableServerException('Connection timed out'));
+        $provider = new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($this->cache, 60), $this->cache, $this->clock, 120, 3600);
+
+        $provider->get(Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)])));
+
+        self::assertSame(120, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.status')]);
+    }
+
+    public function testAnInstanceIsCollectedByOneRequestAtATime(): void
+    {
+        $lockKey = 'jmonitor_easyadmin.collecting.mysql.default';
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $variables = new class ($this->cache, $lockKey) implements CollectorInterface {
+            public ?bool $locked = null;
+
+            public function __construct(
+                private readonly RecordingCachePool $cache,
+                private readonly string $lockKey,
+            ) {}
+
+            public function collect(): array
+            {
+                $this->locked = $this->cache->hasItem($this->lockKey);
+
+                return ['version' => '8.4'];
+            }
+
+            public function getVersion(): int
+            {
+                return 1;
+            }
+
+            public function getName(): string
+            {
+                return 'mysql.variables';
+            }
+        };
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [
+            new CollectorSpec($status, Lifetime::Dynamic),
+            new CollectorSpec($variables, Lifetime::Static),
+        ]), 'default');
+
+        $this->bareProvider()->get($instance);
+
+        self::assertTrue($variables->locked, 'the instance is locked while collecting');
+        self::assertFalse($this->cache->hasItem($lockKey), 'and released afterwards');
+        self::assertSame(60, $this->cache->ttls[$lockKey], 'the lock of a request that died expires on its own');
+    }
+
+    public function testAnotherRequestSeesTheCachedResultsAndWaitsForTheOthers(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $variables = new FakeCollector('mysql.variables', ['version' => '8.4']);
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [
+            new CollectorSpec($status, Lifetime::Dynamic),
+            new CollectorSpec($variables, Lifetime::Static),
+        ]), 'default');
+        $provider = $this->bareProvider();
+        $provider->get($instance);
+        $this->cache->deleteItem(SnapshotProvider::cacheKey('mysql.status', 'mysql.default.'));
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.default')->set(true));
+
+        $snapshot = $provider->get($instance);
+
+        self::assertSame(1, $status->collects, 'not collected while another request does');
+        self::assertSame(SnapshotProvider::IN_PROGRESS, $snapshot->result('mysql.status')?->error);
+        self::assertSame(['version' => '8.4'], $snapshot->data('mysql.variables'));
+        self::assertFalse($this->cache->hasItem(SnapshotProvider::cacheKey('mysql.status', 'mysql.default.')), 'the placeholder is not cached');
+        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.collecting.mysql.default'), 'nor the lock of the other request released');
+    }
+
+    public function testTheImplicitInstancesOfTwoComponentsHaveTheirOwnLock(): void
+    {
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.system')->set(true));
+        $php = new FakeCollector('php', ['version' => '8.4']);
+
+        $snapshot = $this->bareProvider()->get(Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Dynamic)])));
+
+        self::assertSame(1, $php->collects);
+        self::assertTrue($snapshot->result('php')?->ok());
     }
 
     public function testTheCauseOfAWrappedFailureIsPartOfTheMessage(): void

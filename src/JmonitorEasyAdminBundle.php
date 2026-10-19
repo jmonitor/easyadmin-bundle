@@ -143,7 +143,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
      * @param (callable(NodeBuilder): void)|null                         $options
-     * @param ?ArrayNodeDefinition                                        $connections the "connections" node of a database component
+     * @param ?ArrayNodeDefinition                                        $connections the "connections" node of a database component, which also gets "exclude"
      * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $merge       applied to the component once every file is merged
      */
     private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, ?\Closure $merge = null): ArrayNodeDefinition
@@ -166,6 +166,15 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ;
         }
 
+        if ($connections !== null) {
+            $node
+                ->validate()
+                    ->ifTrue(static fn(array $v): bool => $v['connections'] !== [] && $v['exclude'] !== [])
+                    ->then(static fn(): never => throw new InvalidConfigurationException(sprintf('You cannot set both "connections" and "exclude" for the %s component: "exclude" filters the connections found when "connections" is empty.', $name)))
+                ->end()
+            ;
+        }
+
         $children = $node->children();
         $children->enumNode('enabled')->values(['auto', true, false])->defaultValue('auto');
 
@@ -175,6 +184,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 
         if ($connections !== null) {
             $children->append($connections);
+            $children->arrayNode('exclude')
+                ->info('Patterns of the Doctrine connection names to leave out when "connections" is empty, with the * and ? wildcards of fnmatch(), e.g. "*_backup".')
+                ->scalarPrototype()->cannotBeEmpty()->end()
+            ;
         }
 
         return $node;
