@@ -12,12 +12,16 @@ use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
 use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Jmonitor\EasyAdminBundle\Detection\Server;
+use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cache\RecordingCachePool;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\Collector\CollectorInterface;
 use Jmonitor\Exceptions\BootFailedException;
+use Psr\Cache\CacheItemInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -375,6 +379,145 @@ final class SnapshotProviderTest extends TestCase
 
         self::assertArrayHasKey('jmonitor_easyadmin.collect.php', $this->cache->ttls);
         self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.php'));
+    }
+
+    public function testTwoConnectionsOfAServerShareItsCollectorsAndDeltas(): void
+    {
+        $defaultStatus = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $reportsStatus = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $defaultSchema = new FakeCollector('mysql.information_schema', ['tables' => 10]);
+        $reportsSchema = new FakeCollector('mysql.information_schema', ['tables' => 20]);
+        $default = $this->serverInstance('default', [
+            new CollectorSpec($defaultStatus, Lifetime::Dynamic, trackDelta: true, perServer: true),
+            new CollectorSpec($defaultSchema, Lifetime::Static),
+        ]);
+        $reports = $this->serverInstance('reports', [
+            new CollectorSpec($reportsStatus, Lifetime::Dynamic, trackDelta: true, perServer: true),
+            new CollectorSpec($reportsSchema, Lifetime::Static),
+        ]);
+        $provider = $this->bareProvider();
+
+        $provider->get($default);
+        $reportsSnapshot = $provider->get($reports);
+
+        self::assertSame(1, $defaultStatus->collects);
+        self::assertSame(0, $reportsStatus->collects, 'the server is collected once for its connections');
+        self::assertSame(['Questions' => 100], $reportsSnapshot->data('mysql.status'));
+        self::assertSame(1, $defaultSchema->collects);
+        self::assertSame(1, $reportsSchema->collects, 'a database collector runs for each connection');
+        self::assertSame(['tables' => 20], $reportsSnapshot->data('mysql.information_schema'));
+
+        $this->cache->deleteItem(SnapshotProvider::cacheKey('mysql.status', (string) $reports->serverKeyPrefix()));
+        $reportsStatus->setData(['Questions' => 250]);
+        $this->clock->sleep(11);
+        $reportsSnapshot = $provider->get($reports);
+
+        self::assertSame(1, $reportsStatus->collects);
+        self::assertSame(150, $reportsSnapshot->delta('mysql.status')?->getValue('Questions'), 'compared with the sample of the other connection');
+        self::assertSame(11, $reportsSnapshot->delta('mysql.status')->elapsed);
+    }
+
+    public function testAServerCollectorFailingOnOneConnectionIsNotSharedWithTheOthers(): void
+    {
+        $denied = new FakeCollector('mysql.variables', bootFailure: new BootFailedException('SHOW GLOBAL VARIABLES is not accessible', new \RuntimeException('Access denied')));
+        $granted = new FakeCollector('mysql.variables', ['version' => '8.4']);
+        $default = $this->serverInstance('default', [new CollectorSpec($denied, Lifetime::Static, perServer: true)]);
+        $reports = $this->serverInstance('reports', [new CollectorSpec($granted, Lifetime::Static, perServer: true)]);
+        $provider = $this->bareProvider();
+
+        $defaultSnapshot = $provider->get($default);
+        $reportsSnapshot = $provider->get($reports);
+
+        self::assertSame('SHOW GLOBAL VARIABLES is not accessible (Access denied)', $defaultSnapshot->result('mysql.variables')?->error);
+        self::assertSame(10, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.variables', 'mysql.default.')], 'cached for the connection, for the dynamic lifetime');
+        self::assertSame(1, $granted->collects, 'the failure of a connection is not the server\'s');
+        self::assertSame(['version' => '8.4'], $reportsSnapshot->data('mysql.variables'));
+        self::assertTrue($this->cache->hasItem(SnapshotProvider::cacheKey('mysql.variables', 'mysql.default.')), 'the failure stays cached for its connection');
+
+        $this->clock->sleep(11);
+        $this->cache->deleteItem(SnapshotProvider::cacheKey('mysql.variables', 'mysql.default.'));
+        $defaultSnapshot = $provider->get($default);
+
+        self::assertSame(1, $denied->boots, 'read from the server entry');
+        self::assertSame(['version' => '8.4'], $defaultSnapshot->data('mysql.variables'));
+    }
+
+    public function testRefreshDropsTheServerEntriesAndLock(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $default = $this->serverInstance('default', [new CollectorSpec($status, Lifetime::Dynamic, trackDelta: true, perServer: true)]);
+        $reports = $this->serverInstance('reports', [new CollectorSpec(new FakeCollector('mysql.status', ['Questions' => 100]), Lifetime::Dynamic, trackDelta: true, perServer: true)]);
+        $provider = $this->bareProvider();
+        $lockKey = 'jmonitor_easyadmin.collecting.mysql.%server.' . hash('xxh128', 'db:3306');
+
+        $provider->get($default);
+        $this->cache->save($this->cache->getItem($lockKey)->set('token of a dead request'));
+        $provider->refresh($reports);
+        $provider->get($default);
+
+        self::assertSame(2, $status->collects);
+        self::assertFalse($this->cache->hasItem($lockKey));
+    }
+
+    public function testTheServerCollectorsShareTheLockOfTheServerAndTheDatabaseOnesKeepTheirs(): void
+    {
+        $specs = static fn(): array => [
+            new CollectorSpec(new FakeCollector('mysql.status', ['Questions' => 100]), Lifetime::Dynamic, perServer: true),
+            new CollectorSpec(new FakeCollector('mysql.information_schema', ['tables' => 20]), Lifetime::Static),
+        ];
+        $default = $this->serverInstance('default', $specs());
+        $reports = $this->serverInstance('reports', $specs());
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.%server.' . hash('xxh128', 'db:3306'))->set('token of another request'));
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.reports')->set('token of another request'));
+        $provider = $this->bareProvider();
+
+        $defaultSnapshot = $provider->get($default);
+        $reportsSnapshot = $provider->get($reports);
+
+        self::assertSame(SnapshotProvider::IN_PROGRESS, $defaultSnapshot->result('mysql.status')?->error);
+        self::assertSame(['tables' => 20], $defaultSnapshot->data('mysql.information_schema'), 'another database of the server collects its own collectors');
+        self::assertSame(SnapshotProvider::IN_PROGRESS, $reportsSnapshot->result('mysql.information_schema')?->error);
+    }
+
+    public function testAnEntryFilledWhileTheLockIsTakenIsNotCollectedAgain(): void
+    {
+        $cache = new class extends ArrayAdapter {
+            public ?\Closure $onSave = null;
+
+            public function save(CacheItemInterface $item): bool
+            {
+                $saved = parent::save($item);
+
+                if ($this->onSave !== null) {
+                    ($this->onSave)($item->getKey());
+                }
+
+                return $saved;
+            }
+        };
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $instance = $this->serverInstance('default', [new CollectorSpec($status, Lifetime::Dynamic, trackDelta: true, perServer: true)]);
+        $statusKey = SnapshotProvider::cacheKey('mysql.status', (string) $instance->serverKeyPrefix());
+        $cache->onSave = function (string $key) use ($cache, $statusKey): void {
+            if (str_starts_with($key, 'jmonitor_easyadmin.collecting.')) {
+                $cache->onSave = null;
+                $cache->save($cache->getItem($statusKey)->set((new CollectorResult('mysql.status', ['Questions' => 7], null, 1_000))->toArray()));
+            }
+        };
+        $provider = new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($cache, 5), $cache, $this->clock, 10, 3600);
+
+        $snapshot = $provider->get($instance);
+
+        self::assertSame(0, $status->collects, 'another request collected between the read and the lock');
+        self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
+    }
+
+    /**
+     * @param list<CollectorSpec> $specs
+     */
+    private function serverInstance(string $id, array $specs): Instance
+    {
+        return Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, $specs), $id, server: new Server('db:3306', 'db', 3306));
     }
 
     /**

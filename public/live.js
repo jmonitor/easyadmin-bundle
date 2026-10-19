@@ -103,6 +103,13 @@
         return selection !== null && !selection.isCollapsed && selection.containsNode(element, true);
     }
 
+    // replacing the content would close an open drop-down
+    function hasFocusedSelectInside(element) {
+        var active = document.activeElement;
+
+        return active !== null && active.tagName === 'SELECT' && element.contains(active);
+    }
+
     function replaceContent(html) {
         var activeTabs = Array.prototype.map.call(content.querySelectorAll('[data-bs-toggle="tab"].active'), function (tab) {
             return tab.getAttribute('data-bs-target');
@@ -147,7 +154,7 @@
     }
 
     function refresh() {
-        if (!enabled || inFlight || document.hidden || hasSelectionInside(content)) {
+        if (!enabled || inFlight || document.hidden || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
             return;
         }
 
@@ -178,7 +185,7 @@
                 return response.ok ? response.text() : null;
             })
             .then(function (html) {
-                if (html === null || !enabled || hasSelectionInside(content)) {
+                if (html === null || !enabled || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
                     return;
                 }
 

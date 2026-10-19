@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Collector;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Connections\PrimaryReadReplicaConnection;
 use Doctrine\DBAL\Exception\ConnectionLost;
 use Jmonitor\Utils\DatabaseAdapter\DatabaseAdapterInterface;
 
@@ -32,10 +33,15 @@ final class FailFastDoctrineAdapter implements DatabaseAdapterInterface
             throw $this->failure;
         }
 
-        $wasConnected = $this->connection->isConnected();
+        $wasConnected = $this->isConnected();
 
         try {
             try {
+                // reads would go to a replica, not to the primary the server is identified by
+                if ($this->connection instanceof PrimaryReadReplicaConnection && !$wasConnected) {
+                    $this->connection->ensureConnectedToPrimary();
+                }
+
                 return $this->connection->fetchAllAssociative($query, $params);
             } catch (ConnectionLost $e) {
                 // An open connection the server dropped meanwhile ("gone away") reconnects; a new one would wait again.
@@ -46,11 +52,17 @@ final class FailFastDoctrineAdapter implements DatabaseAdapterInterface
                 return $this->connection->fetchAllAssociative($query, $params);
             }
         } catch (\Throwable $e) {
-            if ($this->connection->isConnected()) {
+            if ($this->isConnected()) {
                 throw $e;
             }
 
             throw $this->failure = new UnreachableServerException($e->getMessage(), 0, $e);
         }
+    }
+
+    private function isConnected(): bool
+    {
+        // DBAL 3 declares no return type on these methods
+        return ($this->connection instanceof PrimaryReadReplicaConnection ? $this->connection->isConnectedToPrimary() : $this->connection->isConnected()) === true;
     }
 }

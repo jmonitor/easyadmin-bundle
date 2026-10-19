@@ -216,3 +216,7 @@
     height: 100%;
     border: 0;
 }
+
+.jm-navigate-js .jm-navigate-submit {
+    display: none;
+}

@@ -9,12 +9,13 @@
 
 {% block head_javascript %}
     {{ parent() }}
-    {% set scripts = ['help.js']|merge(current and polling_interval > 0 ? ['live.js'] : []) %}
-    {% for script in scripts %}
+    {# navigation.js runs before the page is drawn: it hides the fallback button of the database drop-down #}
+    {% set scripts = {'navigation.js': false, 'help.js': true}|merge(current and polling_interval > 0 ? {'live.js': true} : {}) %}
+    {% for script, defer in scripts %}
         {% guard function csp_nonce %}
-            <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}" nonce="{{ csp_nonce('script') }}" defer></script>
+            <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}" nonce="{{ csp_nonce('script') }}"{{ defer ? ' defer' }}></script>
         {% else %}
-            <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}" defer></script>
+            <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}"{{ defer ? ' defer' }}></script>
         {% endguard %}
     {% endfor %}
 {% endblock %}
@@ -57,12 +58,12 @@
             {% endif %}
         </div>
 
-        {% if instances|length > 1 %}
+        {% if navigation.pills %}
             <ul class="nav nav-pills jm-instances mb-3">
-                {% for item in instances %}
+                {% for item in navigation.pills %}
                     <li class="nav-item">
-                        <a class="nav-link py-1 px-2{{ item is same as(instance) ? ' active' }}"{% if item is same as(instance) %} aria-current="true"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.id}) }}">
-                            {{ item.id }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" role="img" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
+                        <a class="nav-link py-1 px-2{{ item.active ? ' active' }}"{% if item.active %} aria-current="true"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.target.id}) }}">
+                            {{ item.label }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" role="img" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
                         </a>
                     </li>
                 {% endfor %}

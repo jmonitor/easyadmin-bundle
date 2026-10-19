@@ -11,6 +11,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentDetectorInterface;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Jmonitor\EasyAdminBundle\Detection\Server;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 
 /**
@@ -19,7 +20,7 @@ use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 final class InstancesDetector implements ComponentDetectorInterface
 {
     /**
-     * @param non-empty-list<array{id: string, detail?: ?string, error?: string}> $instances
+     * @param non-empty-list<array{id: string, detail?: ?string, error?: string, server?: string}> $instances
      */
     public function __construct(
         private readonly Component $component,
@@ -40,7 +41,18 @@ final class InstancesDetector implements ComponentDetectorInterface
 
             $collector = new FakeCollector($this->component->value . '.variables', ['version' => '8.4.0']);
 
-            return Instance::found($this->component, new CollectorSet($this->component, [new CollectorSpec($collector, Lifetime::Static)]), $instance['id'], $instance['detail'] ?? null);
+            $server = isset($instance['server']) ? self::server($instance['server']) : null;
+            $set = new CollectorSet($this->component, [new CollectorSpec($collector, Lifetime::Static, perServer: $server !== null)]);
+
+            return Instance::found($this->component, $set, $instance['id'], $instance['detail'] ?? null, $server);
         }, $this->instances));
+    }
+
+    private static function server(string $address): Server
+    {
+        [$host, $port] = array_pad(explode(':', $address, 2), 2, '3306');
+        $host = strtolower($host);
+
+        return new Server($host . ':' . $port, $host, (int) $port);
     }
 }

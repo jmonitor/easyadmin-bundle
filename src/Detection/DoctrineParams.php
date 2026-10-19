@@ -30,8 +30,9 @@ final class DoctrineParams
      * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
      * @param ?SkippedConnectionReporter                               $skipped         told of the connections skipped because they cannot be read
      * @param list<string>                                             $exclude         fnmatch() patterns of the connection names left out when none is configured
+     * @param bool                                                     $byServer        attaches each found instance to the server of its connection
      */
-    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null, array $exclude = []): Detection
+    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null, array $exclude = [], bool $byServer = false): Detection
     {
         if ($configured !== []) {
             $instances = [];
@@ -40,7 +41,7 @@ final class DoctrineParams
                 $name = (string) $name;
                 $instances[] = $connectionNames === []
                     ? Instance::unavailable($component, self::NO_DBAL, $name)
-                    : self::configured($component, $connections, $name, $options, $matches, $collectors, $product);
+                    : self::configured($component, $connections, $name, $options, $matches, $collectors, $product, $byServer);
             }
 
             return Detection::instances($instances);
@@ -73,7 +74,7 @@ final class DoctrineParams
             $params = $connection->getParams();
 
             if ($matches($params)) {
-                $instances[] = Instance::found($component, $collectors($connection, $params, []), $name, self::database($params));
+                $instances[] = Instance::found($component, $collectors($connection, $params, []), $name, self::database($params), $byServer ? self::server($params) : null);
             }
         }
 
@@ -109,7 +110,7 @@ final class DoctrineParams
     {
         $params = self::primary($params);
 
-        if (is_string($params['unix_socket'] ?? null) && $params['unix_socket'] !== '') {
+        if (self::socket($params) !== null) {
             return true;
         }
 
@@ -120,6 +121,26 @@ final class DoctrineParams
         }
 
         return is_string($host) && (str_starts_with($host, '/') || in_array(strtolower($host), self::LOCAL_HOSTS, true));
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    public static function server(array $params): Server
+    {
+        $params = self::primary($params);
+        $socket = self::socket($params);
+
+        if ($socket !== null) {
+            return new Server('socket:' . $socket, 'localhost', null, $socket);
+        }
+
+        $host = $params['host'] ?? null;
+        $host = is_string($host) && $host !== '' ? strtolower($host) : 'localhost';
+        $port = $params['port'] ?? null;
+        $port = is_int($port) || (is_string($port) && ctype_digit($port)) ? (int) $port : 3306;
+
+        return new Server($host . ':' . $port, $host, $port);
     }
 
     /**
@@ -149,11 +170,28 @@ final class DoctrineParams
     }
 
     /**
+     * The MySQL drivers only use the socket without a host or with "localhost", TCP otherwise.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function socket(array $params): ?string
+    {
+        $socket = $params['unix_socket'] ?? null;
+        $host = $params['host'] ?? null;
+
+        if (!is_string($socket) || $socket === '') {
+            return null;
+        }
+
+        return $host === null || $host === '' || (is_string($host) && strtolower($host) === 'localhost') ? $socket : null;
+    }
+
+    /**
      * @param array<string, mixed>                                                           $options
      * @param callable(array<string, mixed>): bool                                           $matches
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors
      */
-    private static function configured(Component $component, ContainerInterface $connections, string $name, array $options, callable $matches, callable $collectors, string $product): Instance
+    private static function configured(Component $component, ContainerInterface $connections, string $name, array $options, callable $matches, callable $collectors, string $product, bool $byServer): Instance
     {
         if (!$connections->has($name)) {
             return Instance::unavailable($component, sprintf('Unknown Doctrine connection "%s".', $name), $name);
@@ -172,6 +210,6 @@ final class DoctrineParams
             return Instance::unavailable($component, sprintf('Doctrine connection "%s" is not a %s connection.', $name, $product), $name, self::database($params));
         }
 
-        return Instance::found($component, $collectors($connection, $params, $options), $name, self::database($params));
+        return Instance::found($component, $collectors($connection, $params, $options), $name, self::database($params), $byServer ? self::server($params) : null);
     }
 }

@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The MySQL tab shows each server once, then the selected database.
 - An unreachable database server is tried once per collect and no longer by several requests at a time.
+
+### Fixed
+
+- A MySQL `unix_socket` next to a remote host no longer counts as a local server.
 
 ## [1.1.1] - 2026-10-17
 
