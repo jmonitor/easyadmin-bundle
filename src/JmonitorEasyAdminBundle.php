@@ -95,6 +95,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->defaultNull()
                     ->info('Role or voter attribute required to see the pages, checked with is_granted(). Null leaves the access to the security of the dashboard.')
                 ->end()
+                ->arrayNode('exclude_connections')
+                    ->info('Patterns of the Doctrine connections the MySQL and PostgreSQL tabs leave out, never built, with the * and ? wildcards of fnmatch(), e.g. "*_backup".')
+                    ->beforeNormalization()->castToArray()->end()
+                    ->scalarPrototype()
+                        ->cannotBeEmpty()
+                        ->validate()
+                            ->ifTrue(static fn(mixed $v): bool => !is_string($v))
+                            ->then(static fn(mixed $v): never => throw new InvalidConfigurationException(sprintf('The patterns of "exclude_connections" must be strings, got %s: quote them.', json_encode($v))))
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('components')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -136,14 +147,39 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->end()
                 ->end()
             ->end()
+            ->validate()
+                ->always(static fn(array $v): array => self::refuseExcludedConfiguredConnections($v))
+            ->end()
         ;
+    }
+
+    /**
+     * A connection named in "connections" and matching "exclude_connections" would be shown and never built.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    private static function refuseExcludedConfiguredConnections(array $config): array
+    {
+        foreach (['mysql', 'postgresql'] as $component) {
+            foreach (array_keys($config['components'][$component]['connections']) as $name) {
+                foreach ($config['exclude_connections'] as $pattern) {
+                    if (fnmatch($pattern, (string) $name)) {
+                        throw new InvalidConfigurationException(sprintf('The connection "%s" of the %s component matches the pattern "%s" of "exclude_connections".', $name, $component, $pattern));
+                    }
+                }
+            }
+        }
+
+        return $config;
     }
 
     /**
      * A component accepts "auto", true or false as a shorthand for its "enabled" key.
      *
      * @param (callable(NodeBuilder): void)|null                         $options
-     * @param ?ArrayNodeDefinition                                        $connections the "connections" node of a database component, which also gets "exclude"
+     * @param ?ArrayNodeDefinition                                        $connections the "connections" node of a database component
      * @param (\Closure(array<string, mixed>): array<string, mixed>)|null $merge       applied to the component once every file is merged
      */
     private function componentNode(string $name, string $info, ?callable $options = null, ?ArrayNodeDefinition $connections = null, ?\Closure $merge = null): ArrayNodeDefinition
@@ -166,15 +202,6 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
             ;
         }
 
-        if ($connections !== null) {
-            $node
-                ->validate()
-                    ->ifTrue(static fn(array $v): bool => $v['connections'] !== [] && $v['exclude'] !== [])
-                    ->then(static fn(): never => throw new InvalidConfigurationException(sprintf('You cannot set both "connections" and "exclude" for the %s component: "exclude" filters the connections found when "connections" is empty.', $name)))
-                ->end()
-            ;
-        }
-
         $children = $node->children();
         $children->enumNode('enabled')->values(['auto', true, false])->defaultValue('auto');
 
@@ -184,10 +211,6 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 
         if ($connections !== null) {
             $children->append($connections);
-            $children->arrayNode('exclude')
-                ->info('Patterns of the Doctrine connection names to leave out when "connections" is empty, with the * and ? wildcards of fnmatch(), e.g. "*_backup".')
-                ->scalarPrototype()->cannotBeEmpty()->end()
-            ;
         }
 
         return $node;

@@ -88,7 +88,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$connectionNames' => [],
             '$configured' => $config['components']['mysql']['connections'],
             '$skipped' => service(SkippedConnectionReporter::class),
-            '$exclude' => $config['components']['mysql']['exclude'],
+            '$exclude' => $config['exclude_connections'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Mysql->value])
     ;
@@ -100,7 +100,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
             '$skipped' => service(SkippedConnectionReporter::class),
-            '$exclude' => $config['components']['postgresql']['exclude'],
+            '$exclude' => $config['exclude_connections'],
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Postgresql->value])
     ;

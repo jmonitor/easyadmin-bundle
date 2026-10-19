@@ -10,6 +10,7 @@ use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
 use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
 
@@ -22,6 +23,12 @@ use Psr\Clock\ClockInterface;
 final readonly class SnapshotProvider
 {
     public const IN_PROGRESS = 'Another request is collecting these metrics, they show on the next refresh.';
+
+    /**
+     * Outlasts most connection timeouts: a lock expiring while its request still waits would let another
+     * request start the same wait. Only the lock of a request that died lasts that long.
+     */
+    private const LOCK_TTL = 300;
 
     public function __construct(
         private CollectorRunner $runner,
@@ -40,31 +47,37 @@ final readonly class SnapshotProvider
 
         $prefix = $instance->keyPrefix();
         $lockKey = self::lockKey($instance);
-        $locked = null;
+        $token = null;
         $results = [];
 
         try {
             foreach ($instance->collectors->specs as $spec) {
-                $result = $this->cached($spec, $prefix);
+                $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
+                $values = $item->get();
 
-                if ($result === null) {
-                    $locked ??= $this->lock($lockKey);
-                    $result = $locked
-                        ? $this->collect($spec, $prefix)
-                        : new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp());
+                if (CollectorResult::isValidArray($values)) {
+                    $results[$spec->name] = CollectorResult::fromArray($spec->name, $values);
+
+                    continue;
                 }
 
-                $results[$spec->name] = $result;
+                $token ??= $this->lock($lockKey);
+                $results[$spec->name] = $token === false
+                    ? new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp())
+                    : $this->collect($spec, $prefix, $item);
             }
         } finally {
-            if ($locked === true) {
-                $this->cache->deleteItem($lockKey);
+            if (is_string($token)) {
+                $this->unlock($lockKey, $token);
             }
         }
 
         return new ComponentSnapshot($instance->component, $results);
     }
 
+    /**
+     * Also lifts the lock: the request holding it may have died without releasing it.
+     */
     public function refresh(Instance $instance): void
     {
         foreach ($instance->collectors->specs ?? [] as $spec) {
@@ -74,6 +87,8 @@ final readonly class SnapshotProvider
                 $spec->collector->refresh();
             }
         }
+
+        $this->cache->deleteItem(self::lockKey($instance));
     }
 
     public static function cacheKey(string $name, string $prefix = ''): string
@@ -110,9 +125,10 @@ final readonly class SnapshotProvider
 
     /**
      * Best effort, the cache offers no atomic write: two requests may still both collect.
-     * The marker expires on its own when the request holding it dies.
+     *
+     * @return string|false the token proving the lock is ours, false when another request holds it
      */
-    private function lock(string $key): bool
+    private function lock(string $key): string|false
     {
         $item = $this->cache->getItem($key);
 
@@ -120,9 +136,20 @@ final readonly class SnapshotProvider
             return false;
         }
 
-        $this->cache->save($item->set(true)->expiresAfter($this->unreachableTtl()));
+        $token = bin2hex(random_bytes(8));
+        $this->cache->save($item->set($token)->expiresAfter(max(self::LOCK_TTL, $this->unreachableTtl())));
 
-        return true;
+        return $token;
+    }
+
+    /**
+     * Leaves alone a lock taken over by another request after ours expired.
+     */
+    private function unlock(string $key, string $token): void
+    {
+        if ($this->cache->getItem($key)->get() === $token) {
+            $this->cache->deleteItem($key);
+        }
     }
 
     private function unreachableTtl(): int
@@ -130,14 +157,7 @@ final readonly class SnapshotProvider
         return max(Lifetime::Minute->ttl($this->pollingInterval, $this->staticTtl), Lifetime::Dynamic->ttl($this->pollingInterval, $this->staticTtl));
     }
 
-    private function cached(CollectorSpec $spec, string $prefix): ?CollectorResult
-    {
-        $values = $this->cache->getItem(self::cacheKey($spec->name, $prefix))->get();
-
-        return CollectorResult::isValidArray($values) ? CollectorResult::fromArray($spec->name, $values) : null;
-    }
-
-    private function collect(CollectorSpec $spec, string $prefix): CollectorResult
+    private function collect(CollectorSpec $spec, string $prefix, CacheItemInterface $item): CollectorResult
     {
         $now = $this->clock->now()->getTimestamp();
 
@@ -153,7 +173,6 @@ final readonly class SnapshotProvider
 
         $delta = $error === null && $spec->trackDelta ? $this->deltas->track($prefix . $spec->name, $data, $now) : null;
         $result = new CollectorResult($spec->name, $data, $error, $now, $delta);
-        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
 
         $item->set($result->toArray());
         $item->expiresAfter($ttl);

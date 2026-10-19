@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The MySQL and PostgreSQL tabs can leave out connections with `exclude`.
+- The MySQL and PostgreSQL tabs can leave out Doctrine connections with `exclude_connections`.
 
 ### Changed
 

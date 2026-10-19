@@ -168,7 +168,53 @@ final class SnapshotProviderTest extends TestCase
 
         self::assertTrue($variables->locked, 'the instance is locked while collecting');
         self::assertFalse($this->cache->hasItem($lockKey), 'and released afterwards');
-        self::assertSame(60, $this->cache->ttls[$lockKey], 'the lock of a request that died expires on its own');
+        self::assertSame(300, $this->cache->ttls[$lockKey], 'the lock of a request that died expires on its own, after most connection timeouts');
+    }
+
+    public function testALockTakenOverByAnotherRequestIsLeftToIt(): void
+    {
+        $lockKey = 'jmonitor_easyadmin.collecting.mysql.default';
+        $status = new class ($this->cache, $lockKey) implements CollectorInterface {
+            public function __construct(
+                private readonly RecordingCachePool $cache,
+                private readonly string $lockKey,
+            ) {}
+
+            public function collect(): array
+            {
+                $this->cache->save($this->cache->getItem($this->lockKey)->set('token of another request'));
+
+                return ['Questions' => 100];
+            }
+
+            public function getVersion(): int
+            {
+                return 1;
+            }
+
+            public function getName(): string
+            {
+                return 'mysql.status';
+            }
+        };
+
+        $this->bareProvider()->get(Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]), 'default'));
+
+        self::assertSame('token of another request', $this->cache->getItem($lockKey)->get());
+    }
+
+    public function testRefreshLiftsTheLockOfARequestThatDied(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]), 'default');
+        $provider = $this->bareProvider();
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.default')->set('token of a dead request'));
+
+        $provider->refresh($instance);
+        $snapshot = $provider->get($instance);
+
+        self::assertSame(1, $status->collects);
+        self::assertFalse($snapshot->inProgress());
     }
 
     public function testAnotherRequestSeesTheCachedResultsAndWaitsForTheOthers(): void
