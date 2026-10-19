@@ -185,7 +185,7 @@
     </div>
 
     <section class="jm-database mt-4">
-        {% if navigation.databaseSelector == 'pills' %}
+        {% if navigation.databaseSelector == constant('Jmonitor\\EasyAdminBundle\\View\\InstanceNavigation::PILLS') %}
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                 <h2 class="h5 mb-0">Database</h2>
                 <ul class="nav nav-pills">
@@ -196,7 +196,7 @@
                     {% endfor %}
                 </ul>
             </div>
-        {% elseif navigation.databaseSelector == 'select' %}
+        {% elseif navigation.databaseSelector == constant('Jmonitor\\EasyAdminBundle\\View\\InstanceNavigation::SELECT') %}
             <form class="d-flex flex-wrap align-items-center gap-2 mb-2" method="get" action="{{ path(routes.component, {component: current.value}) }}">
                 <h2 class="h5 mb-0"><label for="jm-database-select">Database</label></h2>
                 <select class="form-select form-select-sm w-auto" id="jm-database-select" name="connection" data-jm-navigate>

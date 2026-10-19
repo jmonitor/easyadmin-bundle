@@ -47,47 +47,36 @@ final readonly class SnapshotProvider
         }
 
         $prefix = $instance->keyPrefix();
-        $lockKey = self::lockKey($instance);
-        $token = null;
+        /** @var array<string, string|false> $tokens lock key => our token, false when another request holds it */
+        $tokens = [];
         $results = [];
 
         try {
             foreach ($instance->collectors->specs as $spec) {
                 $serverPrefix = self::serverPrefix($instance, $spec);
-                $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
-                $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
-                $cached = self::cached($spec, $serverItem) ?? self::cached($spec, $item);
+                [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
+                $lockKey = self::lockKey($instance, $serverPrefix);
 
-                if ($cached !== null) {
-                    $results[$spec->name] = $cached;
+                if ($cached === null && !array_key_exists($lockKey, $tokens)) {
+                    $tokens[$lockKey] = $this->lock($lockKey);
 
-                    continue;
-                }
-
-                if ($token === null) {
-                    $token = $this->lock($lockKey);
-
-                    if (is_string($token)) {
+                    if (is_string($tokens[$lockKey])) {
                         // another request may have collected between the first read and the lock
-                        $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
-                        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
-                        $cached = self::cached($spec, $serverItem) ?? self::cached($spec, $item);
-
-                        if ($cached !== null) {
-                            $results[$spec->name] = $cached;
-
-                            continue;
-                        }
+                        [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
                     }
                 }
 
-                $results[$spec->name] = $token === false
-                    ? new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp())
-                    : $this->collect($spec, $serverPrefix ?? $prefix, $serverItem ?? $item, $item);
+                $results[$spec->name] = match (true) {
+                    $cached !== null => $cached,
+                    $tokens[$lockKey] === false => new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp()),
+                    default => $this->collect($spec, $serverPrefix ?? $prefix, $serverItem ?? $item, $item),
+                };
             }
         } finally {
-            if (is_string($token)) {
-                $this->unlock($lockKey, $token);
+            foreach ($tokens as $lockKey => $token) {
+                if (is_string($token)) {
+                    $this->unlock($lockKey, $token);
+                }
             }
         }
 
@@ -112,7 +101,11 @@ final readonly class SnapshotProvider
             }
         }
 
-        $this->cache->deleteItem(self::lockKey($instance));
+        $this->cache->deleteItem(self::lockKey($instance, null));
+
+        if ($instance->serverKeyPrefix() !== null) {
+            $this->cache->deleteItem(self::lockKey($instance, $instance->serverKeyPrefix()));
+        }
     }
 
     public static function cacheKey(string $name, string $prefix = ''): string
@@ -132,17 +125,29 @@ final readonly class SnapshotProvider
     }
 
     /**
-     * The connections of one server share its lock: they would all wait on the same timeout.
+     * The server collectors of the connections of one server share its lock: they would all wait on
+     * the same timeout. The collectors of a database keep the lock of their connection.
      */
-    private static function lockKey(Instance $instance): string
+    private static function lockKey(Instance $instance, ?string $serverPrefix): string
     {
-        $serverPrefix = $instance->serverKeyPrefix();
-
         if ($serverPrefix !== null) {
             return 'jmonitor_easyadmin.collecting.' . rtrim($serverPrefix, '.');
         }
 
         return 'jmonitor_easyadmin.collecting.' . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
+    }
+
+    /**
+     * The server entry first: a failure cached for the connection may be older than a shared success.
+     *
+     * @return array{?CollectorResult, ?CacheItemInterface, CacheItemInterface} the cached result, the server item, the connection item
+     */
+    private function lookup(CollectorSpec $spec, string $prefix, ?string $serverPrefix): array
+    {
+        $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
+        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
+
+        return [self::cached($spec, $serverItem) ?? self::cached($spec, $item), $serverItem, $item];
     }
 
     private static function serverPrefix(Instance $instance, CollectorSpec $spec): ?string

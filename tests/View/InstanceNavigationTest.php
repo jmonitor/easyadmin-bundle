@@ -69,6 +69,18 @@ final class InstanceNavigationTest extends TestCase
         self::assertSame(['localhost:3306', 'localhost:3307'], array_map(static fn($item) => $item->label, $navigation->pills));
     }
 
+    public function testSocketServersSharingAHostAreToldApartBySocket(): void
+    {
+        $socket = static fn(string $id, string $path): Instance => Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), $id, null, new Server('socket:' . $path, 'localhost', null, $path));
+        $first = $socket('a', '/run/mysqld/a.sock');
+        $second = $socket('b', '/run/mysqld/b.sock');
+        $tcp = $this->database('c', 'localhost');
+
+        $navigation = InstanceNavigation::of([$first, $second, $tcp], $first);
+
+        self::assertSame(['/run/mysqld/a.sock', '/run/mysqld/b.sock', 'localhost:3306'], array_map(static fn($item) => $item->label, $navigation->pills));
+    }
+
     public function testInstancesWithoutServerKeepTheirOwnPill(): void
     {
         $default = Instance::found(Component::Postgresql, new CollectorSet(Component::Postgresql, []), 'default', 'shop');

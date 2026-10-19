@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Collector;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Connections\PrimaryReadReplicaConnection;
 use Doctrine\DBAL\Driver\AbstractException;
 use Doctrine\DBAL\Exception\ConnectionLost;
 use Jmonitor\EasyAdminBundle\Collector\FailFastDoctrineAdapter;
@@ -73,6 +74,40 @@ final class FailFastDoctrineAdapterTest extends TestCase
 
         self::assertInstanceOf(UnreachableServerException::class, $failure);
         self::assertInstanceOf(ConnectionLost::class, $failure->getPrevious());
+    }
+
+    public function testAConnectionWithReplicasIsQueriedOnItsPrimary(): void
+    {
+        $connection = $this->createMock(PrimaryReadReplicaConnection::class);
+        $connection->method('isConnectedToPrimary')->willReturn(false);
+        $connection->expects(self::once())->method('ensureConnectedToPrimary');
+        $connection->method('fetchAllAssociative')->willReturn([['Value' => '8.4']]);
+
+        self::assertSame([['Value' => '8.4']], (new FailFastDoctrineAdapter($connection))->fetchAllAssociative("SHOW GLOBAL VARIABLES LIKE 'version'"));
+    }
+
+    public function testAConnectionAlreadyOnItsPrimaryStaysThere(): void
+    {
+        $connection = $this->createMock(PrimaryReadReplicaConnection::class);
+        $connection->method('isConnectedToPrimary')->willReturn(true);
+        $connection->expects(self::never())->method('ensureConnectedToPrimary');
+        $connection->method('fetchAllAssociative')->willReturn([['Value' => '8.4']]);
+
+        self::assertSame([['Value' => '8.4']], (new FailFastDoctrineAdapter($connection))->fetchAllAssociative("SHOW GLOBAL VARIABLES LIKE 'version'"));
+    }
+
+    public function testAnUnreachablePrimaryIsUnreachableEvenWithAnOpenReplica(): void
+    {
+        $connection = $this->createMock(PrimaryReadReplicaConnection::class);
+        $connection->method('isConnected')->willReturn(true);
+        $connection->method('isConnectedToPrimary')->willReturn(false);
+        $connection->expects(self::once())->method('ensureConnectedToPrimary')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection timed out'));
+        $adapter = new FailFastDoctrineAdapter($connection);
+
+        $first = self::failure(static fn() => $adapter->fetchAllAssociative("SHOW GLOBAL STATUS LIKE 'Uptime'"));
+
+        self::assertInstanceOf(UnreachableServerException::class, $first);
+        self::assertSame($first, self::failure(static fn() => $adapter->fetchAllAssociative("SHOW GLOBAL VARIABLES LIKE 'version'")));
     }
 
     private static function connectionLost(): ConnectionLost

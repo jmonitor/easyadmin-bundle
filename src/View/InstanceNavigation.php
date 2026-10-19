@@ -61,7 +61,12 @@ final readonly class InstanceNavigation
                 continue;
             }
 
-            $label = $hostCounts[$server->host] > 1 && $server->port !== null ? $server->host . ':' . $server->port : $server->host;
+            $label = $server->host;
+
+            if ($hostCounts[$server->host] > 1) {
+                $label = $server->port === null ? ($server->socket ?? $label) : $server->host . ':' . $server->port;
+            }
+
             $pills[] = new NavigationItem($label, null, $first, $active, null);
         }
 

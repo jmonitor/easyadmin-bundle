@@ -110,7 +110,7 @@ final class DoctrineParams
     {
         $params = self::primary($params);
 
-        if (is_string($params['unix_socket'] ?? null) && $params['unix_socket'] !== '') {
+        if (self::socket($params) !== null) {
             return true;
         }
 
@@ -129,10 +129,10 @@ final class DoctrineParams
     public static function server(array $params): Server
     {
         $params = self::primary($params);
-        $socket = $params['unix_socket'] ?? null;
+        $socket = self::socket($params);
 
-        if (is_string($socket) && $socket !== '') {
-            return new Server('socket:' . $socket, 'localhost', null);
+        if ($socket !== null) {
+            return new Server('socket:' . $socket, 'localhost', null, $socket);
         }
 
         $host = $params['host'] ?? null;
@@ -167,6 +167,23 @@ final class DoctrineParams
     private static function primary(array $params): array
     {
         return is_array($params['primary'] ?? null) ? $params['primary'] : $params;
+    }
+
+    /**
+     * The MySQL drivers only use the socket without a host or with "localhost", TCP otherwise.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function socket(array $params): ?string
+    {
+        $socket = $params['unix_socket'] ?? null;
+        $host = $params['host'] ?? null;
+
+        if (!is_string($socket) || $socket === '') {
+            return null;
+        }
+
+        return $host === null || $host === '' || (is_string($host) && strtolower($host) === 'localhost') ? $socket : null;
     }
 
     /**

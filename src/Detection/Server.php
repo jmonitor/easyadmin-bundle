@@ -14,5 +14,6 @@ final readonly class Server
         public string $key,
         public string $host,
         public ?int $port,
+        public ?string $socket = null,
     ) {}
 }

@@ -459,15 +459,24 @@ final class SnapshotProviderTest extends TestCase
         self::assertFalse($this->cache->hasItem($lockKey));
     }
 
-    public function testTheLockIsTheServers(): void
+    public function testTheServerCollectorsShareTheLockOfTheServerAndTheDatabaseOnesKeepTheirs(): void
     {
-        $default = $this->serverInstance('default', [new CollectorSpec(new FakeCollector('mysql.status', ['Questions' => 100]), Lifetime::Dynamic, perServer: true)]);
-        $reports = $this->serverInstance('reports', [new CollectorSpec(new FakeCollector('mysql.information_schema', ['tables' => 20]), Lifetime::Static)]);
+        $specs = static fn(): array => [
+            new CollectorSpec(new FakeCollector('mysql.status', ['Questions' => 100]), Lifetime::Dynamic, perServer: true),
+            new CollectorSpec(new FakeCollector('mysql.information_schema', ['tables' => 20]), Lifetime::Static),
+        ];
+        $default = $this->serverInstance('default', $specs());
+        $reports = $this->serverInstance('reports', $specs());
         $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.%server.' . hash('xxh128', 'db:3306'))->set('token of another request'));
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.mysql.reports')->set('token of another request'));
         $provider = $this->bareProvider();
 
-        self::assertSame(SnapshotProvider::IN_PROGRESS, $provider->get($default)->result('mysql.status')?->error);
-        self::assertSame(SnapshotProvider::IN_PROGRESS, $provider->get($reports)->result('mysql.information_schema')?->error);
+        $defaultSnapshot = $provider->get($default);
+        $reportsSnapshot = $provider->get($reports);
+
+        self::assertSame(SnapshotProvider::IN_PROGRESS, $defaultSnapshot->result('mysql.status')?->error);
+        self::assertSame(['tables' => 20], $defaultSnapshot->data('mysql.information_schema'), 'another database of the server collects its own collectors');
+        self::assertSame(SnapshotProvider::IN_PROGRESS, $reportsSnapshot->result('mysql.information_schema')?->error);
     }
 
     public function testAnEntryFilledWhileTheLockIsTakenIsNotCollectedAgain(): void

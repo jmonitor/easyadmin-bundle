@@ -162,7 +162,9 @@ final class MysqlDetectorTest extends TestCase
         yield 'localhost' => [['host' => 'localhost'], true];
         yield 'loopback' => [['host' => '127.0.0.1'], true];
         yield 'IPv6 loopback' => [['host' => '::1'], true];
-        yield 'socket' => [['host' => 'db.internal', 'unix_socket' => '/run/mysqld/mysqld.sock'], true];
+        yield 'socket' => [['unix_socket' => '/run/mysqld/mysqld.sock'], true];
+        yield 'socket with localhost' => [['host' => 'localhost', 'unix_socket' => '/run/mysqld/mysqld.sock'], true];
+        yield 'socket ignored by a remote host' => [['host' => 'db.internal', 'unix_socket' => '/run/mysqld/mysqld.sock'], false];
         yield 'remote host' => [['host' => 'db.internal'], false];
         yield 'compose service' => [['host' => 'database'], false];
         yield 'remote primary' => [['primary' => ['host' => 'db.internal']], false];
