@@ -10,12 +10,16 @@ use Symfony\Contracts\Service\ResetInterface;
 /**
  * Applies the "enabled" setting of each component to its detector:
  * false never detects, auto keeps only what is found, true keeps the component even when
- * detection failed so the page can explain why.
+ * detection failed so the page can explain why. A component is detected when first asked for:
+ * the polling of a tab leaves the detectors of the other components alone.
  */
 final class ComponentRegistry implements ResetInterface
 {
-    /** @var array<string, non-empty-list<Instance>>|null keyed by component value, in Component::cases() order */
-    private ?array $instances = null;
+    /** @var ?array<string, ComponentDetectorInterface> keyed by component value */
+    private ?array $byComponent = null;
+
+    /** @var array<string, list<Instance>> keyed by component value, empty when the component is not available */
+    private array $instances = [];
 
     /**
      * @param iterable<string, ComponentDetectorInterface>      $detectors  keyed by component value
@@ -31,12 +35,12 @@ final class ComponentRegistry implements ResetInterface
      */
     public function available(): array
     {
-        return array_map(static fn(string $value): Component => Component::from($value), array_keys($this->instances()));
+        return array_values(array_filter(Component::cases(), $this->isAvailable(...)));
     }
 
     public function isAvailable(Component $component): bool
     {
-        return isset($this->instances()[$component->value]);
+        return $this->instancesFor($component) !== [];
     }
 
     /**
@@ -44,7 +48,7 @@ final class ComponentRegistry implements ResetInterface
      */
     public function instancesFor(Component $component): array
     {
-        return $this->instances()[$component->value] ?? [];
+        return $this->instances[$component->value] ??= $this->detect($component);
     }
 
     /**
@@ -69,45 +73,47 @@ final class ComponentRegistry implements ResetInterface
 
     public function reset(): void
     {
-        $this->instances = null;
+        $this->instances = [];
     }
 
     /**
-     * @return array<string, non-empty-list<Instance>>
+     * @return list<Instance>
      */
-    private function instances(): array
+    private function detect(Component $component): array
     {
-        if ($this->instances !== null) {
-            return $this->instances;
+        $enabled = $this->components[$component->value]['enabled'] ?? 'auto';
+        $detector = $this->detectors()[$component->value] ?? null;
+
+        if ($enabled === false || $detector === null) {
+            return [];
         }
 
-        $detectors = [];
-        foreach ($this->detectors as $detector) {
-            $detectors[$detector->component()->value] = $detector;
+        try {
+            $detection = $detector->detect();
+        } catch (\Throwable $e) {
+            $detection = Detection::unavailable($e->getMessage());
         }
 
-        $instances = [];
-        foreach (Component::cases() as $component) {
-            $enabled = $this->components[$component->value]['enabled'] ?? 'auto';
-            $detector = $detectors[$component->value] ?? null;
+        if ($detection->isFound()) {
+            return $detection->instances;
+        }
 
-            if ($enabled === false || $detector === null) {
-                continue;
-            }
+        return $enabled === true ? [Instance::unavailable($component, $detection->error ?? Instance::UNAVAILABLE)] : [];
+    }
 
-            try {
-                $detection = $detector->detect();
-            } catch (\Throwable $e) {
-                $detection = Detection::unavailable($e->getMessage());
-            }
+    /**
+     * @return array<string, ComponentDetectorInterface>
+     */
+    private function detectors(): array
+    {
+        if ($this->byComponent === null) {
+            $this->byComponent = [];
 
-            if ($detection->isFound()) {
-                $instances[$component->value] = $detection->instances;
-            } elseif ($enabled === true) {
-                $instances[$component->value] = [Instance::unavailable($component, $detection->error ?? Instance::UNAVAILABLE)];
+            foreach ($this->detectors as $detector) {
+                $this->byComponent[$detector->component()->value] = $detector;
             }
         }
 
-        return $this->instances = $instances;
+        return $this->byComponent;
     }
 }

@@ -17,6 +17,7 @@ use Jmonitor\Utils\DatabaseAdapter\DatabaseAdapterInterface;
 final class FailFastDoctrineAdapter implements DatabaseAdapterInterface
 {
     private ?UnreachableServerException $failure = null;
+    private bool $opened = false;
 
     public function __construct(
         private readonly Connection $connection,
@@ -57,6 +58,20 @@ final class FailFastDoctrineAdapter implements DatabaseAdapterInterface
             }
 
             throw $this->failure = new UnreachableServerException($e->getMessage(), 0, $e);
+        } finally {
+            $this->opened = $this->opened || (!$wasConnected && $this->isConnected());
+        }
+    }
+
+    /**
+     * Closes the connection when the collect opened it: under a worker runtime, it would stay open
+     * for every database an admin looked at.
+     */
+    public function release(): void
+    {
+        if ($this->opened) {
+            $this->opened = false;
+            $this->connection->close();
         }
     }
 

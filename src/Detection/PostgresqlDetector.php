@@ -18,7 +18,6 @@ use Jmonitor\EasyAdminBundle\Collector\FailFastDoctrineAdapter;
 use Jmonitor\EasyAdminBundle\Collector\HostRamCollector;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
-use Psr\Container\ContainerInterface;
 
 /**
  * Detection reads the connection parameters only and never opens the connection: a server
@@ -29,15 +28,12 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
     private const DRIVERS = ['pdo_pgsql', 'pgsql'];
 
     /**
-     * @param ContainerInterface                  $connections     Doctrine connections, keyed by connection name
-     * @param list<string>                        $connectionNames
-     * @param array<string, array<string, mixed>> $configured      the configured connections with their options, empty to take every PostgreSQL one
-     * @param string                              $schema          schema whose tables feed the database collector, for the connections without their own
-     * @param list<string>                        $exclude         patterns of the connection names left out when none is configured
+     * @param array<string, array<string, mixed>> $configured the configured connections with their options, empty to take every PostgreSQL one
+     * @param string                              $schema     schema whose tables feed the database collector, for the connections without their own
+     * @param list<string>                        $exclude    patterns of the connection names left out when none is configured
      */
     public function __construct(
-        private ContainerInterface $connections,
-        private array $connectionNames,
+        private DoctrineConnections $connections,
         private array $configured,
         private string $schema = 'public',
         private string $osFamily = PHP_OS_FAMILY,
@@ -56,7 +52,6 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
         return DoctrineParams::instances(
             Component::Postgresql,
             $this->connections,
-            $this->connectionNames,
             $this->configured,
             self::isPostgresql(...),
             fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
@@ -104,6 +99,6 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
             $specs[] = new CollectorSpec(new HostRamCollector($this->systemAdapter ?? new LinuxAdapter()), Lifetime::Static);
         }
 
-        return new CollectorSet(Component::Postgresql, $specs);
+        return new CollectorSet(Component::Postgresql, $specs, $adapter->release(...));
     }
 }

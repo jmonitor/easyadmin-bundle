@@ -18,7 +18,6 @@ use Jmonitor\EasyAdminBundle\Collector\FailFastDoctrineAdapter;
 use Jmonitor\EasyAdminBundle\Collector\HostRamCollector;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
-use Psr\Container\ContainerInterface;
 
 /**
  * Detection reads the connection parameters only and never opens the connection: a server
@@ -29,14 +28,11 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
     private const DRIVERS = ['pdo_mysql', 'mysqli'];
 
     /**
-     * @param ContainerInterface                  $connections     Doctrine connections, keyed by connection name
-     * @param list<string>                        $connectionNames
-     * @param array<string, array<string, mixed>> $configured      the configured connections, empty to take every MySQL one
-     * @param list<string>                        $exclude         patterns of the connection names left out when none is configured
+     * @param array<string, array<string, mixed>> $configured the configured connections, empty to take every MySQL one
+     * @param list<string>                        $exclude    patterns of the connection names left out when none is configured
      */
     public function __construct(
-        private ContainerInterface $connections,
-        private array $connectionNames,
+        private DoctrineConnections $connections,
         private array $configured,
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
@@ -54,7 +50,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
         return DoctrineParams::instances(
             Component::Mysql,
             $this->connections,
-            $this->connectionNames,
             $this->configured,
             self::isMysql(...),
             fn(Connection $connection, array $params): CollectorSet => $this->collectors($connection, DoctrineParams::database($params) ?? '', DoctrineParams::isLocal($params)),
@@ -93,6 +88,6 @@ final readonly class MysqlDetector implements ComponentDetectorInterface
             $specs[] = new CollectorSpec(new HostRamCollector($this->systemAdapter ?? new LinuxAdapter()), Lifetime::Static, perServer: true);
         }
 
-        return new CollectorSet(Component::Mysql, $specs);
+        return new CollectorSet(Component::Mysql, $specs, $adapter->release(...));
     }
 }

@@ -76,6 +76,65 @@ final class FailFastDoctrineAdapterTest extends TestCase
         self::assertInstanceOf(ConnectionLost::class, $failure->getPrevious());
     }
 
+    public function testReleaseClosesTheConnectionTheCollectOpened(): void
+    {
+        $connected = false;
+        $connection = $this->createMock(Connection::class);
+        $connection->method('isConnected')->willReturnCallback(static function () use (&$connected): bool {
+            return $connected;
+        });
+        $connection->method('fetchAllAssociative')->willReturnCallback(static function () use (&$connected): array {
+            $connected = true;
+
+            return [['Value' => '8.4']];
+        });
+        $connection->expects(self::once())->method('close');
+        $adapter = new FailFastDoctrineAdapter($connection);
+
+        $adapter->fetchAllAssociative("SHOW GLOBAL VARIABLES LIKE 'version'");
+        $adapter->fetchAllAssociative("SHOW GLOBAL STATUS LIKE 'Uptime'");
+        $adapter->release();
+        $adapter->release();
+    }
+
+    public function testReleaseClosesAConnectionOpenedByAFailingQuery(): void
+    {
+        $connected = false;
+        $connection = $this->createMock(Connection::class);
+        $connection->method('isConnected')->willReturnCallback(static function () use (&$connected): bool {
+            return $connected;
+        });
+        $connection->method('fetchAllAssociative')->willReturnCallback(static function () use (&$connected): array {
+            $connected = true;
+
+            throw new \RuntimeException('SELECT command denied to user');
+        });
+        $connection->expects(self::once())->method('close');
+        $adapter = new FailFastDoctrineAdapter($connection);
+
+        self::failure(static fn() => $adapter->fetchAllAssociative('SELECT 1 FROM performance_schema.events_statements_summary_by_digest'));
+        $adapter->release();
+    }
+
+    public function testReleaseLeavesAloneAConnectionThatWasAlreadyOpenOrNeverOpened(): void
+    {
+        $open = $this->createMock(Connection::class);
+        $open->method('isConnected')->willReturn(true);
+        $open->method('fetchAllAssociative')->willReturn([['Value' => '8.4']]);
+        $open->expects(self::never())->method('close');
+        $unreachable = $this->createMock(Connection::class);
+        $unreachable->method('isConnected')->willReturn(false);
+        $unreachable->method('fetchAllAssociative')->willThrowException(new \RuntimeException('Connection timed out'));
+        $unreachable->expects(self::never())->method('close');
+        $openAdapter = new FailFastDoctrineAdapter($open);
+        $unreachableAdapter = new FailFastDoctrineAdapter($unreachable);
+
+        $openAdapter->fetchAllAssociative("SHOW GLOBAL VARIABLES LIKE 'version'");
+        self::failure(static fn() => $unreachableAdapter->fetchAllAssociative("SHOW GLOBAL STATUS LIKE 'Uptime'"));
+        $openAdapter->release();
+        $unreachableAdapter->release();
+    }
+
     public function testAConnectionWithReplicasIsQueriedOnItsPrimary(): void
     {
         $connection = $this->createMock(PrimaryReadReplicaConnection::class);

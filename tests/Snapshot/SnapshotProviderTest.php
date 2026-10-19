@@ -512,6 +512,58 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
     }
 
+    public function testTheServerEntryWinsOverAFailureCachedForTheConnection(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 1]);
+        $instance = $this->serverInstance('default', [new CollectorSpec($status, Lifetime::Dynamic, perServer: true)]);
+        $this->cache->save($this->cache->getItem(SnapshotProvider::cacheKey('mysql.status', 'mysql.default.'))->set((new CollectorResult('mysql.status', [], 'Access denied', 1_000))->toArray()));
+        $this->cache->save($this->cache->getItem(SnapshotProvider::cacheKey('mysql.status', (string) $instance->serverKeyPrefix()))->set((new CollectorResult('mysql.status', ['Questions' => 7], null, 1_000))->toArray()));
+
+        $snapshot = $this->bareProvider()->get($instance);
+
+        self::assertSame(0, $status->collects);
+        self::assertNull($snapshot->result('mysql.status')?->error, 'the failure may be older than the shared success');
+        self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
+    }
+
+    public function testTheSetIsReleasedOnceCollected(): void
+    {
+        $releases = 0;
+        $release = static function () use (&$releases): void {
+            ++$releases;
+        };
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec(new FakeCollector('mysql.status'), Lifetime::Dynamic)], $release), 'default');
+
+        $this->bareProvider()->get($instance);
+
+        self::assertSame(1, $releases);
+    }
+
+    public function testASetThatCannotBeBuiltGivesTheErrorOfTheInstanceForAMinute(): void
+    {
+        $builds = 0;
+        $build = function () use (&$builds): CollectorSet {
+            ++$builds;
+
+            throw new \RuntimeException('Connection refused');
+        };
+        $instance = fn(): Instance => Instance::found(Component::Mysql, CollectorSet::lazy(Component::Mysql, $build), 'default');
+        $provider = $this->bareProvider();
+
+        $snapshot = $provider->get($instance());
+        $again = $provider->get($instance());
+
+        self::assertSame('Connection refused', $snapshot->error);
+        self::assertSame([], $snapshot->results);
+        self::assertSame('Connection refused', $again->error);
+        self::assertSame(1, $builds, 'building may wait for the connection timeout');
+        self::assertSame(60, $this->cache->ttls['jmonitor_easyadmin.collect.mysql.default.%build']);
+
+        $provider->refresh($instance());
+        $provider->get($instance());
+        self::assertSame(2, $builds);
+    }
+
     /**
      * @param list<CollectorSpec> $specs
      */

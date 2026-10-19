@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\Server;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
+use Jmonitor\EasyAdminBundle\View\NavigationItem;
 use PHPUnit\Framework\TestCase;
 
 final class InstanceNavigationTest extends TestCase
@@ -112,6 +113,16 @@ final class InstanceNavigationTest extends TestCase
         $navigation = InstanceNavigation::of([], null);
 
         self::assertSame([], $navigation->pills);
+        self::assertSame([], $navigation->databases);
+        self::assertNull($navigation->databaseSelector);
+    }
+
+    public function testACurrentInstanceMissingFromTheListActivatesNothing(): void
+    {
+        $navigation = InstanceNavigation::of([$this->database('shop', 'db1'), $this->database('erp', 'db2')], $this->database('shop', 'db1'));
+
+        self::assertCount(2, $navigation->pills);
+        self::assertSame([false, false], array_map(static fn(NavigationItem $item): bool => $item->active, $navigation->pills));
         self::assertSame([], $navigation->databases);
         self::assertNull($navigation->databaseSelector);
     }

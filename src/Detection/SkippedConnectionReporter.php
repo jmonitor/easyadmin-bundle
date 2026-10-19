@@ -24,7 +24,7 @@ final readonly class SkippedConnectionReporter
         private array $shown = [],
     ) {}
 
-    public function report(string $connection, \Throwable $error): void
+    public function report(string $connection, string $error): void
     {
         if (in_array($connection, $this->shown, true)) {
             return;
@@ -32,7 +32,7 @@ final readonly class SkippedConnectionReporter
 
         // Called while detecting: a failing cache or logger must not cost the other connections.
         try {
-            $item = $this->cache->getItem('jmonitor_easyadmin.skipped_connection.' . hash('xxh128', $connection . "\0" . $error->getMessage()));
+            $item = $this->cache->getItem('jmonitor_easyadmin.skipped_connection.' . hash('xxh128', $connection . "\0" . $error));
 
             if ($item->isHit()) {
                 return;
@@ -40,8 +40,7 @@ final readonly class SkippedConnectionReporter
 
             $this->logger->warning('Doctrine connection "{connection}" could not be read, the monitoring skips it: {error}', [
                 'connection' => $connection,
-                'error' => $error->getMessage(),
-                'exception' => $error,
+                'error' => $error,
             ]);
 
             $this->cache->save($item->set(true)->expiresAfter($this->lifetime));

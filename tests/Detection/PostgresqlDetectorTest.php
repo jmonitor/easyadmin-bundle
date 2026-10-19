@@ -10,6 +10,7 @@ use Jmonitor\Collector\Postgresql\PostgresqlDatabaseCollector;
 use Jmonitor\Collector\System\Adapter\AdapterInterface;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,7 +21,7 @@ final class PostgresqlDetectorTest extends TestCase
 {
     public function testNoConnectionAtAll(): void
     {
-        $detection = (new PostgresqlDetector(new ServiceLocator([]), [], []))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections(new ServiceLocator([]), []), []))->detect();
 
         self::assertFalse($detection->isFound());
         self::assertStringContainsString('No Doctrine DBAL connection', (string) $detection->error);
@@ -29,7 +30,7 @@ final class PostgresqlDetectorTest extends TestCase
     public function testSqliteIsNotPostgresql(): void
     {
         $sqlite = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
-        $detector = new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $sqlite]), ['default'], []);
+        $detector = new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $sqlite]), ['default']), []);
 
         $detection = $detector->detect();
 
@@ -39,7 +40,7 @@ final class PostgresqlDetectorTest extends TestCase
 
     public function testPostgresqlConnectionGivesTheFourCollectors(): void
     {
-        $detector = new PostgresqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default'], []);
+        $detector = new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default']), []);
 
         $detection = $detector->detect();
 
@@ -57,10 +58,10 @@ final class PostgresqlDetectorTest extends TestCase
 
     public function testInstancesAreNotGroupedByServer(): void
     {
-        $instance = (new PostgresqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default'], []))->detect()->instances[0];
+        $instance = (new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default']), []))->detect()->instances[0];
 
         self::assertNull($instance->server);
-        foreach ($instance->collectors?->specs ?? [] as $spec) {
+        foreach ($instance->collectors?->specs() ?? [] as $spec) {
             self::assertFalse($spec->perServer, $spec->name);
         }
     }
@@ -74,11 +75,11 @@ final class PostgresqlDetectorTest extends TestCase
             'dwh' => fn(): Connection => $this->postgresqlConnection(),
         ]);
 
-        $auto = (new PostgresqlDetector($locator, ['default', 'analytics', 'dwh'], []))->detect();
+        $auto = (new PostgresqlDetector(new DoctrineConnections($locator, ['default', 'analytics', 'dwh']), []))->detect();
         self::assertSame(['analytics', 'dwh'], array_map(static fn(Instance $instance): ?string => $instance->id, $auto->instances));
         self::assertSame('app', $auto->instances[0]->detail);
 
-        $configured = (new PostgresqlDetector($locator, ['default', 'analytics', 'dwh'], ['dwh' => [], 'default' => []]))->detect();
+        $configured = (new PostgresqlDetector(new DoctrineConnections($locator, ['default', 'analytics', 'dwh']), ['dwh' => [], 'default' => []]))->detect();
         self::assertSame(['dwh', 'default'], array_map(static fn(Instance $instance): ?string => $instance->id, $configured->instances));
         self::assertTrue($configured->instances[0]->isFound());
         self::assertSame('Doctrine connection "default" is not a PostgreSQL connection.', $configured->instances[1]->error);
@@ -96,7 +97,7 @@ final class PostgresqlDetectorTest extends TestCase
             },
         ]);
 
-        $detection = (new PostgresqlDetector($locator, ['analytics', 'analytics_replica'], [], exclude: ['*_replica']))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections($locator, ['analytics', 'analytics_replica']), [], exclude: ['*_replica']))->detect();
 
         self::assertSame(['analytics'], array_map(static fn(Instance $instance): ?string => $instance->id, $detection->instances));
         self::assertFalse($built);
@@ -109,7 +110,7 @@ final class PostgresqlDetectorTest extends TestCase
             'dwh' => fn(): Connection => $this->postgresqlConnection(),
         ]);
 
-        $detection = (new PostgresqlDetector($locator, ['default', 'dwh'], ['default' => ['schema' => null], 'dwh' => ['schema' => 'analytics']], 'app'))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections($locator, ['default', 'dwh']), ['default' => ['schema' => null], 'dwh' => ['schema' => 'analytics']], 'app'))->detect();
 
         self::assertSame(['app', 'analytics'], array_map(
             static fn(Instance $instance): mixed => (new \ReflectionProperty(PostgresqlDatabaseCollector::class, 'schema'))->getValue($instance->collectors?->get('postgresql.database')?->collector),
@@ -124,13 +125,13 @@ final class PostgresqlDetectorTest extends TestCase
         $custom = $this->createMock(Connection::class);
         $custom->method('getParams')->willReturn(['driverClass' => \Doctrine\DBAL\Driver\PDO\PgSQL\Driver::class, 'dbname' => 'app']);
 
-        self::assertTrue((new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $pgsql]), ['default'], []))->detect()->isFound());
-        self::assertTrue((new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $custom]), ['default'], []))->detect()->isFound());
+        self::assertTrue((new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $pgsql]), ['default']), []))->detect()->isFound());
+        self::assertTrue((new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $custom]), ['default']), []))->detect()->isFound());
     }
 
     public function testTheConfiguredSchemaReachesTheDatabaseCollector(): void
     {
-        $detector = new PostgresqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default'], [], 'app');
+        $detector = new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => fn(): Connection => $this->postgresqlConnection()]), ['default']), [], 'app');
 
         $collector = $detector->detect()->instances[0]->collectors?->get('postgresql.database')?->collector;
 
@@ -159,7 +160,7 @@ final class PostgresqlDetectorTest extends TestCase
         $connection->method('getParams')->willReturn(['driver' => 'pdo_pgsql', 'dbname' => 'app'] + $params);
         $system = $this->createMock(AdapterInterface::class);
 
-        $detection = (new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'public', 'Linux', $system))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), [], 'public', 'Linux', $system))->detect();
 
         self::assertSame($local, \in_array('system.ram_total', $detection->instances[0]->collectors?->names() ?? [], true));
         if ($local) {
@@ -171,14 +172,14 @@ final class PostgresqlDetectorTest extends TestCase
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('getParams')->willReturn(['driver' => 'pdo_pgsql', 'host' => 'localhost', 'dbname' => 'app']);
-        $detector = new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'public', 'Windows');
+        $detector = new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), [], 'public', 'Windows');
 
         self::assertNotContains('system.ram_total', $detector->detect()->instances[0]->collectors?->names() ?? []);
     }
 
     public function testUnknownConfiguredConnection(): void
     {
-        $detection = (new PostgresqlDetector(new ServiceLocator([]), ['default'], ['missing' => []]))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections(new ServiceLocator([]), ['default']), ['missing' => []]))->detect();
 
         self::assertTrue($detection->isFound(), 'a configured connection is always listed');
         self::assertSame('Unknown Doctrine connection "missing".', $detection->instances[0]->error);
@@ -192,7 +193,7 @@ final class PostgresqlDetectorTest extends TestCase
         $connection->expects(self::never())->method('getDatabase');
         $connection->expects(self::never())->method('fetchAllAssociative');
 
-        $detection = (new PostgresqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], []))->detect();
+        $detection = (new PostgresqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), []))->detect();
 
         self::assertTrue($detection->isFound());
     }

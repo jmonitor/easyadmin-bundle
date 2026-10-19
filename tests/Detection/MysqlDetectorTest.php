@@ -11,6 +11,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
@@ -24,7 +25,7 @@ final class MysqlDetectorTest extends TestCase
 {
     public function testNoConnectionAtAll(): void
     {
-        $detection = (new MysqlDetector(new ServiceLocator([]), [], []))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator([]), []), []))->detect();
 
         self::assertFalse($detection->isFound());
         self::assertStringContainsString('No Doctrine DBAL connection', (string) $detection->error);
@@ -33,7 +34,7 @@ final class MysqlDetectorTest extends TestCase
     public function testSqliteIsNotMysql(): void
     {
         $sqlite = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
-        $detector = new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $sqlite]), ['default'], []);
+        $detector = new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $sqlite]), ['default']), []);
 
         $detection = $detector->detect();
 
@@ -43,7 +44,7 @@ final class MysqlDetectorTest extends TestCase
 
     public function testMysqlConnectionGivesTheFourCollectors(): void
     {
-        $detector = new MysqlDetector(new ServiceLocator(['default' => fn(): Connection => $this->mysqlConnection('app')]), ['default'], []);
+        $detector = new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => fn(): Connection => $this->mysqlConnection('app')]), ['default']), []);
 
         $detection = $detector->detect();
 
@@ -65,7 +66,7 @@ final class MysqlDetectorTest extends TestCase
             'reporting' => fn(): Connection => $this->mysqlConnection('reports'),
         ]);
 
-        $detection = (new MysqlDetector($locator, ['default', 'cache', 'reporting'], []))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default', 'cache', 'reporting']), []))->detect();
 
         self::assertSame(['default', 'reporting'], self::ids($detection->instances));
         self::assertSame(['shop', 'reports'], array_map(static fn(Instance $instance): ?string => $instance->detail, $detection->instances));
@@ -81,7 +82,7 @@ final class MysqlDetectorTest extends TestCase
             'reporting' => fn(): Connection => $this->mysqlConnection('reports'),
         ]);
 
-        $detection = (new MysqlDetector($locator, ['default', 'reporting'], ['reporting' => [], 'default' => [], 'missing' => []]))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default', 'reporting']), ['reporting' => [], 'default' => [], 'missing' => []]))->detect();
 
         self::assertSame(['reporting', 'default', 'missing'], self::ids($detection->instances));
         self::assertTrue($detection->instances[0]->isFound());
@@ -96,16 +97,44 @@ final class MysqlDetectorTest extends TestCase
             'default' => fn(): Connection => $this->mysqlConnection('shop'),
         ]);
 
-        $auto = (new MysqlDetector($locator, ['broken', 'default'], []))->detect();
+        $auto = (new MysqlDetector(new DoctrineConnections($locator, ['broken', 'default']), []))->detect();
         self::assertSame(['default'], self::ids($auto->instances));
 
-        $onlyBroken = (new MysqlDetector(new ServiceLocator(['broken' => static fn(): Connection => throw new \RuntimeException('Malformed DSN')]), ['broken'], []))->detect();
+        $onlyBroken = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['broken' => static fn(): Connection => throw new \RuntimeException('Malformed DSN')]), ['broken']), []))->detect();
         self::assertFalse($onlyBroken->isFound());
         self::assertSame('No MySQL or MariaDB Doctrine connection found. Connection "broken" could not be read: Malformed DSN', $onlyBroken->error);
 
-        $named = (new MysqlDetector($locator, ['broken', 'default'], ['broken' => []]))->detect();
+        $named = (new MysqlDetector(new DoctrineConnections($locator, ['broken', 'default']), ['broken' => []]))->detect();
         self::assertSame('Malformed DSN', $named->instances[0]->error);
         self::assertSame('broken', $named->instances[0]->id);
+    }
+
+    public function testTheErrorCitesAFewOfTheConnectionsThatCannotBeBuilt(): void
+    {
+        $factories = [];
+        foreach (['s1', 's2', 's3', 's4', 's5'] as $name) {
+            $factories[$name] = static fn(): Connection => throw new \RuntimeException('Malformed DSN');
+        }
+
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator($factories), array_keys($factories)), []))->detect();
+
+        self::assertSame('No MySQL or MariaDB Doctrine connection found. Connection "s1" could not be read: Malformed DSN Connection "s2" could not be read: Malformed DSN Connection "s3" could not be read: Malformed DSN 2 more could not be read.', $detection->error);
+    }
+
+    public function testDetectionBuildsTheCollectorsOfTheInstanceShownOnly(): void
+    {
+        $built = 0;
+        $locator = new ServiceLocator(['default' => function () use (&$built): Connection {
+            ++$built;
+
+            return $this->mysqlConnection('shop');
+        }]);
+
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default']), []))->detect();
+        self::assertSame(1, $built, 'read for its parameters');
+
+        $detection->instances[0]->collectors?->specs();
+        self::assertSame(2, $built);
     }
 
     public function testAnExcludedConnectionIsNeverBuilt(): void
@@ -118,7 +147,7 @@ final class MysqlDetectorTest extends TestCase
         ]);
         $reporter = new SkippedConnectionReporter(new ArrayAdapter(), $logger = new RecordingLogger(), 3600);
 
-        $detection = (new MysqlDetector($locator, ['default', 's001', 's001_backup', 'legacy'], [], skipped: $reporter, exclude: ['*_backup', 'legacy']))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default', 's001', 's001_backup', 'legacy']), [], skipped: $reporter, exclude: ['*_backup', 'legacy']))->detect();
 
         self::assertSame(['default', 's001'], self::ids($detection->instances));
         self::assertSame([], $logger->records);
@@ -128,7 +157,7 @@ final class MysqlDetectorTest extends TestCase
     {
         $locator = new ServiceLocator(['default' => fn(): Connection => $this->mysqlConnection('shop')]);
 
-        $detection = (new MysqlDetector($locator, ['default'], [], exclude: ['*']))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default']), [], exclude: ['*']))->detect();
 
         self::assertFalse($detection->isFound());
         self::assertSame('No MySQL or MariaDB Doctrine connection found.', $detection->error);
@@ -140,10 +169,10 @@ final class MysqlDetectorTest extends TestCase
         $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'db.internal', 'dbname' => 'app']);
         $connection->method('isConnected')->willReturn(false);
         $connection->expects(self::once())->method('fetchAllAssociative')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection timed out'));
-        $collectors = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], []))->detect()->instances[0]->collectors;
+        $collectors = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), []))->detect()->instances[0]->collectors;
         $runner = new CollectorRunner();
 
-        foreach ($collectors->specs ?? [] as $spec) {
+        foreach ($collectors->specs() ?? [] as $spec) {
             try {
                 $runner->run($spec->collector);
                 self::fail(sprintf('%s should fail on an unreachable server.', $spec->name));
@@ -180,7 +209,7 @@ final class MysqlDetectorTest extends TestCase
         $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => 'app'] + $params);
         $system = $this->createMock(AdapterInterface::class);
 
-        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'Linux', $system))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), [], 'Linux', $system))->detect();
 
         self::assertSame($local, \in_array('system.ram_total', $detection->instances[0]->collectors?->names() ?? [], true));
         if ($local) {
@@ -192,7 +221,7 @@ final class MysqlDetectorTest extends TestCase
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'localhost', 'dbname' => 'app']);
-        $detector = new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'Windows');
+        $detector = new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), [], 'Windows');
 
         self::assertNotContains('system.ram_total', $detector->detect()->instances[0]->collectors?->names() ?? []);
     }
@@ -201,8 +230,8 @@ final class MysqlDetectorTest extends TestCase
     {
         $locator = new ServiceLocator(['2024' => fn(): Connection => $this->mysqlConnection('archive')]);
 
-        $auto = (new MysqlDetector($locator, ['2024'], []))->detect();
-        $configured = (new MysqlDetector($locator, ['2024'], ['2024' => []]))->detect();
+        $auto = (new MysqlDetector(new DoctrineConnections($locator, ['2024']), []))->detect();
+        $configured = (new MysqlDetector(new DoctrineConnections($locator, ['2024']), ['2024' => []]))->detect();
 
         self::assertSame(['2024'], self::ids($auto->instances));
         self::assertSame(['2024'], self::ids($configured->instances));
@@ -211,7 +240,7 @@ final class MysqlDetectorTest extends TestCase
 
     public function testAConfiguredConnectionWithoutDoctrineExplainsThatDoctrineIsMissing(): void
     {
-        $detection = (new MysqlDetector(new ServiceLocator([]), [], ['default' => []]))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator([]), []), ['default' => []]))->detect();
 
         self::assertSame(['default'], self::ids($detection->instances));
         self::assertSame('No Doctrine DBAL connection is configured.', $detection->instances[0]->error);
@@ -219,7 +248,7 @@ final class MysqlDetectorTest extends TestCase
 
     public function testUnknownConfiguredConnection(): void
     {
-        $detection = (new MysqlDetector(new ServiceLocator([]), ['default'], ['missing' => []]))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator([]), ['default']), ['missing' => []]))->detect();
 
         self::assertTrue($detection->isFound(), 'a configured connection is always listed');
         self::assertFalse($detection->instances[0]->isFound());
@@ -234,7 +263,7 @@ final class MysqlDetectorTest extends TestCase
         $connection->expects(self::never())->method('getDatabase');
         $connection->expects(self::never())->method('fetchAllAssociative');
 
-        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], []))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), []))->detect();
 
         self::assertTrue($detection->isFound());
     }
@@ -246,8 +275,8 @@ final class MysqlDetectorTest extends TestCase
         $custom = $this->createMock(Connection::class);
         $custom->method('getParams')->willReturn(['driverClass' => \Doctrine\DBAL\Driver\PDO\MySQL\Driver::class, 'dbname' => 'app']);
 
-        self::assertTrue((new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $mysqli]), ['default'], []))->detect()->isFound());
-        self::assertTrue((new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $custom]), ['default'], []))->detect()->isFound());
+        self::assertTrue((new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $mysqli]), ['default']), []))->detect()->isFound());
+        self::assertTrue((new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $custom]), ['default']), []))->detect()->isFound());
     }
 
     public function testAnUnreachableServerIsDetectedAndFailsAtCollectTime(): void
@@ -255,7 +284,7 @@ final class MysqlDetectorTest extends TestCase
         $connection = $this->createMock(Connection::class);
         $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'dbname' => 'app']);
         $connection->method('fetchAllAssociative')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection refused'));
-        $detection = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], []))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), []))->detect();
 
         self::assertTrue($detection->isFound(), 'the tab stays, the outage is shown inside it');
 
@@ -275,11 +304,11 @@ final class MysqlDetectorTest extends TestCase
             'legacy' => fn(): Connection => $this->serverConnection('db2.internal', null, 'old'),
         ]);
 
-        $detection = (new MysqlDetector($locator, ['default', 'reporting', 'legacy'], []))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections($locator, ['default', 'reporting', 'legacy']), []))->detect();
 
         self::assertSame(['db.internal:3306', 'db.internal:3306', 'db2.internal:3306'], array_map(static fn(Instance $instance): ?string => $instance->server?->key, $detection->instances));
 
-        $configured = (new MysqlDetector($locator, ['default', 'reporting', 'legacy'], ['reporting' => []]))->detect();
+        $configured = (new MysqlDetector(new DoctrineConnections($locator, ['default', 'reporting', 'legacy']), ['reporting' => []]))->detect();
 
         self::assertSame('db.internal:3306', $configured->instances[0]->server?->key);
     }
@@ -289,17 +318,17 @@ final class MysqlDetectorTest extends TestCase
         $connection = $this->serverConnection('localhost', null, 'app');
         $system = $this->createMock(AdapterInterface::class);
 
-        $collectors = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], [], 'Linux', $system))->detect()->instances[0]->collectors;
+        $collectors = (new MysqlDetector(new DoctrineConnections(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default']), [], 'Linux', $system))->detect()->instances[0]->collectors;
 
         self::assertSame(
             ['mysql.status' => true, 'mysql.variables' => true, 'mysql.information_schema' => false, 'mysql.slow_queries' => false, 'system.ram_total' => true],
-            array_combine($collectors?->names() ?? [], array_map(static fn($spec): bool => $spec->perServer, $collectors?->specs ?? [])),
+            array_combine($collectors?->names() ?? [], array_map(static fn($spec): bool => $spec->perServer, $collectors?->specs() ?? [])),
         );
     }
 
     public function testAConnectionInErrorHasNoServer(): void
     {
-        $detection = (new MysqlDetector(new ServiceLocator([]), ['default'], ['missing' => []]))->detect();
+        $detection = (new MysqlDetector(new DoctrineConnections(new ServiceLocator([]), ['default']), ['missing' => []]))->detect();
 
         self::assertNull($detection->instances[0]->server);
     }

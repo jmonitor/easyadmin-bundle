@@ -3,6 +3,7 @@
 
     var STORAGE_KEY = 'jmonitor_easyadmin.live';
     var SCROLLABLE = '.jm-scroll, .jm-query, .table-responsive';
+    var SELECT_IDLE = 60000;
     var root = document.querySelector('[data-live]');
 
     if (!root) {
@@ -21,6 +22,7 @@
     var timer = null;
     var inFlight = false;
     var updatedAt = Date.now();
+    var selectUsedAt = 0;
 
     function readPreference() {
         try {
@@ -103,11 +105,38 @@
         return selection !== null && !selection.isCollapsed && selection.containsNode(element, true);
     }
 
-    // replacing the content would close an open drop-down
-    function hasFocusedSelectInside(element) {
+    function focusedSelectInside(element) {
         var active = document.activeElement;
 
-        return active !== null && active.tagName === 'SELECT' && element.contains(active);
+        return active !== null && active.tagName === 'SELECT' && element.contains(active) ? active : null;
+    }
+
+    function hasPendingChoice(select) {
+        return Array.prototype.some.call(select.options, function (option) {
+            return option.selected !== option.defaultSelected;
+        });
+    }
+
+    // null where the browser does not know the selector
+    function isOpen(select) {
+        try {
+            return select.matches(':open');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Replacing the content would drop a choice not confirmed yet, wherever the focus went, or close
+    // an open drop-down. A native list sends no event while open, nor when Escape closes it: without
+    // the :open selector, the polling resumes a while after the last use of the list.
+    function isSelectInUse(element) {
+        if (Array.prototype.some.call(element.querySelectorAll('select'), hasPendingChoice)) {
+            return true;
+        }
+
+        var select = focusedSelectInside(element);
+
+        return select !== null && (isOpen(select) === true || Date.now() - selectUsedAt < SELECT_IDLE);
     }
 
     function replaceContent(html) {
@@ -117,8 +146,19 @@
         var scrolls = Array.prototype.map.call(content.querySelectorAll(SCROLLABLE), function (element) {
             return { top: element.scrollTop, left: element.scrollLeft };
         });
+        var focused = focusedSelectInside(content);
+        var focusedRank = focused ? Array.prototype.indexOf.call(content.querySelectorAll('select'), focused) : -1;
 
         content.innerHTML = html;
+
+        // a keyboard user keeps their place in the page
+        if (focusedRank !== -1) {
+            var select = content.querySelectorAll('select')[focusedRank];
+
+            if (select) {
+                select.focus({ preventScroll: true });
+            }
+        }
 
         activeTabs.forEach(function (target) {
             var tab = content.querySelector('[data-bs-toggle="tab"][data-bs-target="' + target + '"]');
@@ -154,7 +194,7 @@
     }
 
     function refresh() {
-        if (!enabled || inFlight || document.hidden || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
+        if (!enabled || inFlight || document.hidden || hasSelectionInside(content) || isSelectInUse(content)) {
             return;
         }
 
@@ -185,7 +225,7 @@
                 return response.ok ? response.text() : null;
             })
             .then(function (html) {
-                if (html === null || !enabled || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
+                if (html === null || !enabled || hasSelectionInside(content) || isSelectInUse(content)) {
                     return;
                 }
 
@@ -227,6 +267,14 @@
             refresh();
         });
     }
+
+    ['pointerdown', 'keydown'].forEach(function (type) {
+        content.addEventListener(type, function (event) {
+            if (event.target && event.target.tagName === 'SELECT') {
+                selectUsedAt = Date.now();
+            }
+        });
+    });
 
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {

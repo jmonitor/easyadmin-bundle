@@ -70,6 +70,21 @@ final class ComponentRegistryTest extends TestCase
         self::assertSame(2, $detector->calls);
     }
 
+    public function testAComponentIsDetectedWhenAskedFor(): void
+    {
+        $mysql = new StaticDetector(Component::Mysql, $this->found(Component::Mysql));
+        $redis = new StaticDetector(Component::Redis, $this->found(Component::Redis));
+        $registry = new ComponentRegistry(['mysql' => $mysql, 'redis' => $redis], $this->config());
+
+        self::assertNotNull($registry->instance(Component::Redis, null));
+        self::assertTrue($registry->isAvailable(Component::Redis));
+        self::assertSame(0, $mysql->calls, 'the other components are left alone');
+
+        self::assertSame([Component::Mysql, Component::Redis], $registry->available());
+        self::assertSame(1, $mysql->calls);
+        self::assertSame(1, $redis->calls);
+    }
+
     public function testTheImplicitInstanceCarriesTheDetectedSet(): void
     {
         $set = new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php'), Lifetime::Dynamic)]);
