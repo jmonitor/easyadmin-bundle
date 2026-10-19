@@ -19,6 +19,7 @@ use Psr\Clock\ClockInterface;
  * a failure is cached for the dynamic lifetime so a dead service is not hammered, an
  * unreachable server for at least a minute since each attempt may wait for a timeout.
  * One request at a time collects an instance: the others do not pile up on the same timeout.
+ * The connections of one server share the results and deltas of its server-wide collectors.
  */
 final readonly class SnapshotProvider
 {
@@ -52,11 +53,13 @@ final readonly class SnapshotProvider
 
         try {
             foreach ($instance->collectors->specs as $spec) {
+                $serverPrefix = self::serverPrefix($instance, $spec);
+                $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
                 $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
-                $values = $item->get();
+                $cached = self::cached($spec, $serverItem) ?? self::cached($spec, $item);
 
-                if (CollectorResult::isValidArray($values)) {
-                    $results[$spec->name] = CollectorResult::fromArray($spec->name, $values);
+                if ($cached !== null) {
+                    $results[$spec->name] = $cached;
 
                     continue;
                 }
@@ -64,7 +67,7 @@ final readonly class SnapshotProvider
                 $token ??= $this->lock($lockKey);
                 $results[$spec->name] = $token === false
                     ? new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp())
-                    : $this->collect($spec, $prefix, $item);
+                    : $this->collect($spec, $serverPrefix ?? $prefix, $serverItem ?? $item, $item);
             }
         } finally {
             if (is_string($token)) {
@@ -82,6 +85,11 @@ final readonly class SnapshotProvider
     {
         foreach ($instance->collectors->specs ?? [] as $spec) {
             $this->cache->deleteItem(self::cacheKey($spec->name, $instance->keyPrefix()));
+            $serverPrefix = self::serverPrefix($instance, $spec);
+
+            if ($serverPrefix !== null) {
+                $this->cache->deleteItem(self::cacheKey($spec->name, $serverPrefix));
+            }
 
             if ($spec->collector instanceof RefreshableCollectorInterface) {
                 $spec->collector->refresh();
@@ -107,9 +115,30 @@ final readonly class SnapshotProvider
         return sprintf('%s (%s)', $e->getMessage(), $cause);
     }
 
+    /**
+     * The connections of one server share its lock: they would all wait on the same timeout.
+     */
     private static function lockKey(Instance $instance): string
     {
+        $serverPrefix = $instance->serverKeyPrefix();
+
+        if ($serverPrefix !== null) {
+            return 'jmonitor_easyadmin.collecting.' . rtrim($serverPrefix, '.');
+        }
+
         return 'jmonitor_easyadmin.collecting.' . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
+    }
+
+    private static function serverPrefix(Instance $instance, CollectorSpec $spec): ?string
+    {
+        return $spec->perServer ? $instance->serverKeyPrefix() : null;
+    }
+
+    private static function cached(CollectorSpec $spec, ?CacheItemInterface $item): ?CollectorResult
+    {
+        $values = $item?->get();
+
+        return CollectorResult::isValidArray($values) ? CollectorResult::fromArray($spec->name, $values) : null;
     }
 
     private static function isUnreachable(\Throwable $e): bool
@@ -157,7 +186,10 @@ final readonly class SnapshotProvider
         return max(Lifetime::Minute->ttl($this->pollingInterval, $this->staticTtl), Lifetime::Dynamic->ttl($this->pollingInterval, $this->staticTtl));
     }
 
-    private function collect(CollectorSpec $spec, string $prefix, CacheItemInterface $item): CollectorResult
+    /**
+     * A failure is kept apart from a shared success: it may come from the privileges of one connection only.
+     */
+    private function collect(CollectorSpec $spec, string $deltaPrefix, CacheItemInterface $successItem, CacheItemInterface $failureItem): CollectorResult
     {
         $now = $this->clock->now()->getTimestamp();
 
@@ -171,8 +203,9 @@ final readonly class SnapshotProvider
             $ttl = self::isUnreachable($e) ? $this->unreachableTtl() : Lifetime::Dynamic->ttl($this->pollingInterval, $this->staticTtl);
         }
 
-        $delta = $error === null && $spec->trackDelta ? $this->deltas->track($prefix . $spec->name, $data, $now) : null;
+        $delta = $error === null && $spec->trackDelta ? $this->deltas->track($deltaPrefix . $spec->name, $data, $now) : null;
         $result = new CollectorResult($spec->name, $data, $error, $now, $delta);
+        $item = $error === null ? $successItem : $failureItem;
 
         $item->set($result->toArray());
         $item->expiresAfter($ttl);
