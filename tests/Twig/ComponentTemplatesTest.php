@@ -10,6 +10,7 @@ use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
@@ -207,6 +208,20 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Connection refused', $html);
         self::assertStringNotContainsString('Databases', $html);
+    }
+
+    public function testACollectInProgressElsewhereShowsOneNoticeAndNoError(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => new CollectorResult('mysql.status', [], SnapshotProvider::IN_PROGRESS, 1_000),
+            'mysql.variables' => new CollectorResult('mysql.variables', [], SnapshotProvider::IN_PROGRESS, 1_000),
+        ]);
+
+        $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
+
+        self::assertSame(1, substr_count($html, 'Another request is collecting these metrics'));
+        self::assertStringContainsString('alert-info', $html);
+        self::assertStringNotContainsString('mysql.status:', $html);
     }
 
     public function testTheSystemFragmentShowsTheCoresUnderTheCpuGaugeAndTheLoadAverageAsTiles(): void

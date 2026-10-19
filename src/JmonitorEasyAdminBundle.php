@@ -95,6 +95,17 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->defaultNull()
                     ->info('Role or voter attribute required to see the pages, checked with is_granted(). Null leaves the access to the security of the dashboard.')
                 ->end()
+                ->arrayNode('exclude_connections')
+                    ->info('Patterns of the Doctrine connections the MySQL and PostgreSQL tabs leave out, never built, with the * and ? wildcards of fnmatch(), e.g. "*_backup".')
+                    ->beforeNormalization()->castToArray()->end()
+                    ->scalarPrototype()
+                        ->cannotBeEmpty()
+                        ->validate()
+                            ->ifTrue(static fn(mixed $v): bool => !is_string($v))
+                            ->then(static fn(mixed $v): never => throw new InvalidConfigurationException(sprintf('The patterns of "exclude_connections" must be strings, got %s: quote them.', json_encode($v))))
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('components')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -136,7 +147,32 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                     ->end()
                 ->end()
             ->end()
+            ->validate()
+                ->always(static fn(array $v): array => self::refuseExcludedConfiguredConnections($v))
+            ->end()
         ;
+    }
+
+    /**
+     * A connection named in "connections" and matching "exclude_connections" would be shown and never built.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    private static function refuseExcludedConfiguredConnections(array $config): array
+    {
+        foreach (['mysql', 'postgresql'] as $component) {
+            foreach (array_keys($config['components'][$component]['connections']) as $name) {
+                foreach ($config['exclude_connections'] as $pattern) {
+                    if (fnmatch($pattern, (string) $name)) {
+                        throw new InvalidConfigurationException(sprintf('The connection "%s" of the %s component matches the pattern "%s" of "exclude_connections".', $name, $component, $pattern));
+                    }
+                }
+            }
+        }
+
+        return $config;
     }
 
     /**

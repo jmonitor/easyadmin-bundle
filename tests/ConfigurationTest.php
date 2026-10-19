@@ -29,6 +29,7 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame([], $config['components']['mysql']['connections']);
         self::assertSame([], $config['components']['postgresql']['connections']);
+        self::assertSame([], $config['exclude_connections']);
         self::assertArrayNotHasKey('connection', $config['components']['mysql']);
         self::assertSame('public', $config['components']['postgresql']['schema']);
         self::assertSame([], $config['components']['redis']['connections']);
@@ -246,6 +247,65 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame(['b' => []], $config['components']['mysql']['connections']);
         self::assertSame(['default' => ['dsn' => 'redis://b', 'service' => null]], $config['components']['redis']['connections']);
+    }
+
+    public function testExcludeConnectionsListsPatternsAcrossFiles(): void
+    {
+        $config = $this->process(['exclude_connections' => ['*_backup']], ['exclude_connections' => ['archive_?']]);
+
+        self::assertSame(['*_backup', 'archive_?'], $config['exclude_connections']);
+    }
+
+    public function testASingleExcludePatternIsAList(): void
+    {
+        self::assertSame(['*_backup'], $this->process(['exclude_connections' => '*_backup'])['exclude_connections']);
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function provideInvalidExcludePatterns(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'integer' => [2024];
+        yield 'boolean' => [true];
+    }
+
+    #[DataProvider('provideInvalidExcludePatterns')]
+    public function testAnExcludePatternMustBeANonEmptyString(mixed $pattern): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['exclude_connections' => [$pattern]]);
+    }
+
+    /**
+     * @return iterable<string, array{list<array<string, mixed>>, string}>
+     */
+    public static function provideExcludedConfiguredConnections(): iterable
+    {
+        yield 'mysql' => [[['exclude_connections' => ['*_backup'], 'components' => ['mysql' => ['connections' => ['s001_backup']]]]], 'The connection "s001_backup" of the mysql component matches the pattern "*_backup" of "exclude_connections".'];
+        yield 'deprecated mysql connection, another file' => [[['components' => ['mysql' => ['connection' => 'legacy']]], ['exclude_connections' => ['legacy']]], 'The connection "legacy" of the mysql component'];
+        yield 'postgresql' => [[['exclude_connections' => ['dwh'], 'components' => ['postgresql' => ['connections' => ['dwh']]]]], 'The connection "dwh" of the postgresql component'];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $files
+     */
+    #[DataProvider('provideExcludedConfiguredConnections')]
+    public function testAConfiguredConnectionCannotBeExcluded(array $files, string $message): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->process(...$files);
+    }
+
+    public function testExcludeConnectionsAndConnectionsThatDoNotMatchGoTogether(): void
+    {
+        $config = $this->process(['exclude_connections' => ['*_backup'], 'components' => ['mysql' => ['connections' => ['s001']]]]);
+
+        self::assertSame(['s001' => []], $config['components']['mysql']['connections']);
     }
 
     public function testMysqlConnectionsTakeNoOption(): void

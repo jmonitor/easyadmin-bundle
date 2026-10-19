@@ -44,6 +44,20 @@ final readonly class ComponentSnapshot
     }
 
     /**
+     * Some collectors are left to another request collecting them: not an error, it shows once.
+     */
+    public function inProgress(): bool
+    {
+        foreach ($this->results as $result) {
+            if ($result->error === SnapshotProvider::IN_PROGRESS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return list<string>
      */
     public function errors(): array
@@ -51,7 +65,7 @@ final readonly class ComponentSnapshot
         $errors = [];
 
         foreach ($this->results as $result) {
-            if ($result->error !== null) {
+            if ($result->error !== null && $result->error !== SnapshotProvider::IN_PROGRESS) {
                 $errors[] = $result->name . ': ' . $result->error;
             }
         }

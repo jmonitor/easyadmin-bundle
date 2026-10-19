@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The MySQL and PostgreSQL tabs can leave out Doctrine connections with `exclude_connections`.
+
+### Changed
+
+- An unreachable database server is tried once per collect and no longer by several requests at a time.
+
 ## [1.1.1] - 2026-10-17
 
 ### Fixed

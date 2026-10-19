@@ -19,7 +19,8 @@ final class DoctrineParams
 
     /**
      * One instance per Doctrine connection: every connection matching the product when none is
-     * configured, else exactly the configured ones, in error when they cannot be used.
+     * configured, else exactly the configured ones, in error when they cannot be used. An excluded
+     * connection is never built: building one may open it, to read the server version.
      *
      * @param ContainerInterface                                       $connections     Doctrine connections, keyed by connection name
      * @param list<string>                                             $connectionNames every connection, in Doctrine order
@@ -28,8 +29,9 @@ final class DoctrineParams
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors given the connection, its parameters and its configured options
      * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
      * @param ?SkippedConnectionReporter                               $skipped         told of the connections skipped because they cannot be read
+     * @param list<string>                                             $exclude         fnmatch() patterns of the connection names left out when none is configured
      */
-    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null): Detection
+    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null, array $exclude = []): Detection
     {
         if ($configured !== []) {
             $instances = [];
@@ -53,6 +55,10 @@ final class DoctrineParams
 
         foreach ($connectionNames as $name) {
             $name = (string) $name;
+
+            if (self::isExcluded($name, $exclude)) {
+                continue;
+            }
 
             try {
                 /** @var Connection $connection */
@@ -114,6 +120,20 @@ final class DoctrineParams
         }
 
         return is_string($host) && (str_starts_with($host, '/') || in_array(strtolower($host), self::LOCAL_HOSTS, true));
+    }
+
+    /**
+     * @param list<string> $patterns
+     */
+    private static function isExcluded(string $name, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            if (fnmatch($pattern, $name)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

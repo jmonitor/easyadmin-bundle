@@ -9,11 +9,15 @@ use Doctrine\DBAL\DriverManager;
 use Jmonitor\Collector\System\Adapter\AdapterInterface;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Logging\RecordingLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 
 final class MysqlDetectorTest extends TestCase
@@ -102,6 +106,51 @@ final class MysqlDetectorTest extends TestCase
         $named = (new MysqlDetector($locator, ['broken', 'default'], ['broken' => []]))->detect();
         self::assertSame('Malformed DSN', $named->instances[0]->error);
         self::assertSame('broken', $named->instances[0]->id);
+    }
+
+    public function testAnExcludedConnectionIsNeverBuilt(): void
+    {
+        $locator = new ServiceLocator([
+            'default' => fn(): Connection => $this->mysqlConnection('shop'),
+            's001' => fn(): Connection => $this->mysqlConnection('shard_001'),
+            's001_backup' => static fn(): Connection => throw new \LogicException('An excluded connection must not be built.'),
+            'legacy' => static fn(): Connection => throw new \LogicException('An excluded connection must not be built.'),
+        ]);
+        $reporter = new SkippedConnectionReporter(new ArrayAdapter(), $logger = new RecordingLogger(), 3600);
+
+        $detection = (new MysqlDetector($locator, ['default', 's001', 's001_backup', 'legacy'], [], skipped: $reporter, exclude: ['*_backup', 'legacy']))->detect();
+
+        self::assertSame(['default', 's001'], self::ids($detection->instances));
+        self::assertSame([], $logger->records);
+    }
+
+    public function testExcludingEveryConnectionLeavesNoInstance(): void
+    {
+        $locator = new ServiceLocator(['default' => fn(): Connection => $this->mysqlConnection('shop')]);
+
+        $detection = (new MysqlDetector($locator, ['default'], [], exclude: ['*']))->detect();
+
+        self::assertFalse($detection->isFound());
+        self::assertSame('No MySQL or MariaDB Doctrine connection found.', $detection->error);
+    }
+
+    public function testTheCollectorsOfAnUnreachableServerTryToConnectOnce(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['driver' => 'pdo_mysql', 'host' => 'db.internal', 'dbname' => 'app']);
+        $connection->method('isConnected')->willReturn(false);
+        $connection->expects(self::once())->method('fetchAllAssociative')->willThrowException(new \RuntimeException('SQLSTATE[HY000] [2002] Connection timed out'));
+        $collectors = (new MysqlDetector(new ServiceLocator(['default' => static fn(): Connection => $connection]), ['default'], []))->detect()->instances[0]->collectors;
+        $runner = new CollectorRunner();
+
+        foreach ($collectors->specs ?? [] as $spec) {
+            try {
+                $runner->run($spec->collector);
+                self::fail(sprintf('%s should fail on an unreachable server.', $spec->name));
+            } catch (\Throwable $e) {
+                self::assertInstanceOf(UnreachableServerException::class, $e->getPrevious(), $spec->name);
+            }
+        }
     }
 
     /**

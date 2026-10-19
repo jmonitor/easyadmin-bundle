@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ComponentSnapshotTest extends TestCase
@@ -29,6 +30,19 @@ final class ComponentSnapshotTest extends TestCase
         self::assertNull($snapshot->delta('mysql.slow_queries'));
         self::assertSame(['mysql.slow_queries: performance_schema table is not readable'], $snapshot->errors());
         self::assertNull($snapshot->error);
+    }
+
+    public function testCollectorsLeftToAnotherRequestAreNotErrors(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => new CollectorResult('mysql.status', [], SnapshotProvider::IN_PROGRESS, 1_000),
+            'mysql.variables' => new CollectorResult('mysql.variables', [], SnapshotProvider::IN_PROGRESS, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', [], 'performance_schema table is not readable', 1_000),
+        ]);
+
+        self::assertTrue($snapshot->inProgress());
+        self::assertSame(['mysql.slow_queries: performance_schema table is not readable'], $snapshot->errors());
+        self::assertFalse((new ComponentSnapshot(Component::Mysql, []))->inProgress());
     }
 
     public function testResultRoundTripsThroughArrays(): void

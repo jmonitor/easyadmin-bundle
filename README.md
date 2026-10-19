@@ -97,6 +97,7 @@ jmonitor_easyadmin:
     polling_interval: 10       # seconds between two live refreshes, 0 disables them
     static_ttl: 3600           # seconds during which versions, configuration and OS data are kept
     permission: ~              # role or voter attribute required to see the pages, e.g. ROLE_SUPER_ADMIN
+    exclude_connections: []    # Doctrine connections the MySQL and PostgreSQL tabs leave out, e.g. '*_backup'
     components:
         system: auto           # auto | true | false
         php: auto
@@ -126,6 +127,8 @@ jmonitor_easyadmin:
 
 `connections` lists the Doctrine connections to show, each one becoming a pill under the tabs; a connection named here is always shown, with its error when it cannot be read. A PostgreSQL connection may have its own schema: `connections: { default: ~, dwh: { schema: analytics } }`. The former `connection` option still works and is deprecated.
 
+`exclude_connections` leaves out of the MySQL and PostgreSQL tabs the Doctrine connections whose name matches one of its patterns, with the `*` and `?` wildcards: the connections your application declares but does not serve, for instance `exclude_connections: ['*_backup']`. These connections are not even built, which matters when Doctrine opens a connection to read its server version (`mapping_types` without `server_version`). A connection listed in `connections` cannot match it.
+
 For Redis, `connections` maps an id to a DSN, `{ dsn: ... }` or `{ service: ... }` (a `\Redis`, `\Predis\Client` or `\Relay\Relay` service), each one becoming a pill: `connections: { cache: 'redis://localhost', sessions: { dsn: 'redis://sessions:6379/1' }, queue: { service: app.redis_queue } }`. The former `dsn` and `service` options still work and are deprecated.
 
 ## Compared to jmonitor.io
@@ -141,14 +144,16 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 - **System**: Linux only, read from `/proc`.
 - **PHP**: the metrics are those of the PHP process serving the admin. The PHP-FPM section needs PHP-FPM, the APCu cards the APCu extension.
 - **FrankenPHP**: shown when the admin is served by FrankenPHP (PHP SAPI `frankenphp`). The metrics are read from the Prometheus endpoint of the Caddy admin API, `http://localhost:2019/metrics` by default; they need the `metrics` global option in the Caddyfile (`{ metrics }`), otherwise the tab says so. The version runs `frankenphp version`, once per `static_ttl`, so the binary should be in the `PATH` of the web process; when it stays empty, a warning on the `jmonitor_easyadmin` channel says why, and **Refresh** runs the command again. In worker mode, every worker script gets its own card, and the Busy threads gauge covers the threads left to regular requests, since a running worker always holds one.
-- **MySQL**: every MySQL or MariaDB connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
-- **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. Every PostgreSQL connection of Doctrine gets a pill under the tabs; restrict them with `connections`. The storage, scans and dead rows cards cover the tables of the configured `schema`, per connection when `connections` gives one. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
+- **MySQL**: every MySQL or MariaDB connection of Doctrine gets a pill under the tabs; restrict them with `connections` or `exclude_connections`. The slow queries are read from the `performance_schema`; without access to it, that card shows an error and the rest of the tab still works. The InnoDB RAM ratio is only shown on Linux, when MySQL runs on the web host (no host, a loopback host or a Unix socket).
+- **PostgreSQL**: the slow queries need the `pg_stat_statements` extension (added to `shared_preload_libraries`, then `CREATE EXTENSION pg_stat_statements` in the database) and a connection role allowed to read the server settings and the queries of the other sessions: `GRANT pg_monitor TO <your role>`. Without them, the tab shows the error with what to do and the rest still works. Every PostgreSQL connection of Doctrine gets a pill under the tabs; restrict them with `connections` or `exclude_connections`. The storage, scans and dead rows cards cover the tables of the configured `schema`, per connection when `connections` gives one. The RAM ratio of `shared_buffers` is only shown on Linux, when PostgreSQL runs on the web host.
 - **Redis**: every server listed in `connections` gets a pill under the tabs, with its own cache and Refresh; a server that is down or a service that does not exist shows its error on its pill. Without `connections`, the Redis provider of the Symfony cache or `REDIS_URL` is monitored.
 - **Symfony**: the scheduler is read in the web process. The Messenger stats run `bin/console messenger:stats --format=json` (Symfony 7.2+) in a PHP CLI process started by the web server, and the Flex recipes check needs `composer` in its `PATH`. When one of them fails, its card shows the cause; set its option to `false` to remove the card.
 
 ## How it works
 
 Opening a tab runs the component's collectors and caches the result: fast-changing data for `polling_interval` seconds, versions and configuration for `static_ttl` seconds. The **Refresh** button drops the cache, for instance after a server restart.
+
+A MySQL or PostgreSQL server that cannot be reached costs one connection attempt per collect, not one per card, and its error is kept for a minute (`polling_interval` when longer), since each attempt may wait for the connection timeout. One request at a time collects a tab: another one opened meanwhile says the collect is in progress instead of waiting for the same timeout, and **Refresh** starts a new collect anyway.
 
 A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL tabs and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds; a connection listed in `connections` is shown in its tab with the error instead.
 

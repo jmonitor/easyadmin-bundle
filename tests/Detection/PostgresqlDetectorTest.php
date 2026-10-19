@@ -74,6 +74,24 @@ final class PostgresqlDetectorTest extends TestCase
         self::assertSame('Doctrine connection "default" is not a PostgreSQL connection.', $configured->instances[1]->error);
     }
 
+    public function testAnExcludedConnectionIsNeverBuilt(): void
+    {
+        $built = false;
+        $locator = new ServiceLocator([
+            'analytics' => fn(): Connection => $this->postgresqlConnection(),
+            'analytics_replica' => function () use (&$built): Connection {
+                $built = true;
+
+                return $this->postgresqlConnection();
+            },
+        ]);
+
+        $detection = (new PostgresqlDetector($locator, ['analytics', 'analytics_replica'], [], exclude: ['*_replica']))->detect();
+
+        self::assertSame(['analytics'], array_map(static fn(Instance $instance): ?string => $instance->id, $detection->instances));
+        self::assertFalse($built);
+    }
+
     public function testAConnectionMayHaveItsOwnSchema(): void
     {
         $locator = new ServiceLocator([

@@ -14,10 +14,10 @@ use Jmonitor\Collector\System\Adapter\AdapterInterface;
 use Jmonitor\Collector\System\Adapter\LinuxAdapter;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
+use Jmonitor\EasyAdminBundle\Collector\FailFastDoctrineAdapter;
 use Jmonitor\EasyAdminBundle\Collector\HostRamCollector;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
-use Jmonitor\Utils\DatabaseAdapter\DoctrineAdapter;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -33,6 +33,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
      * @param list<string>                        $connectionNames
      * @param array<string, array<string, mixed>> $configured      the configured connections with their options, empty to take every PostgreSQL one
      * @param string                              $schema          schema whose tables feed the database collector, for the connections without their own
+     * @param list<string>                        $exclude         patterns of the connection names left out when none is configured
      */
     public function __construct(
         private ContainerInterface $connections,
@@ -42,6 +43,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
         private string $osFamily = PHP_OS_FAMILY,
         private ?AdapterInterface $systemAdapter = null,
         private ?SkippedConnectionReporter $skipped = null,
+        private array $exclude = [],
     ) {}
 
     public function component(): Component
@@ -60,6 +62,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
             fn(Connection $connection, array $params, array $options): CollectorSet => $this->collectors($connection, self::schema($options) ?? $this->schema, DoctrineParams::isLocal($params)),
             'PostgreSQL',
             $this->skipped,
+            $this->exclude,
         );
     }
 
@@ -89,7 +92,7 @@ final readonly class PostgresqlDetector implements ComponentDetectorInterface
 
     private function collectors(Connection $connection, string $schema, bool $local): CollectorSet
     {
-        $adapter = new DoctrineAdapter($connection);
+        $adapter = new FailFastDoctrineAdapter($connection);
         $specs = [
             new CollectorSpec(new PostgresqlActivityCollector($adapter), Lifetime::Dynamic, trackDelta: true),
             new CollectorSpec(new PostgresqlSettingsCollector($adapter), Lifetime::Static),
