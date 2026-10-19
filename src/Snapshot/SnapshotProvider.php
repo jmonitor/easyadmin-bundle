@@ -64,7 +64,23 @@ final readonly class SnapshotProvider
                     continue;
                 }
 
-                $token ??= $this->lock($lockKey);
+                if ($token === null) {
+                    $token = $this->lock($lockKey);
+
+                    if (is_string($token)) {
+                        // another request may have collected between the first read and the lock
+                        $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
+                        $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
+                        $cached = self::cached($spec, $serverItem) ?? self::cached($spec, $item);
+
+                        if ($cached !== null) {
+                            $results[$spec->name] = $cached;
+
+                            continue;
+                        }
+                    }
+                }
+
                 $results[$spec->name] = $token === false
                     ? new CollectorResult($spec->name, [], self::IN_PROGRESS, $this->clock->now()->getTimestamp())
                     : $this->collect($spec, $serverPrefix ?? $prefix, $serverItem ?? $item, $item);

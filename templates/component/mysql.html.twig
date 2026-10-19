@@ -204,17 +204,18 @@
                         <option value="{{ database.id }}"{{ database is same as(instance) ? ' selected' }}>{{ database.id }}{% if database.detail %} · {{ database.detail }}{% endif %}</option>
                     {% endfor %}
                 </select>
-                <noscript><button type="submit" class="btn btn-secondary btn-sm">Show</button></noscript>
+                <button type="submit" class="btn btn-secondary btn-sm jm-navigate-submit">Show</button>
             </form>
         {% else %}
-            <h2 class="h5 mb-2">Database · {{ instance.detail ?? instance.id }}</h2>
+            <h2 class="h5 mb-2">Database{% if (instance.detail ?? instance.id) is not null %} · {{ instance.detail ?? instance.id }}{% endif %}</h2>
         {% endif %}
 
         {% if view.slowQueryLogDisabled %}
             <p class="text-warning-emphasis small">The slow query log is disabled on your side. Data may not be available or up to date.</p>
         {% endif %}
         <div class="row g-3">
-            <div class="col-md-6 col-xl-4">                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight'} %}
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight'} %}
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
                             'Data': view.dataLength|jm_bytes,

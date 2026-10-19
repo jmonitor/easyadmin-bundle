@@ -128,7 +128,8 @@ final class ComponentTemplatesTest extends TestCase
         self::assertSame(1, preg_match('#<select[^>]*name="connection"[^>]*data-jm-navigate[^>]*>(.*?)</select>#s', $section, $select));
         self::assertSame(3, substr_count($select[1], '<option'));
         self::assertStringContainsString('<option value="b" selected>b · two</option>', $select[1]);
-        self::assertMatchesRegularExpression('#<noscript>\s*<button type="submit"#', $section);
+        self::assertStringContainsString('<button type="submit" class="btn btn-secondary btn-sm jm-navigate-submit">Show</button>', $section);
+        self::assertStringNotContainsString('<noscript>', $section, 'the button must work when the script fails to load');
         self::assertStringNotContainsString('nav-pills', $section);
     }
 
@@ -144,6 +145,17 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Slow queries data are not available.', $html);
         self::assertStringContainsString('<div class="alert alert-warning py-2 small mb-3">mysql.slow_queries: performance_schema table is not readable</div>', $html, 'EasyAdmin removes the bottom margin of alerts');
         self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
+        self::assertStringContainsString('aria-label="Help: Total"', $html, 'the server slow queries total stays when the slow queries of the database are unavailable');
+    }
+
+    public function testAnUnavailableInstanceWithoutIdHasNoDanglingSeparator(): void
+    {
+        $instance = Instance::unavailable(Component::Mysql, 'No connection found.');
+
+        $html = $this->renderMysql($instance, InstanceNavigation::of([$instance], $instance));
+
+        self::assertMatchesRegularExpression('#<h2 class="h5 mb-2">Database</h2>#', $html);
+        self::assertStringNotContainsString('Database ·', $html);
     }
 
     public function testThePostgresqlFragmentRenders(): void

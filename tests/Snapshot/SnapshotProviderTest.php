@@ -13,12 +13,15 @@ use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\Server;
+use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cache\RecordingCachePool;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
 use Jmonitor\Collector\CollectorInterface;
 use Jmonitor\Exceptions\BootFailedException;
+use Psr\Cache\CacheItemInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -465,6 +468,39 @@ final class SnapshotProviderTest extends TestCase
 
         self::assertSame(SnapshotProvider::IN_PROGRESS, $provider->get($default)->result('mysql.status')?->error);
         self::assertSame(SnapshotProvider::IN_PROGRESS, $provider->get($reports)->result('mysql.information_schema')?->error);
+    }
+
+    public function testAnEntryFilledWhileTheLockIsTakenIsNotCollectedAgain(): void
+    {
+        $cache = new class extends ArrayAdapter {
+            public ?\Closure $onSave = null;
+
+            public function save(CacheItemInterface $item): bool
+            {
+                $saved = parent::save($item);
+
+                if ($this->onSave !== null) {
+                    ($this->onSave)($item->getKey());
+                }
+
+                return $saved;
+            }
+        };
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $instance = $this->serverInstance('default', [new CollectorSpec($status, Lifetime::Dynamic, trackDelta: true, perServer: true)]);
+        $statusKey = SnapshotProvider::cacheKey('mysql.status', (string) $instance->serverKeyPrefix());
+        $cache->onSave = function (string $key) use ($cache, $statusKey): void {
+            if (str_starts_with($key, 'jmonitor_easyadmin.collecting.')) {
+                $cache->onSave = null;
+                $cache->save($cache->getItem($statusKey)->set((new CollectorResult('mysql.status', ['Questions' => 7], null, 1_000))->toArray()));
+            }
+        };
+        $provider = new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($cache, 5), $cache, $this->clock, 10, 3600);
+
+        $snapshot = $provider->get($instance);
+
+        self::assertSame(0, $status->collects, 'another request collected between the read and the lock');
+        self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
     }
 
     /**
