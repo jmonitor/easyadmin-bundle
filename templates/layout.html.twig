@@ -9,7 +9,7 @@
 
 {% block head_javascript %}
     {{ parent() }}
-    {% set scripts = ['help.js']|merge(current and polling_interval > 0 ? ['live.js'] : []) %}
+    {% set scripts = ['help.js', 'navigation.js']|merge(current and polling_interval > 0 ? ['live.js'] : []) %}
     {% for script in scripts %}
         {% guard function csp_nonce %}
             <script src="{{ asset('bundles/jmonitoreasyadmin/' ~ script) }}" nonce="{{ csp_nonce('script') }}" defer></script>

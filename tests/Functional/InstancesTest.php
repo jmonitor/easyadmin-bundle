@@ -44,6 +44,15 @@ final class InstancesTest extends WebTestCase
         self::assertSelectorExists('.nav-tabs a[href="/admin/jmonitor/mysql"]');
     }
 
+    public function testThePageLoadsTheNavigationScript(): void
+    {
+        $client = $this->adminClient(self::TWO_INSTANCES);
+
+        $crawler = $client->request('GET', '/admin/jmonitor/mysql');
+
+        self::assertCount(1, $crawler->filter('script[src$="bundles/jmonitoreasyadmin/navigation.js"]'));
+    }
+
     public function testTheConnectionParameterSelectsAnInstance(): void
     {
         $client = $this->adminClient(self::TWO_INSTANCES);

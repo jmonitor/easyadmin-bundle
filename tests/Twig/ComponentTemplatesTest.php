@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests\Twig;
 
+use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Jmonitor\EasyAdminBundle\Detection\Server;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
@@ -14,6 +17,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
+use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
@@ -68,7 +72,6 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('Current: 30 · Peak: 45', $html);
         self::assertStringContainsString('15.00 <small class="text-muted">q/s</small>', $html);
         self::assertStringContainsString('<code class="jm-query">SELECT * FROM `order`', $html);
-        self::assertLessThan(strpos($html, '<span>Total</span>'), strpos($html, '<span>Top slowest queries</span>'), 'the total sits on the right');
         self::assertMatchesRegularExpression('#<div class="card">\s*<div class="card-header[^"]*">\s*<span>Total</span>#', $html, 'the total card keeps its own height');
         self::assertStringContainsString('The slow query log is disabled on your side.', $html);
         self::assertStringContainsString('slow_query_log_file', $html);
@@ -78,6 +81,55 @@ final class ComponentTemplatesTest extends TestCase
         self::assertMatchesRegularExpression('#<dt>Date</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}</dd>#', $html);
         self::assertStringNotContainsString('time_zone</dt>', $html, 'only the keys of the mysql.config help');
         self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheMysqlFragmentShowsTheServerBeforeTheDatabase(): void
+    {
+        $html = $this->renderMysql();
+
+        $database = strpos($html, 'jm-database');
+        self::assertNotFalse($database);
+        self::assertLessThan($database, strpos($html, 'Queries per second'));
+        self::assertLessThan($database, strpos($html, '<span>Total</span>'), 'the slow queries total belongs to the server');
+        self::assertGreaterThan($database, strpos($html, 'Data Length'));
+        self::assertGreaterThan($database, strpos($html, 'Top slowest queries'));
+        self::assertGreaterThan($database, strpos($html, 'The slow query log is disabled'));
+    }
+
+    public function testASingleDatabaseIsNamedWithoutSelector(): void
+    {
+        $html = $this->renderMysql();
+
+        self::assertStringContainsString('Database · shop', $html);
+        self::assertStringNotContainsString('data-jm-navigate', $html);
+        self::assertStringNotContainsString('nav-pills', $html);
+    }
+
+    public function testTwoDatabasesArePills(): void
+    {
+        $instances = $this->databases(['default' => 'shop', 'reporting' => 'reports']);
+
+        $html = $this->renderMysql($instances[1], InstanceNavigation::of($instances, $instances[1]));
+
+        $section = $this->databaseSection($html);
+        self::assertSame(2, substr_count($section, '?connection='));
+        self::assertStringContainsString('connection=reporting', $section);
+        self::assertMatchesRegularExpression('#class="nav-link py-1 px-2 active"[^>]*href="[^"]*connection=reporting"#', $section);
+        self::assertStringNotContainsString('<select', $section);
+    }
+
+    public function testThreeDatabasesAreASelect(): void
+    {
+        $instances = $this->databases(['a' => 'one', 'b' => 'two', 'c' => 'three']);
+
+        $html = $this->renderMysql($instances[1], InstanceNavigation::of($instances, $instances[1]));
+
+        $section = $this->databaseSection($html);
+        self::assertSame(1, preg_match('#<select[^>]*name="connection"[^>]*data-jm-navigate[^>]*>(.*?)</select>#s', $section, $select));
+        self::assertSame(3, substr_count($select[1], '<option'));
+        self::assertStringContainsString('<option value="b" selected>b · two</option>', $select[1]);
+        self::assertMatchesRegularExpression('#<noscript>\s*<button type="submit"#', $section);
+        self::assertStringNotContainsString('nav-pills', $section);
     }
 
     public function testTheMysqlFragmentWithoutSlowQueries(): void
@@ -403,8 +455,47 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('Workers', $html);
     }
 
-    private function render(string $component, ComponentSnapshot $snapshot, object $view): string
+    /**
+     * @param array<string, string> $details connection id => detail, all on the same server
+     *
+     * @return list<Instance>
+     */
+    private function databases(array $details): array
     {
+        $instances = [];
+        foreach ($details as $id => $detail) {
+            $instances[] = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), (string) $id, $detail, new Server('db:3306', 'db', 3306));
+        }
+
+        return $instances;
+    }
+
+    private function renderMysql(?Instance $instance = null, ?InstanceNavigation $navigation = null): string
+    {
+        $status = Payloads::mysqlStatus();
+        $snapshot = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => new CollectorResult('mysql.status', $status, null, 1_000),
+            'mysql.variables' => new CollectorResult('mysql.variables', ['slow_query_log' => 'OFF'] + Payloads::mysqlVariables(), null, 1_000),
+            'mysql.information_schema' => new CollectorResult('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]], null, 1_000),
+            'mysql.slow_queries' => new CollectorResult('mysql.slow_queries', Payloads::mysqlSlowQueries(), null, 1_000),
+        ]);
+
+        return $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000), $instance, $navigation);
+    }
+
+    private function databaseSection(string $html): string
+    {
+        $start = strpos($html, '<section class="jm-database');
+        self::assertNotFalse($start);
+
+        return substr($html, $start);
+    }
+
+    private function render(string $component, ComponentSnapshot $snapshot, object $view, ?Instance $instance = null, ?InstanceNavigation $navigation = null): string
+    {
+        $instance ??= Instance::found(Component::from($component), new CollectorSet(Component::from($component), []), 'default', 'shop');
+        $navigation ??= InstanceNavigation::of([$instance], $instance);
+
         return $this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component), [
             'components' => [Component::from($component)],
             'current' => Component::from($component),
@@ -412,6 +503,8 @@ final class ComponentTemplatesTest extends TestCase
             'routes' => ['index' => 'admin_jmonitor_index', 'component' => 'admin_jmonitor_component', 'fragment' => 'admin_jmonitor_fragment', 'refresh' => 'admin_jmonitor_refresh'],
             'snapshot' => $snapshot,
             'view' => $view,
+            'navigation' => $navigation,
+            'instance' => $instance,
             'fragment' => true,
         ]);
     }
