@@ -10,6 +10,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -133,7 +134,7 @@ final class MonitoringController
         return [
             'components' => $this->registry->available(),
             'current' => $current,
-            'instances' => $current === null ? [] : $this->registry->instancesFor($current),
+            'navigation' => InstanceNavigation::of($current === null ? [] : $this->registry->instancesFor($current), $instance),
             'instance' => $instance,
             'polling_interval' => $this->pollingInterval,
             'routes' => [

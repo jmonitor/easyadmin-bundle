@@ -140,6 +140,40 @@ final class InstancesTest extends WebTestCase
         self::assertResponseRedirects('/admin/jmonitor/mysql');
     }
 
+    public function testOnePillPerServerWhenTheConnectionsShareServers(): void
+    {
+        $client = $this->adminClient([
+            ['id' => 'default', 'detail' => 'shop', 'server' => 'db1'],
+            ['id' => 'reports', 'detail' => 'stats', 'server' => 'db1'],
+            ['id' => 'legacy', 'detail' => 'erp', 'server' => 'db2'],
+        ]);
+
+        $crawler = $client->request('GET', '/admin/jmonitor/mysql');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['db1', 'db2'], array_map('trim', $crawler->filter('.jm-instances a')->each(static fn($a) => $a->text())));
+        self::assertSelectorExists('.jm-instances a.active[href="/admin/jmonitor/mysql?connection=default"]');
+        self::assertSelectorExists('.jm-instances a[href="/admin/jmonitor/mysql?connection=legacy"]');
+
+        $client->request('GET', '/admin/jmonitor/mysql?connection=reports');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.jm-instances a.active', 'db1');
+    }
+
+    public function testRefreshStaysOnADatabaseOfAServer(): void
+    {
+        $client = $this->adminClient([
+            ['id' => 'default', 'server' => 'db1'],
+            ['id' => 'reports', 'server' => 'db1'],
+            ['id' => 'legacy', 'server' => 'db2'],
+        ]);
+
+        $crawler = $client->request('GET', '/admin/jmonitor/mysql?connection=reports');
+        $client->submit($crawler->filter('form[action="/admin/jmonitor/mysql/refresh?connection=reports"]')->form());
+
+        self::assertResponseRedirects('/admin/jmonitor/mysql?connection=reports');
+    }
+
     public function testTheIndexRedirectsToTheComponentWithoutParameter(): void
     {
         $client = $this->adminClient(self::TWO_INSTANCES, ['system' => false, 'php' => false, 'symfony' => false]);
