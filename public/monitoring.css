@@ -220,3 +220,7 @@
 .jm-navigate-js .jm-navigate-submit {
     display: none;
 }
+
+.jm-navigate-js .jm-navigate-pending .jm-navigate-submit {
+    display: inline-block;
+}

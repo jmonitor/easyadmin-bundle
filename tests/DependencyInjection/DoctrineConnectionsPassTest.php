@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\DependencyInjection;
 
 use Jmonitor\EasyAdminBundle\DependencyInjection\DoctrineConnectionsPass;
-use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
-use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -17,57 +16,31 @@ final class DoctrineConnectionsPassTest extends TestCase
     public function testConnectionsAreExposedByName(): void
     {
         $container = new ContainerBuilder();
-        $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection', 'reporting' => 'doctrine.dbal.reporting_connection']);
+        $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection', 'reporting' => 'doctrine.dbal.reporting_connection', 2024 => 'doctrine.dbal.2024_connection']);
         $container->setDefinition('doctrine.dbal.default_connection', new Definition(\stdClass::class));
         $container->setDefinition('doctrine.dbal.reporting_connection', new Definition(\stdClass::class));
-        $container->setDefinition(MysqlDetector::class, (new Definition(MysqlDetector::class))->setArguments(['$connections' => null, '$connectionNames' => [], '$connection' => null]));
+        $container->setDefinition('doctrine.dbal.2024_connection', new Definition(\stdClass::class));
+        $container->setDefinition(DoctrineConnections::class, $this->connections());
 
         (new DoctrineConnectionsPass())->process($container);
 
-        $definition = $container->getDefinition(MysqlDetector::class);
-        self::assertSame(['default', 'reporting'], $definition->getArgument('$connectionNames'));
+        $definition = $container->getDefinition(DoctrineConnections::class);
+        self::assertSame(['default', 'reporting', '2024'], $definition->getArgument('$names'));
         self::assertInstanceOf(Reference::class, $definition->getArgument('$connections'));
-    }
-
-    public function testEveryDoctrineDetectorIsFed(): void
-    {
-        $postgresql = PostgresqlDetector::class;
-        $container = new ContainerBuilder();
-        $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection', 'reporting' => 'doctrine.dbal.reporting_connection']);
-        $container->setDefinition('doctrine.dbal.default_connection', new Definition(\stdClass::class));
-        $container->setDefinition('doctrine.dbal.reporting_connection', new Definition(\stdClass::class));
-        $container->setDefinition(MysqlDetector::class, (new Definition(MysqlDetector::class))->setArguments(['$connections' => null, '$connectionNames' => [], '$connection' => null]));
-        $container->setDefinition($postgresql, (new Definition($postgresql))->setArguments(['$connections' => null, '$connectionNames' => [], '$connection' => null]));
-
-        (new DoctrineConnectionsPass())->process($container);
-
-        foreach ([MysqlDetector::class, $postgresql] as $id) {
-            $definition = $container->getDefinition($id);
-            self::assertSame(['default', 'reporting'], $definition->getArgument('$connectionNames'), $id);
-            self::assertInstanceOf(Reference::class, $definition->getArgument('$connections'), $id);
-        }
-    }
-
-    public function testAMissingDetectorIsSkipped(): void
-    {
-        $postgresql = PostgresqlDetector::class;
-        $container = new ContainerBuilder();
-        $container->setParameter('doctrine.connections', ['default' => 'doctrine.dbal.default_connection']);
-        $container->setDefinition('doctrine.dbal.default_connection', new Definition(\stdClass::class));
-        $container->setDefinition($postgresql, (new Definition($postgresql))->setArguments(['$connections' => null, '$connectionNames' => [], '$connection' => null]));
-
-        (new DoctrineConnectionsPass())->process($container);
-
-        self::assertSame(['default'], $container->getDefinition($postgresql)->getArgument('$connectionNames'));
     }
 
     public function testWithoutDoctrineNothingChanges(): void
     {
         $container = new ContainerBuilder();
-        $container->setDefinition(MysqlDetector::class, (new Definition(MysqlDetector::class))->setArguments(['$connections' => null, '$connectionNames' => [], '$connection' => null]));
+        $container->setDefinition(DoctrineConnections::class, $this->connections());
 
         (new DoctrineConnectionsPass())->process($container);
 
-        self::assertSame([], $container->getDefinition(MysqlDetector::class)->getArgument('$connectionNames'));
+        self::assertSame([], $container->getDefinition(DoctrineConnections::class)->getArgument('$names'));
+    }
+
+    private function connections(): Definition
+    {
+        return (new Definition(DoctrineConnections::class))->setArguments(['$connections' => null, '$names' => []]);
     }
 }

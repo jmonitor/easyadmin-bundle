@@ -46,13 +46,19 @@ final readonly class SnapshotProvider
             return new ComponentSnapshot($instance->component, [], $instance->error);
         }
 
+        try {
+            $specs = $instance->collectors->specs();
+        } catch (\Throwable $e) {
+            return new ComponentSnapshot($instance->component, [], self::describe($e));
+        }
+
         $prefix = $instance->keyPrefix();
         /** @var array<string, string|false> $tokens lock key => our token, false when another request holds it */
         $tokens = [];
         $results = [];
 
         try {
-            foreach ($instance->collectors->specs as $spec) {
+            foreach ($specs as $spec) {
                 $serverPrefix = self::serverPrefix($instance, $spec);
                 [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
                 $lockKey = self::lockKey($instance, $serverPrefix);
@@ -73,6 +79,8 @@ final readonly class SnapshotProvider
                 };
             }
         } finally {
+            $instance->collectors->release();
+
             foreach ($tokens as $lockKey => $token) {
                 if (is_string($token)) {
                     $this->unlock($lockKey, $token);
@@ -88,7 +96,14 @@ final readonly class SnapshotProvider
      */
     public function refresh(Instance $instance): void
     {
-        foreach ($instance->collectors->specs ?? [] as $spec) {
+        try {
+            $specs = $instance->collectors?->specs() ?? [];
+        } catch (\Throwable) {
+            // a connection that cannot be built has collected nothing
+            $specs = [];
+        }
+
+        foreach ($specs as $spec) {
             $this->cache->deleteItem(self::cacheKey($spec->name, $instance->keyPrefix()));
             $serverPrefix = self::serverPrefix($instance, $spec);
 

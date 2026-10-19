@@ -7,7 +7,6 @@ namespace Jmonitor\EasyAdminBundle\Detection;
 use Doctrine\DBAL\Connection;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
-use Psr\Container\ContainerInterface;
 
 /**
  * Readings shared by the detectors built on the Doctrine DBAL connection parameters.
@@ -16,76 +15,68 @@ final class DoctrineParams
 {
     private const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
     private const NO_DBAL = 'No Doctrine DBAL connection is configured.';
+    private const UNREADABLE_SHOWN = 3;
 
     /**
      * One instance per Doctrine connection: every connection matching the product when none is
      * configured, else exactly the configured ones, in error when they cannot be used. An excluded
-     * connection is never built: building one may open it, to read the server version.
+     * connection is never built: building one may open it, to read the server version. Only the
+     * connection of the instance shown gets its collectors.
      *
-     * @param ContainerInterface                                       $connections     Doctrine connections, keyed by connection name
-     * @param list<string>                                             $connectionNames every connection, in Doctrine order
-     * @param array<string, array<string, mixed>>                      $configured      connection name => options, empty to take every matching connection
-     * @param callable(array<string, mixed>): bool                     $matches         on the connection parameters
+     * @param array<string, array<string, mixed>>                                            $configured connection name => options, empty to take every matching connection
+     * @param callable(array<string, mixed>): bool                                           $matches    on the connection parameters
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors given the connection, its parameters and its configured options
-     * @param string                                                   $product         for the error messages, e.g. "PostgreSQL"
-     * @param ?SkippedConnectionReporter                               $skipped         told of the connections skipped because they cannot be read
-     * @param list<string>                                             $exclude         fnmatch() patterns of the connection names left out when none is configured
-     * @param bool                                                     $byServer        attaches each found instance to the server of its connection
+     * @param string                                                                         $product    for the error messages, e.g. "PostgreSQL"
+     * @param ?SkippedConnectionReporter                                                     $skipped    told of the connections skipped because they cannot be read
+     * @param list<string>                                                                   $exclude    fnmatch() patterns of the connection names left out when none is configured
+     * @param bool                                                                           $byServer   attaches each found instance to the server of its connection
      */
-    public static function instances(Component $component, ContainerInterface $connections, array $connectionNames, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null, array $exclude = [], bool $byServer = false): Detection
+    public static function instances(Component $component, DoctrineConnections $connections, array $configured, callable $matches, callable $collectors, string $product, ?SkippedConnectionReporter $skipped = null, array $exclude = [], bool $byServer = false): Detection
     {
         if ($configured !== []) {
+            $names = array_map(strval(...), array_keys($configured));
+            $read = $connections->read(array_values(array_filter($names, $connections->has(...))));
             $instances = [];
 
-            foreach ($configured as $name => $options) {
-                $name = (string) $name;
-                $instances[] = $connectionNames === []
-                    ? Instance::unavailable($component, self::NO_DBAL, $name)
-                    : self::configured($component, $connections, $name, $options, $matches, $collectors, $product, $byServer);
+            foreach ($names as $name) {
+                $params = $read[$name] ?? null;
+                $instances[] = match (true) {
+                    $connections->names() === [] => Instance::unavailable($component, self::NO_DBAL, $name),
+                    $params === null => Instance::unavailable($component, sprintf('Unknown Doctrine connection "%s".', $name), $name),
+                    is_string($params) => Instance::unavailable($component, $params, $name),
+                    !$matches($params) => Instance::unavailable($component, sprintf('Doctrine connection "%s" is not a %s connection.', $name, $product), $name, self::database($params)),
+                    default => self::found($component, $connections, $name, $params, $configured[$name], $collectors, $byServer),
+                };
             }
 
             return Detection::instances($instances);
         }
 
-        if ($connectionNames === []) {
+        if ($connections->names() === []) {
             return Detection::unavailable(self::NO_DBAL);
         }
 
+        $names = array_values(array_filter($connections->names(), static fn(string $name): bool => !self::isExcluded($name, $exclude)));
         $instances = [];
         $unreadable = [];
 
-        foreach ($connectionNames as $name) {
+        foreach ($connections->read($names) as $name => $params) {
             $name = (string) $name;
 
-            if (self::isExcluded($name, $exclude)) {
-                continue;
-            }
-
-            try {
-                /** @var Connection $connection */
-                $connection = $connections->get($name);
-            } catch (\Throwable $e) {
-                $unreadable[$name] = $e->getMessage();
-                $skipped?->report($name, $e);
+            if (is_string($params)) {
+                $unreadable[$name] = $params;
+                $skipped?->report($name, $params);
 
                 continue;
             }
-
-            $params = $connection->getParams();
 
             if ($matches($params)) {
-                $instances[] = Instance::found($component, $collectors($connection, $params, []), $name, self::database($params), $byServer ? self::server($params) : null);
+                $instances[] = self::found($component, $connections, $name, $params, [], $collectors, $byServer);
             }
         }
 
         if ($instances === []) {
-            $error = sprintf('No %s Doctrine connection found.', $product);
-
-            foreach ($unreadable as $name => $message) {
-                $error .= sprintf(' Connection "%s" could not be read: %s', $name, $message);
-            }
-
-            return Detection::unavailable($error);
+            return Detection::unavailable(self::noneFound($product, $unreadable));
         }
 
         return Detection::instances($instances);
@@ -187,29 +178,32 @@ final class DoctrineParams
     }
 
     /**
+     * @param array<string, mixed>                                                           $params
      * @param array<string, mixed>                                                           $options
-     * @param callable(array<string, mixed>): bool                                           $matches
      * @param callable(Connection, array<string, mixed>, array<string, mixed>): CollectorSet $collectors
      */
-    private static function configured(Component $component, ContainerInterface $connections, string $name, array $options, callable $matches, callable $collectors, string $product, bool $byServer): Instance
+    private static function found(Component $component, DoctrineConnections $connections, string $name, array $params, array $options, callable $collectors, bool $byServer): Instance
     {
-        if (!$connections->has($name)) {
-            return Instance::unavailable($component, sprintf('Unknown Doctrine connection "%s".', $name), $name);
+        $set = CollectorSet::lazy($component, static fn(): CollectorSet => $collectors($connections->get($name), $params, $options));
+
+        return Instance::found($component, $set, $name, self::database($params), $byServer ? self::server($params) : null);
+    }
+
+    /**
+     * @param array<string, string> $unreadable connection name => why it could not be read
+     */
+    private static function noneFound(string $product, array $unreadable): string
+    {
+        $error = sprintf('No %s Doctrine connection found.', $product);
+
+        foreach (array_slice($unreadable, 0, self::UNREADABLE_SHOWN, true) as $name => $message) {
+            $error .= sprintf(' Connection "%s" could not be read: %s', $name, $message);
         }
 
-        try {
-            /** @var Connection $connection */
-            $connection = $connections->get($name);
-        } catch (\Throwable $e) {
-            return Instance::unavailable($component, $e->getMessage(), $name);
+        if (count($unreadable) > self::UNREADABLE_SHOWN) {
+            $error .= sprintf(' %d more could not be read.', count($unreadable) - self::UNREADABLE_SHOWN);
         }
 
-        $params = $connection->getParams();
-
-        if (!$matches($params)) {
-            return Instance::unavailable($component, sprintf('Doctrine connection "%s" is not a %s connection.', $name, $product), $name, self::database($params));
-        }
-
-        return Instance::found($component, $collectors($connection, $params, $options), $name, self::database($params), $byServer ? self::server($params) : null);
+        return $error;
     }
 }

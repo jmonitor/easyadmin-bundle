@@ -512,6 +512,45 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
     }
 
+    public function testTheServerEntryWinsOverAFailureCachedForTheConnection(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 1]);
+        $instance = $this->serverInstance('default', [new CollectorSpec($status, Lifetime::Dynamic, perServer: true)]);
+        $this->cache->save($this->cache->getItem(SnapshotProvider::cacheKey('mysql.status', 'mysql.default.'))->set((new CollectorResult('mysql.status', [], 'Access denied', 1_000))->toArray()));
+        $this->cache->save($this->cache->getItem(SnapshotProvider::cacheKey('mysql.status', (string) $instance->serverKeyPrefix()))->set((new CollectorResult('mysql.status', ['Questions' => 7], null, 1_000))->toArray()));
+
+        $snapshot = $this->bareProvider()->get($instance);
+
+        self::assertSame(0, $status->collects);
+        self::assertNull($snapshot->result('mysql.status')?->error, 'the failure may be older than the shared success');
+        self::assertSame(['Questions' => 7], $snapshot->data('mysql.status'));
+    }
+
+    public function testTheSetIsReleasedOnceCollected(): void
+    {
+        $releases = 0;
+        $release = static function () use (&$releases): void {
+            ++$releases;
+        };
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec(new FakeCollector('mysql.status'), Lifetime::Dynamic)], $release), 'default');
+
+        $this->bareProvider()->get($instance);
+
+        self::assertSame(1, $releases);
+    }
+
+    public function testASetThatCannotBeBuiltGivesTheErrorOfTheInstance(): void
+    {
+        $instance = Instance::found(Component::Mysql, CollectorSet::lazy(Component::Mysql, static fn(): CollectorSet => throw new \RuntimeException('Connection refused')), 'default');
+        $provider = $this->bareProvider();
+
+        $snapshot = $provider->get($instance);
+        $provider->refresh($instance);
+
+        self::assertSame('Connection refused', $snapshot->error);
+        self::assertSame([], $snapshot->results);
+    }
+
     /**
      * @param list<CollectorSpec> $specs
      */

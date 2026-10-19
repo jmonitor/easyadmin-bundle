@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
@@ -44,6 +45,7 @@ final class MonitoringController
         private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
         private readonly ?string $permission = null,
         private readonly ?AuthorizationCheckerInterface $authorizationChecker = null,
+        private readonly ?DoctrineConnections $doctrineConnections = null,
     ) {}
 
     #[AdminRoute(name: 'index')]
@@ -87,6 +89,10 @@ final class MonitoringController
 
         $this->snapshots->refresh($instance);
 
+        if ($component === Component::Mysql || $component === Component::Postgresql) {
+            $this->doctrineConnections?->forget();
+        }
+
         // Alone, the instance is the one the bare URL shows.
         $connection = count($this->registry->instancesFor($component)) > 1 ? $instance->id : null;
 
@@ -119,7 +125,7 @@ final class MonitoringController
         $component = $instance->component;
         $snapshot = $this->snapshots->get($instance);
 
-        return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component, $instance) + [
+        return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component, $instance, tabs: !$fragment) + [
             'snapshot' => $snapshot,
             'view' => $this->views->create($component, $snapshot),
             'fragment' => $fragment,
@@ -127,14 +133,19 @@ final class MonitoringController
     }
 
     /**
+     * @param bool $tabs false when the tabs are not rendered, which spares the detection of the other components
+     *
      * @return array<string, mixed>
      */
-    private function context(?Component $current, ?Instance $instance = null): array
+    private function context(?Component $current, ?Instance $instance = null, bool $tabs = true): array
     {
+        $instances = $current === null ? [] : $this->registry->instancesFor($current);
+
         return [
-            'components' => $this->registry->available(),
+            'components' => $tabs ? $this->registry->available() : [],
             'current' => $current,
-            'navigation' => InstanceNavigation::of($current === null ? [] : $this->registry->instancesFor($current), $instance),
+            'navigation' => InstanceNavigation::of($instances, $instance),
+            'instances' => $instances,
             'instance' => $instance,
             'polling_interval' => $this->pollingInterval,
             'routes' => [

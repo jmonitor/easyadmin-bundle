@@ -3,6 +3,7 @@
 
     var STORAGE_KEY = 'jmonitor_easyadmin.live';
     var SCROLLABLE = '.jm-scroll, .jm-query, .table-responsive';
+    var SELECT_IDLE = 15000;
     var root = document.querySelector('[data-live]');
 
     if (!root) {
@@ -21,6 +22,7 @@
     var timer = null;
     var inFlight = false;
     var updatedAt = Date.now();
+    var selectUsedAt = 0;
 
     function readPreference() {
         try {
@@ -103,11 +105,24 @@
         return selection !== null && !selection.isCollapsed && selection.containsNode(element, true);
     }
 
-    // replacing the content would close an open drop-down
-    function hasFocusedSelectInside(element) {
+    function focusedSelectInside(element) {
         var active = document.activeElement;
 
-        return active !== null && active.tagName === 'SELECT' && element.contains(active);
+        return active !== null && active.tagName === 'SELECT' && element.contains(active) ? active : null;
+    }
+
+    function hasPendingChoice(select) {
+        return Array.prototype.some.call(select.options, function (option) {
+            return option.selected !== option.defaultSelected;
+        });
+    }
+
+    // Replacing the content would close an open drop-down or drop a choice not confirmed yet. A list
+    // closed with Escape keeps the focus without any event: the polling resumes after a while.
+    function isSelectInUse(element) {
+        var select = focusedSelectInside(element);
+
+        return select !== null && (hasPendingChoice(select) || Date.now() - selectUsedAt < SELECT_IDLE);
     }
 
     function replaceContent(html) {
@@ -117,8 +132,19 @@
         var scrolls = Array.prototype.map.call(content.querySelectorAll(SCROLLABLE), function (element) {
             return { top: element.scrollTop, left: element.scrollLeft };
         });
+        var focused = focusedSelectInside(content);
+        var focusedRank = focused ? Array.prototype.indexOf.call(content.querySelectorAll('select'), focused) : -1;
 
         content.innerHTML = html;
+
+        // a keyboard user keeps their place in the page
+        if (focusedRank !== -1) {
+            var select = content.querySelectorAll('select')[focusedRank];
+
+            if (select) {
+                select.focus({ preventScroll: true });
+            }
+        }
 
         activeTabs.forEach(function (target) {
             var tab = content.querySelector('[data-bs-toggle="tab"][data-bs-target="' + target + '"]');
@@ -154,7 +180,7 @@
     }
 
     function refresh() {
-        if (!enabled || inFlight || document.hidden || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
+        if (!enabled || inFlight || document.hidden || hasSelectionInside(content) || isSelectInUse(content)) {
             return;
         }
 
@@ -185,7 +211,7 @@
                 return response.ok ? response.text() : null;
             })
             .then(function (html) {
-                if (html === null || !enabled || hasSelectionInside(content) || hasFocusedSelectInside(content)) {
+                if (html === null || !enabled || hasSelectionInside(content) || isSelectInUse(content)) {
                     return;
                 }
 
@@ -227,6 +253,14 @@
             refresh();
         });
     }
+
+    ['pointerdown', 'keydown'].forEach(function (type) {
+        content.addEventListener(type, function (event) {
+            if (event.target && event.target.tagName === 'SELECT') {
+                selectUsedAt = Date.now();
+            }
+        });
+    });
 
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {

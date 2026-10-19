@@ -15,10 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The MySQL tab shows each server once, then the selected database.
 - An unreachable database server is tried once per collect and no longer by several requests at a time.
+- The MySQL and PostgreSQL tabs no longer build every Doctrine connection on each request.
+- A database connection opened by the monitoring is closed once collected.
 
 ### Fixed
 
 - A MySQL `unix_socket` next to a remote host no longer counts as a local server.
+- The arrow keys no longer leave the page when they browse the database drop-down.
+- The live refresh resumes after the database drop-down is closed with Escape.
 
 ## [1.1.1] - 2026-10-17
 

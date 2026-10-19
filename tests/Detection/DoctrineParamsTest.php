@@ -51,6 +51,7 @@ final class DoctrineParamsTest extends TestCase
         yield 'socket without host' => [['unix_socket' => '/run/mysqld/mysqld.sock'], ['socket:/run/mysqld/mysqld.sock', 'localhost', null]];
         yield 'socket ignored by a remote host' => [['host' => 'db.internal', 'unix_socket' => '/run/mysqld/mysqld.sock'], ['db.internal:3306', 'db.internal', 3306]];
         yield 'primary' => [['primary' => ['host' => 'db1.internal'], 'replica' => [['host' => 'db2.internal']]], ['db1.internal:3306', 'db1.internal', 3306]];
+        yield 'a path as host, a host name to the MySQL drivers' => [['host' => '/var/run/mysqld'], ['/var/run/mysqld:3306', '/var/run/mysqld', 3306]];
     }
 
     /**

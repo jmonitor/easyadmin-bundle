@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
+use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
@@ -25,6 +26,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Parameter;
 
 return static function (ContainerConfigurator $container, ContainerBuilder $builder): void {
     /** @var array<string, mixed> $config */
@@ -82,10 +84,22 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ])
     ;
 
-    $services->set(MysqlDetector::class)
+    $services->set(DoctrineConnections::class)
         ->args([
             '$connections' => service_locator([]),
-            '$connectionNames' => [],
+            '$names' => [],
+            '$cache' => service($config['cache_pool']),
+            '$clock' => service('clock'),
+            '$lifetime' => $config['static_ttl'],
+            '$errorLifetime' => max(60, $config['polling_interval']),
+            '$version' => new Parameter('container.build_id'),
+        ])
+        ->tag('kernel.reset', ['method' => 'reset'])
+    ;
+
+    $services->set(MysqlDetector::class)
+        ->args([
+            '$connections' => service(DoctrineConnections::class),
             '$configured' => $config['components']['mysql']['connections'],
             '$skipped' => service(SkippedConnectionReporter::class),
             '$exclude' => $config['exclude_connections'],
@@ -95,8 +109,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
 
     $services->set(PostgresqlDetector::class)
         ->args([
-            '$connections' => service_locator([]),
-            '$connectionNames' => [],
+            '$connections' => service(DoctrineConnections::class),
             '$configured' => $config['components']['postgresql']['connections'],
             '$schema' => $config['components']['postgresql']['schema'],
             '$skipped' => service(SkippedConnectionReporter::class),
@@ -199,6 +212,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service('security.csrf.token_manager')->nullOnInvalid(),
             $config['permission'],
             service('security.authorization_checker')->nullOnInvalid(),
+            service(DoctrineConnections::class),
         ])
         ->tag('controller.service_arguments')
         ->tag('ea.admin_route_controller')
