@@ -46,9 +46,18 @@ final readonly class SnapshotProvider
             return new ComponentSnapshot($instance->component, [], $instance->error);
         }
 
+        $buildItem = $this->cache->getItem(self::buildKey($instance));
+
+        if (is_string($buildItem->get())) {
+            return new ComponentSnapshot($instance->component, [], $buildItem->get());
+        }
+
         try {
             $specs = $instance->collectors->specs();
         } catch (\Throwable $e) {
+            // building a connection may open it: a dead server would cost its timeout on each poll
+            $this->cache->save($buildItem->set(self::describe($e))->expiresAfter($this->unreachableTtl()));
+
             return new ComponentSnapshot($instance->component, [], self::describe($e));
         }
 
@@ -97,9 +106,9 @@ final readonly class SnapshotProvider
     public function refresh(Instance $instance): void
     {
         try {
-            $specs = $instance->collectors?->specs() ?? [];
+            // a connection that could not be built has collected nothing, and building it may wait again
+            $specs = is_string($this->cache->getItem(self::buildKey($instance))->get()) ? [] : $instance->collectors?->specs() ?? [];
         } catch (\Throwable) {
-            // a connection that cannot be built has collected nothing
             $specs = [];
         }
 
@@ -116,6 +125,7 @@ final readonly class SnapshotProvider
             }
         }
 
+        $this->cache->deleteItem(self::buildKey($instance));
         $this->cache->deleteItem(self::lockKey($instance, null));
 
         if ($instance->serverKeyPrefix() !== null) {
@@ -126,6 +136,11 @@ final readonly class SnapshotProvider
     public static function cacheKey(string $name, string $prefix = ''): string
     {
         return 'jmonitor_easyadmin.collect.' . $prefix . $name;
+    }
+
+    private static function buildKey(Instance $instance): string
+    {
+        return self::cacheKey('%build', $instance->keyPrefix());
     }
 
     private static function describe(\Throwable $e): string

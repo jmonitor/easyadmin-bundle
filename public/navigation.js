@@ -20,14 +20,14 @@
             return;
         }
 
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            select.form.submit();
-
-            return;
-        }
-
         lastKeyAt = event.timeStamp;
+
+        if (event.key === 'Enter') {
+            // once the browser has taken the option an open list highlights
+            window.setTimeout(function () {
+                select.form.submit();
+            }, 0);
+        }
     });
 
     document.addEventListener('change', function (event) {

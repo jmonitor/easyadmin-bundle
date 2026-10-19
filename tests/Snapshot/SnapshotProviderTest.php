@@ -539,16 +539,29 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame(1, $releases);
     }
 
-    public function testASetThatCannotBeBuiltGivesTheErrorOfTheInstance(): void
+    public function testASetThatCannotBeBuiltGivesTheErrorOfTheInstanceForAMinute(): void
     {
-        $instance = Instance::found(Component::Mysql, CollectorSet::lazy(Component::Mysql, static fn(): CollectorSet => throw new \RuntimeException('Connection refused')), 'default');
+        $builds = 0;
+        $build = function () use (&$builds): CollectorSet {
+            ++$builds;
+
+            throw new \RuntimeException('Connection refused');
+        };
+        $instance = fn(): Instance => Instance::found(Component::Mysql, CollectorSet::lazy(Component::Mysql, $build), 'default');
         $provider = $this->bareProvider();
 
-        $snapshot = $provider->get($instance);
-        $provider->refresh($instance);
+        $snapshot = $provider->get($instance());
+        $again = $provider->get($instance());
 
         self::assertSame('Connection refused', $snapshot->error);
         self::assertSame([], $snapshot->results);
+        self::assertSame('Connection refused', $again->error);
+        self::assertSame(1, $builds, 'building may wait for the connection timeout');
+        self::assertSame(60, $this->cache->ttls['jmonitor_easyadmin.collect.mysql.default.%build']);
+
+        $provider->refresh($instance());
+        $provider->get($instance());
+        self::assertSame(2, $builds);
     }
 
     /**

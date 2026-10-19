@@ -93,6 +93,33 @@ final class DoctrineConnectionsTest extends TestCase
         self::assertSame(2, $attempts);
     }
 
+    public function testTheRetriesOfABrokenConnectionDoNotExtendTheOthers(): void
+    {
+        $locator = new ServiceLocator([
+            'default' => function (): Connection {
+                $this->built['default'] = ($this->built['default'] ?? 0) + 1;
+
+                return DriverManager::getConnection(['driver' => 'pdo_mysql', 'dbname' => 'shop']);
+            },
+            'broken' => static fn(): Connection => throw new \RuntimeException('Malformed DSN'),
+        ]);
+        $connections = fn(): DoctrineConnections => new DoctrineConnections($locator, ['default', 'broken'], $this->cache, $this->clock, 180, 60);
+
+        for ($minute = 0; $minute < 4; ++$minute) {
+            $connections()->read(['default', 'broken']);
+            $this->clock->sleep(60);
+        }
+
+        self::assertSame(['default' => 2], $this->built, 'read again once its own lifetime is over');
+    }
+
+    public function testTheErrorKeepsItsCause(): void
+    {
+        $locator = new ServiceLocator(['broken' => static fn(): Connection => throw new \LogicException('Invalid connection configuration', 0, new \RuntimeException('Unknown driver "pdo_foo"'))]);
+
+        self::assertSame(['broken' => 'Invalid connection configuration (Unknown driver "pdo_foo")'], (new DoctrineConnections($locator, ['broken']))->read(['broken']));
+    }
+
     public function testAResetReadsTheCacheAgain(): void
     {
         $params = ['default' => ['driver' => 'pdo_mysql', 'dbname' => 'shop']];

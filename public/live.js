@@ -3,7 +3,7 @@
 
     var STORAGE_KEY = 'jmonitor_easyadmin.live';
     var SCROLLABLE = '.jm-scroll, .jm-query, .table-responsive';
-    var SELECT_IDLE = 15000;
+    var SELECT_IDLE = 60000;
     var root = document.querySelector('[data-live]');
 
     if (!root) {
@@ -117,12 +117,26 @@
         });
     }
 
-    // Replacing the content would close an open drop-down or drop a choice not confirmed yet. A list
-    // closed with Escape keeps the focus without any event: the polling resumes after a while.
+    // null where the browser does not know the selector
+    function isOpen(select) {
+        try {
+            return select.matches(':open');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Replacing the content would drop a choice not confirmed yet, wherever the focus went, or close
+    // an open drop-down. A native list sends no event while open, nor when Escape closes it: without
+    // the :open selector, the polling resumes a while after the last use of the list.
     function isSelectInUse(element) {
+        if (Array.prototype.some.call(element.querySelectorAll('select'), hasPendingChoice)) {
+            return true;
+        }
+
         var select = focusedSelectInside(element);
 
-        return select !== null && (hasPendingChoice(select) || Date.now() - selectUsedAt < SELECT_IDLE);
+        return select !== null && (isOpen(select) === true || Date.now() - selectUsedAt < SELECT_IDLE);
     }
 
     function replaceContent(html) {

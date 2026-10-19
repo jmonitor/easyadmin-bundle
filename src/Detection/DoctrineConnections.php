@@ -23,7 +23,7 @@ final class DoctrineConnections implements ResetInterface
     /** Only what the detectors read: the credentials never reach the cache. */
     private const PARAMS = ['driver', 'driverClass', 'dbname', 'host', 'port', 'unix_socket'];
 
-    /** @var ?array<string, array{params: array<string, mixed>}|array{error: string, retry: int}> */
+    /** @var ?array<string, array{params: array<string, mixed>, until: int}|array{error: string, until: int}> */
     private ?array $entries = null;
 
     /**
@@ -69,7 +69,8 @@ final class DoctrineConnections implements ResetInterface
         foreach ($names as $name) {
             $entry = $entries[$name] ?? null;
 
-            if ($entry === null || (isset($entry['retry']) && $entry['retry'] <= $now)) {
+            // each entry keeps its own expiry: saving the item for another one must not extend it
+            if ($entry === null || $entry['until'] <= $now) {
                 $entries[$name] = $entry = $this->describe($name, $now);
                 $changed = true;
             }
@@ -103,7 +104,7 @@ final class DoctrineConnections implements ResetInterface
     }
 
     /**
-     * @return array<string, array{params: array<string, mixed>}|array{error: string, retry: int}>
+     * @return array<string, array{params: array<string, mixed>, until: int}|array{error: string, until: int}>
      */
     private function load(): array
     {
@@ -116,10 +117,14 @@ final class DoctrineConnections implements ResetInterface
         $entries = [];
 
         foreach ($cached as $name => $entry) {
-            if (is_array($entry) && is_array($entry['params'] ?? null)) {
-                $entries[(string) $name] = ['params' => $entry['params']];
-            } elseif (is_array($entry) && is_string($entry['error'] ?? null) && is_int($entry['retry'] ?? null)) {
-                $entries[(string) $name] = ['error' => $entry['error'], 'retry' => $entry['retry']];
+            if (!is_array($entry) || !is_int($entry['until'] ?? null)) {
+                continue;
+            }
+
+            if (is_array($entry['params'] ?? null)) {
+                $entries[(string) $name] = ['params' => $entry['params'], 'until' => $entry['until']];
+            } elseif (is_string($entry['error'] ?? null)) {
+                $entries[(string) $name] = ['error' => $entry['error'], 'until' => $entry['until']];
             }
         }
 
@@ -127,15 +132,29 @@ final class DoctrineConnections implements ResetInterface
     }
 
     /**
-     * @return array{params: array<string, mixed>}|array{error: string, retry: int}
+     * @return array{params: array<string, mixed>, until: int}|array{error: string, until: int}
      */
     private function describe(string $name, int $now): array
     {
         try {
-            return ['params' => self::strip($this->get($name)->getParams())];
+            return ['params' => self::strip($this->get($name)->getParams()), 'until' => $now + $this->lifetime];
         } catch (\Throwable $e) {
-            return ['error' => $e->getMessage(), 'retry' => $now + $this->errorLifetime];
+            return ['error' => self::message($e), 'until' => $now + $this->errorLifetime];
         }
+    }
+
+    /**
+     * Only the message is cached: it carries the cause, which DoctrineBundle often wraps.
+     */
+    private static function message(\Throwable $e): string
+    {
+        $cause = $e->getPrevious()?->getMessage();
+
+        if ($cause === null || $cause === '' || $cause === $e->getMessage()) {
+            return $e->getMessage();
+        }
+
+        return sprintf('%s (%s)', $e->getMessage(), $cause);
     }
 
     /**
