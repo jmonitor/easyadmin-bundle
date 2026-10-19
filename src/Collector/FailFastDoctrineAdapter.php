@@ -62,6 +62,7 @@ final class FailFastDoctrineAdapter implements DatabaseAdapterInterface
 
     private function isConnected(): bool
     {
-        return $this->connection instanceof PrimaryReadReplicaConnection ? $this->connection->isConnectedToPrimary() : $this->connection->isConnected();
+        // DBAL 3 declares no return type on these methods
+        return ($this->connection instanceof PrimaryReadReplicaConnection ? $this->connection->isConnectedToPrimary() : $this->connection->isConnected()) === true;
     }
 }
