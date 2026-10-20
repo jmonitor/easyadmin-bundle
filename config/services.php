@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
-use Jmonitor\EasyAdminBundle\Asset\ContentHashVersionStrategy;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
@@ -25,10 +24,9 @@ use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
-use Symfony\Component\Asset\Context\RequestStackContext;
-use Symfony\Component\Asset\PathPackage;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
 
@@ -214,13 +212,16 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     $services->set(MonitoringExtension::class)
         ->tag('twig.extension')
     ;
-    $services->set('jmonitor_easyadmin.assets.package', PathPackage::class)
+    $services->set(AssetExtension::class)
         ->args([
-            '/bundles/jmonitoreasyadmin',
-            inline_service(ContentHashVersionStrategy::class)->args([\dirname(__DIR__) . '/public']),
-            inline_service(RequestStackContext::class)->args([service('request_stack')]),
+            service('assets.packages'),
+            [
+                // the installed copy first: it is what the browser gets, and it may be older than the bundle
+                '%kernel.project_dir%/public/bundles/jmonitoreasyadmin',
+                \dirname(__DIR__) . '/public',
+            ],
         ])
-        ->tag('assets.package', ['package' => 'jmonitor_easyadmin'])
+        ->tag('twig.extension')
     ;
     $services->set(MonitoringController::class)
         ->args([
