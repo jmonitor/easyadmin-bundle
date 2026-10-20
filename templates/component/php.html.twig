@@ -6,7 +6,7 @@
     <div class="row g-3">
         <div class="col-md-4 col-xxl-3">
             <div class="d-flex flex-column gap-3 h-100">
-                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'PHP version', metric: 'php.version', value: view.version}) }}</div>
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'PHP version', metric: 'php.version', value: view.version, badge: view.versionStatus}) }}</div>
                 <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Execution mode (SAPI)', metric: 'php.sapi', value: view.sapi}) }}</div>
             </div>
         </div>

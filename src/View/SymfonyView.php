@@ -6,11 +6,13 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 
 final readonly class SymfonyView
 {
     public ?string $version;
+    public ?Badge $versionStatus;
     public ?string $environment;
     public ?Badge $debug;
 
@@ -47,13 +49,14 @@ final readonly class SymfonyView
     /** @var ?array{command: ?string, description: ?string, trigger: ?string, jitter: ?string, next_run: ?int} */
     public ?array $nextTask;
 
-    public function __construct(ComponentSnapshot $symfony, ComponentSnapshot $php, bool $messengerEnabled = true, bool $schedulerEnabled = true, bool $flexEnabled = true)
+    public function __construct(ComponentSnapshot $symfony, ComponentSnapshot $php, bool $messengerEnabled = true, bool $schedulerEnabled = true, bool $flexEnabled = true, ?EndOfLife $endOfLife = null)
     {
         $data = $symfony->data('symfony');
         $components = is_array($data['components'] ?? null) ? $data['components'] : [];
         $errors = is_array($data['errors'] ?? null) ? $data['errors'] : [];
 
         $this->version = Values::string($data['version'] ?? null);
+        $this->versionStatus = $endOfLife?->badge('symfony', $this->version);
         $environment = Values::string($data['env'] ?? null);
         $this->environment = $environment === null ? null : strtoupper($environment);
         $this->debug = match (Values::bool($data['debug'] ?? null)) {

@@ -6,14 +6,19 @@ namespace Jmonitor\EasyAdminBundle\Tests\View;
 
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 
 final class MysqlViewTest extends TestCase
 {
@@ -194,6 +199,30 @@ final class MysqlViewTest extends TestCase
 
         self::assertNotNull($view->ramRatio);
         self::assertFalse($view->ramRatio->available());
+    }
+
+    /**
+     * @return iterable<string, array{string, string, ?string}>
+     */
+    public static function products(): iterable
+    {
+        yield 'MySQL' => ['8.4.0', 'MySQL Community Server - GPL', 'mysql'];
+        yield 'MySQL packaged by Ubuntu' => ['8.0.36-0ubuntu0.22.04.1', '(Ubuntu)', 'mysql'];
+        yield 'MariaDB' => ['10.11.6-MariaDB-0+deb12u1', 'Debian 12', 'mariadb'];
+        yield 'MariaDB by its comment' => ['11.4.2', 'mariadb.org binary distribution', 'mariadb'];
+        yield 'Percona Server' => ['8.0.36-28', 'Percona Server (GPL), Release 28', null];
+        yield 'TiDB' => ['8.0.11-TiDB-v7.5.0', 'TiDB Server (Apache License 2.0)', null];
+    }
+
+    #[DataProvider('products')]
+    public function testTheVersionStatusIsReadFromTheProductOfTheServer(string $version, string $comment, ?string $product): void
+    {
+        $fetcher = new FixtureUrlFetcher(null);
+        new MysqlView(new ComponentSnapshot(Component::Mysql, [
+            'mysql.variables' => new CollectorResult('mysql.variables', ['version' => $version, 'version_comment' => $comment], null, 1_000),
+        ]), $this->gauges(), 1_000, new EndOfLife(new ArrayAdapter(), new MockClock(), fetcher: $fetcher));
+
+        self::assertSame($product === null ? null : sprintf('https://endoflife.date/api/%s.json', $product), $fetcher->url);
     }
 
     private function gauges(): GaugeFactory

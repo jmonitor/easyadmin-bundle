@@ -7,11 +7,16 @@ namespace Jmonitor\EasyAdminBundle\Tests\Fixtures;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use EasyCorp\Bundle\EasyAdminBundle\EasyAdminBundle;
 use Jmonitor\EasyAdminBundle\JmonitorEasyAdminBundle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\DashboardController;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Bundle\TwigBundle\TwigBundle;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -21,7 +26,7 @@ use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 /**
  * The bundle's controller needs Twig, Security and EasyAdmin, so even the unit-level kernel
- * boots the full admin stack, on a SQLite in-memory database.
+ * boots the full admin stack, on a SQLite in-memory database. endoflife.date is never reached.
  */
 class TestKernel extends Kernel
 {
@@ -104,6 +109,16 @@ class TestKernel extends Kernel
             ->autoconfigure()
             ->tag('controller.service_arguments')
         ;
+    }
+
+    protected function build(ContainerBuilder $container): void
+    {
+        $container->addCompilerPass(new class implements CompilerPassInterface {
+            public function process(ContainerBuilder $container): void
+            {
+                $container->getDefinition(EndOfLife::class)->setArgument('$fetcher', new Definition(FixtureUrlFetcher::class, [null]));
+            }
+        });
     }
 
     protected function configureRoutes(RoutingConfigurator $routes): void

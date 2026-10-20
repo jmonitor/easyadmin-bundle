@@ -19,6 +19,7 @@ use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
 use Jmonitor\EasyAdminBundle\Detection\SymfonyDetector;
 use Jmonitor\EasyAdminBundle\Detection\SystemDetector;
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
@@ -186,12 +187,22 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['static_ttl'],
         ])
     ;
+    $services->set(EndOfLife::class)
+        ->args([
+            '$cache' => service($config['cache_pool']),
+            '$clock' => service('clock'),
+            '$logger' => service('logger'),
+        ])
+        ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
+    ;
+
     $services->set(ViewFactory::class)
         ->args([
             service(GaugeFactory::class),
             service(SnapshotProvider::class),
             service(ComponentRegistry::class),
             service('clock'),
+            service(EndOfLife::class),
             $config['components']['symfony']['messenger'],
             $config['components']['symfony']['scheduler'],
             $config['components']['symfony']['flex'],

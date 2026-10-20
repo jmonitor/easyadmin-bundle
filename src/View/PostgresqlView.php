@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Rate;
@@ -20,6 +21,7 @@ final readonly class PostgresqlView
 
     public ?string $version;
     public ?string $majorVersion;
+    public ?Badge $versionStatus;
     /** @var array<string, mixed> */
     private array $settings;
 
@@ -81,7 +83,7 @@ final readonly class PostgresqlView
     public ?Badge $trackCounts;
     public Badge|string|null $logMinDurationStatement;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ?EndOfLife $endOfLife = null)
     {
         $activity = $snapshot->data('postgresql.activity');
         $settings = $snapshot->data('postgresql.settings');
@@ -95,6 +97,7 @@ final readonly class PostgresqlView
 
         $this->version = Values::string($settings['server_version'] ?? null);
         $this->majorVersion = self::majorVersion($this->version);
+        $this->versionStatus = $endOfLife?->badge('postgresql', $this->version);
         $this->settings = $settings;
 
         $this->activityAvailable = $snapshot->has('postgresql.activity');

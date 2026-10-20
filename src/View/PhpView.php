@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Rate;
@@ -15,6 +16,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 final readonly class PhpView
 {
     public ?string $version;
+    public ?Badge $versionStatus;
     public ?string $sapi;
 
     public ?int $memoryLimit;
@@ -75,12 +77,13 @@ final readonly class PhpView
     public ?string $fpmProcessManager;
     public ?int $fpmUptime;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ?EndOfLife $endOfLife = null)
     {
         $data = $snapshot->data('php');
         $delta = $snapshot->delta('php');
 
         $this->version = Values::string($data['version'] ?? null);
+        $this->versionStatus = $endOfLife?->badge('php', $this->version);
         $this->sapi = Values::string($data['sapi_name'] ?? null);
 
         $memoryLimit = Values::iniBytes($data['memory_limit'] ?? null);

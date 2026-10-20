@@ -78,6 +78,8 @@ final class ConfigurableAdminKernel extends TestKernel
 
     protected function build(ContainerBuilder $container): void
     {
+        parent::build($container);
+
         if ($this->fakeRedisServices !== []) {
             // Before the optimization passes, so that the ignoreOnInvalid references of the Redis locator see them.
             $container->addCompilerPass(new class ($this->fakeRedisServices) implements CompilerPassInterface {
