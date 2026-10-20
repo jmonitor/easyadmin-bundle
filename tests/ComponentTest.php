@@ -15,6 +15,7 @@ final class ComponentTest extends TestCase
         self::assertSame('System', Component::System->label());
         self::assertSame('PHP', Component::Php->label());
         self::assertSame('FrankenPHP', Component::FrankenPhp->label());
+        self::assertSame('Apache', Component::Apache->label());
         self::assertSame('Symfony', Component::Symfony->label());
         self::assertSame('MySQL', Component::Mysql->label());
         self::assertSame('PostgreSQL', Component::Postgresql->label());
@@ -26,6 +27,13 @@ final class ComponentTest extends TestCase
         $cases = Component::cases();
 
         self::assertSame(array_search(Component::Php, $cases, true) + 1, array_search(Component::FrankenPhp, $cases, true), 'the enum order is the tab order');
+    }
+
+    public function testApacheComesRightAfterFrankenPhp(): void
+    {
+        $cases = Component::cases();
+
+        self::assertSame(array_search(Component::FrankenPhp, $cases, true) + 1, array_search(Component::Apache, $cases, true), 'the enum order is the tab order');
     }
 
     public function testTheControllerRouteRequirementListsEveryComponent(): void

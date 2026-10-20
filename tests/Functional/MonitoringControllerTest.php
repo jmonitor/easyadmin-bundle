@@ -36,7 +36,7 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSame('/admin/jmonitor/{component}/fragment', $routes->get('admin_jmonitor_fragment')?->getPath());
         self::assertSame('/admin/jmonitor/{component}/refresh', $routes->get('admin_jmonitor_refresh')?->getPath());
         self::assertSame(['POST'], $routes->get('admin_jmonitor_refresh')->getMethods());
-        self::assertSame('system|php|frankenphp|symfony|mysql|postgresql|redis', $routes->get('admin_jmonitor_component')->getRequirement('component'));
+        self::assertSame('system|php|frankenphp|apache|symfony|mysql|postgresql|redis', $routes->get('admin_jmonitor_component')->getRequirement('component'));
     }
 
     public function testIndexRedirectsToTheFirstAvailableComponent(): void

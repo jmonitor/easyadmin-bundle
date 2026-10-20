@@ -18,6 +18,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
+use Jmonitor\EasyAdminBundle\View\ApacheView;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
@@ -510,6 +511,57 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('class="alert alert-warning mb-3"', $this->render('frankenphp', new ComponentSnapshot(Component::FrankenPhp, [], 'FrankenPHP is not serving this page (PHP SAPI "cli").'), new FrankenPhpView(new ComponentSnapshot(Component::FrankenPhp, []), $this->gauges())), 'the detection error keeps a margin too');
         self::assertStringContainsString('n/a', $html);
         self::assertStringNotContainsString('Workers', $html);
+    }
+
+    public function testTheApacheFragmentRenders(): void
+    {
+        $delta = new Delta(Delta::flatten(Payloads::apache(51_900, 1_330_176_000, 2_077.5)), Delta::flatten(Payloads::apache()), 10);
+        $snapshot = new ComponentSnapshot(Component::Apache, ['apache' => new CollectorResult('apache', Payloads::apache(), null, 1_000, $delta)]);
+
+        $html = $this->render('apache', $snapshot, new ApacheView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('2.4.62', $html);
+        self::assertStringContainsString('Apache/2.4.62 (Debian) OpenSSL/3.0.15', $html, 'the server string under the version');
+        self::assertStringContainsString('aria-label="Help: Version"', $html);
+        self::assertStringContainsString('>event</span>', $html);
+        self::assertStringContainsString('aria-label="Help: Server MPM"', $html);
+        self::assertStringContainsString('12d', $html, 'uptime');
+        self::assertStringContainsString('aria-label="Help: Load average"', $html);
+        self::assertStringContainsString('0.42', $html);
+        self::assertStringContainsString('aria-label="Help: Busy workers"', $html);
+        self::assertStringContainsString('3 / 50', $html);
+        self::assertStringContainsString('aria-label="Help: Busy processes"', $html);
+        self::assertStringContainsString('3 / 400 slots', $html);
+        self::assertStringContainsString('<dt>Sending reply</dt>', $html);
+        self::assertStringNotContainsString('DNS lookup', $html, 'the empty states are left out');
+        self::assertStringContainsString('10.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('100 KB<small class="text-muted">/s</small>', $html);
+        self::assertStringContainsString('aria-label="Help: Outgoing traffic"', $html);
+        self::assertStringContainsString('10 KB</span>', $html, 'average response size from the delta');
+        self::assertStringContainsString('25 ms', $html, 'average request duration from the delta');
+        self::assertStringNotContainsString('Help: Uptime', $html, 'no help page for the uptime');
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheApacheFragmentRendersTheFirstSample(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Apache, ['apache' => new CollectorResult('apache', Payloads::apache(), null, 1_000)]);
+
+        $html = $this->render('apache', $snapshot, new ApacheView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Measuring', $html);
+        self::assertStringContainsString('25 KB</span>', $html, 'average response size since start');
+        self::assertStringContainsString('40 ms', $html, 'average request duration since start');
+    }
+
+    public function testAFailedApacheCollectorStillRenders(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Apache, ['apache' => new CollectorResult('apache', [], 'Cannot read the Apache status at http://localhost/server-status.', 1_000)]);
+
+        $html = $this->render('apache', $snapshot, new ApacheView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Cannot read the Apache status', $html);
+        self::assertStringContainsString('n/a', $html);
     }
 
     /**

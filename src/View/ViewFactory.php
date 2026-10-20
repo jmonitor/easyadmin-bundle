@@ -32,6 +32,7 @@ final readonly class ViewFactory
             Component::System => new SystemView($snapshot, $this->gauges),
             Component::Php => new PhpView($snapshot, $this->gauges, $this->endOfLife),
             Component::FrankenPhp => new FrankenPhpView($snapshot, $this->gauges),
+            Component::Apache => new ApacheView($snapshot, $this->gauges, $this->endOfLife),
             Component::Mysql => new MysqlView($snapshot, $this->gauges, $this->clock->now()->getTimestamp(), $this->endOfLife),
             Component::Postgresql => new PostgresqlView($snapshot, $this->gauges, $this->endOfLife),
             Component::Redis => new RedisView($snapshot, $this->gauges, $this->endOfLife),

@@ -9,6 +9,7 @@ enum Component: string
     case System = 'system';
     case Php = 'php';
     case FrankenPhp = 'frankenphp';
+    case Apache = 'apache';
     case Symfony = 'symfony';
     case Mysql = 'mysql';
     case Postgresql = 'postgresql';
@@ -20,6 +21,7 @@ enum Component: string
             self::System => 'System',
             self::Php => 'PHP',
             self::FrankenPhp => 'FrankenPHP',
+            self::Apache => 'Apache',
             self::Symfony => 'Symfony',
             self::Mysql => 'MySQL',
             self::Postgresql => 'PostgreSQL',

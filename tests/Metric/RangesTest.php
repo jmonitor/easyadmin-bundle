@@ -56,6 +56,7 @@ final class RangesTest extends TestCase
             'postgres.connections_usage', 'postgres.rollback_ratio', 'postgres.cache_hit_ratio', 'postgres.dead_tuple_ratio', 'postgres.index_usage_ratio', 'postgres.shared_buffers_ram_ratio',
             'redis.memory_usage', 'redis.hit_rate',
             'frankenphp.busy_threads_percent', 'frankenphp.worker_busy_workers_rate',
+            'apache.busy_workers', 'apache.busy_process',
         ] as $metric) {
             self::assertNotNull($this->ranges->badge($metric, 50), $metric);
         }
@@ -70,6 +71,16 @@ final class RangesTest extends TestCase
             self::assertSame('Saturated', $this->ranges->badge($metric, 85)?->label, $metric);
             self::assertSame(BadgeStyle::Danger, $this->ranges->badge($metric, 100)?->style, $metric);
         }
+    }
+
+    public function testApacheThresholdsMatchJmonitorIo(): void
+    {
+        self::assertSame('Healthy', $this->ranges->badge('apache.busy_workers', 59.9)?->label);
+        self::assertSame('Warning', $this->ranges->badge('apache.busy_workers', 60)?->label);
+        self::assertSame('Critical', $this->ranges->badge('apache.busy_workers', 85)?->label);
+        self::assertSame('Stable', $this->ranges->badge('apache.busy_process', 0.75)?->label);
+        self::assertSame(BadgeStyle::Warning, $this->ranges->badge('apache.busy_process', 60)?->style);
+        self::assertSame('Overloaded', $this->ranges->badge('apache.busy_process', 100)?->label);
     }
 
     public function testPostgresThresholdsMatchJmonitorIo(): void

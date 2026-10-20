@@ -1,9 +1,14 @@
 {# @var rate \Jmonitor\EasyAdminBundle\Metric\Rate #}
+{# format: number (default), bytes or duration #}
+{% set format = format|default('number') %}
 {% if rate.isPending() %}
     {{ include('@JmonitorEasyAdmin/_pending.html.twig', {rate: rate, compact: compact|default(false)}) }}
 {% elseif rate.isUnavailable() %}
     <span class="text-muted">—</span>
 {% else %}
-    <span class="jm-rate">{{ rate.value|jm_number(2) }} <small class="text-muted">{{ rate.unit }}</small></span>
+    <span class="jm-rate">
+        {%- if format == 'bytes' -%}{{ rate.value|jm_bytes }}{%- elseif format == 'duration' -%}{{ rate.value|jm_duration }}{%- else -%}{{ rate.value|jm_number(2) }}{%- endif -%}
+        {%- if rate.unit != '' -%}{{ format == 'bytes' ? '' : ' ' }}<small class="text-muted">{{ rate.unit }}</small>{%- endif -%}
+    </span>
     {% if rate.hint() %}<small class="text-muted d-block">{{ rate.hint() }}</small>{% endif %}
 {% endif %}

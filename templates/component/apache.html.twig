@@ -1,0 +1,81 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Version', metric: 'apache.version', badge: view.versionStatus} %}
+                {% block body %}
+                    <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.version}) }}</div>
+                    {% if view.serverVersion and view.serverVersion != view.version %}
+                        <div class="small text-muted">{{ view.serverVersion }}</div>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Server MPM', metric: 'apache.mpm', value: view.mpm}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Uptime', value: view.uptime is null ? null : view.uptime|jm_duration}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Load average', metric: 'apache.load_average'} %}
+                {% block body %}
+                    {% if view.load1 is null %}
+                        <span class="text-muted">—</span>
+                    {% else %}
+                        <div class="row g-2 text-center">
+                            {% for minutes, load in {1: view.load1, 5: view.load5, 15: view.load15} %}
+                                <div class="col-4">
+                                    <div class="jm-tile">
+                                        <div class="jm-tile-value">{{ load|jm_number(2) }}</div>
+                                        <div class="jm-tile-label">{{ minutes }} min</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Workers</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.busyWorkers}) }}
+        </div>
+        <div class="col-md-6 col-xl-4">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.busyProcesses}) }}
+        </div>
+        <div class="col-xl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scoreboard'} %}
+                {% block body %}
+                    {% if view.scoreboard is empty %}
+                        <span class="text-muted">—</span>
+                    {% else %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.scoreboard}) }}
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Traffic</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Requests per second', metric: 'apache.req_per_sec', rate: view.requestsPerSec}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Outgoing traffic', metric: 'apache.bytes_per_sec', rate: view.bytesPerSec, format: 'bytes'}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Average response size', rate: view.bytesPerRequest, format: 'bytes'}) }}
+        </div>
+        <div class="col-md-6 col-xl-3">
+            {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Average request duration', rate: view.durationPerRequest, format: 'duration'}) }}
+        </div>
+    </div>
+{% endblock %}

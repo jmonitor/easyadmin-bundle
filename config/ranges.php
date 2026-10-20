@@ -54,6 +54,16 @@ return [
         [85, 95, BadgeStyle::Warning, 'Partially Efficient'],
         [0, 85, BadgeStyle::Danger, 'Inefficient'],
     ],
+    'apache.busy_workers' => [
+        [0, 60, BadgeStyle::Success, 'Healthy'],
+        [60, 85, BadgeStyle::Warning, 'Warning'],
+        [85, 100, BadgeStyle::Danger, 'Critical'],
+    ],
+    'apache.busy_process' => [
+        [0, 60, BadgeStyle::Success, 'Stable'],
+        [60, 85, BadgeStyle::Warning, 'Under Pressure'],
+        [85, 100, BadgeStyle::Danger, 'Overloaded'],
+    ],
     'mysql.connections_usage' => [
         [0, 60, BadgeStyle::Success, 'Available Capacity'],
         [60, 85, BadgeStyle::Warning, 'High Usage'],
