@@ -44,7 +44,7 @@ final class InstanceNavigationTest extends TestCase
         self::assertSame('select', InstanceNavigation::of($instances, $instances[0])->databaseSelector);
     }
 
-    public function testEachServerGetsAPillLabelledWithItsHost(): void
+    public function testEachServerGetsAPillNamedAfterItsConnections(): void
     {
         $default = $this->database('default', 'db1');
         $reports = $this->database('reports', 'db2');
@@ -52,7 +52,8 @@ final class InstanceNavigationTest extends TestCase
 
         $navigation = InstanceNavigation::of([$default, $reports, $legacy], $legacy);
 
-        self::assertSame(['db1', 'db2'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['default', 'reports +1'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['db1:3306', 'db2:3306'], array_map(static fn($item) => $item->title, $navigation->pills));
         self::assertSame([false, true], array_map(static fn($item) => $item->active, $navigation->pills));
         self::assertSame($reports, $navigation->pills[1]->target);
         self::assertNull($navigation->pills[1]->detail);
@@ -60,17 +61,18 @@ final class InstanceNavigationTest extends TestCase
         self::assertSame('pills', $navigation->databaseSelector);
     }
 
-    public function testServersSharingAHostAreToldApartByPort(): void
+    public function testTheTitleOfAServerPillGivesItsPort(): void
     {
         $first = $this->database('a', 'localhost', 3306);
         $second = $this->database('b', 'localhost', 3307);
 
         $navigation = InstanceNavigation::of([$first, $second], $first);
 
-        self::assertSame(['localhost:3306', 'localhost:3307'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['a', 'b'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['localhost:3306', 'localhost:3307'], array_map(static fn($item) => $item->title, $navigation->pills));
     }
 
-    public function testSocketServersSharingAHostAreToldApartBySocket(): void
+    public function testTheTitleOfASocketServerPillGivesItsSocket(): void
     {
         $socket = static fn(string $id, string $path): Instance => Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), $id, null, new Server('socket:' . $path, 'localhost', null, $path));
         $first = $socket('a', '/run/mysqld/a.sock');
@@ -79,7 +81,7 @@ final class InstanceNavigationTest extends TestCase
 
         $navigation = InstanceNavigation::of([$first, $second, $tcp], $first);
 
-        self::assertSame(['/run/mysqld/a.sock', '/run/mysqld/b.sock', 'localhost:3306'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['/run/mysqld/a.sock', '/run/mysqld/b.sock', 'localhost:3306'], array_map(static fn($item) => $item->title, $navigation->pills));
     }
 
     public function testInstancesWithoutServerKeepTheirOwnPill(): void
@@ -91,6 +93,7 @@ final class InstanceNavigationTest extends TestCase
 
         self::assertSame(['default', 'dwh'], array_map(static fn($item) => $item->label, $navigation->pills));
         self::assertSame(['shop', 'warehouse'], array_map(static fn($item) => $item->detail, $navigation->pills));
+        self::assertSame([null, null], array_map(static fn($item) => $item->title, $navigation->pills));
         self::assertSame([false, true], array_map(static fn($item) => $item->active, $navigation->pills));
         self::assertSame([], $navigation->databases);
         self::assertNull($navigation->databaseSelector);

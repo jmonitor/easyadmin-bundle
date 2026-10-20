@@ -161,13 +161,14 @@ final class InstancesTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/jmonitor/mysql');
 
         self::assertResponseIsSuccessful();
-        self::assertSame(['db1', 'db2'], array_map('trim', $crawler->filter('.jm-instances a')->each(static fn($a) => $a->text())));
+        self::assertSame(['default +1', 'legacy'], array_map('trim', $crawler->filter('.jm-instances a')->each(static fn($a) => $a->text())));
+        self::assertSame(['db1:3306', 'db2:3306'], $crawler->filter('.jm-instances a')->each(static fn($a) => $a->attr('title')));
         self::assertSelectorExists('.jm-instances a.active[href="/admin/jmonitor/mysql?connection=default"]');
         self::assertSelectorExists('.jm-instances a[href="/admin/jmonitor/mysql?connection=legacy"]');
 
         $client->request('GET', '/admin/jmonitor/mysql?connection=reports');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.jm-instances a.active', 'db1');
+        self::assertSelectorTextContains('.jm-instances a.active', 'default +1');
     }
 
     public function testRefreshStaysOnADatabaseOfAServer(): void
