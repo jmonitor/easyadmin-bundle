@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Peak;
@@ -27,6 +28,7 @@ final readonly class RedisView
     ];
 
     public ?string $version;
+    public ?Badge $versionStatus;
     public ?string $mode;
 
     public ?Badge $maxMemoryUnlimited;
@@ -65,7 +67,7 @@ final readonly class RedisView
     /** @var list<array{name: string, keys: ?int, expiring: ?float, avg_ttl: ?int}> */
     public array $databases;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ?EndOfLife $endOfLife = null)
     {
         $data = $snapshot->data('redis');
         $delta = $snapshot->delta('redis');
@@ -76,6 +78,8 @@ final readonly class RedisView
         $replication = $data['replication'] ?? [];
 
         $this->version = Values::string($server['version'] ?? null);
+        // Valkey reports redis_version 7.2.4 whatever its own version.
+        $this->versionStatus = $this->version === '7.2.4' ? null : $endOfLife?->badge('redis', $this->version);
         $this->mode = Values::string($server['mode'] ?? null);
 
         $this->maxMemoryBytes = Values::int($memory['max_memory'] ?? null);

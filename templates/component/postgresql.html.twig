@@ -6,7 +6,7 @@
     <div class="row g-3">
         <div class="col-md-6 col-xxl-3">
             <div class="d-flex flex-column gap-3 h-100">
-                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Version', metric: 'postgres.version', fill: false} %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Version', metric: 'postgres.version', fill: false, badge: view.versionStatus} %}
                     {% block body %}
                         <div class="jm-stat">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.majorVersion}) }}</div>
                         {% if view.version %}<div class="small text-muted">{{ view.version }}</div>{% endif %}

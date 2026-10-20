@@ -12,6 +12,7 @@ use Jmonitor\Utils\UrlFetcher;
 final class FixtureUrlFetcher extends UrlFetcher
 {
     public int $calls = 0;
+    public ?string $url = null;
 
     public function __construct(
         private readonly ?string $content,
@@ -20,6 +21,7 @@ final class FixtureUrlFetcher extends UrlFetcher
     public function fetch(string $url): string
     {
         $this->calls++;
+        $this->url = $url;
 
         if ($this->content === null) {
             throw new \RuntimeException(sprintf('Failed to fetch "%s": Connection refused', $url));

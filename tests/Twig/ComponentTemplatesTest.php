@@ -8,12 +8,14 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\Server;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
@@ -25,6 +27,8 @@ use Jmonitor\EasyAdminBundle\View\RedisView;
 use Jmonitor\EasyAdminBundle\View\SymfonyView;
 use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Twig\Environment;
 
 /**
@@ -355,6 +359,24 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('FPM informations', $html);
         self::assertStringContainsString('Max children reached', $html);
         self::assertStringNotContainsString('interned_strings_buffer', $html, 'only the keys of the php.opcache_config help');
+    }
+
+    public function testTheVersionCardsShowTheSupportStatus(): void
+    {
+        $cycles = json_encode([['cycle' => '8.4', 'eol' => '2028-12-31', 'support' => '2026-12-31'], ['cycle' => '7.4', 'eol' => '2029-11-30'], ['cycle' => '16', 'eol' => '2028-11-09']], JSON_THROW_ON_ERROR);
+        $endOfLife = new EndOfLife(new ArrayAdapter(), new MockClock('2026-10-20'), fetcher: new FixtureUrlFetcher($cycles));
+        $php = new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', Payloads::php(), null, 1_000)]);
+        $symfony = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', ['version' => '7.4.2'] + Payloads::symfony(), null, 1_000)]);
+        $mysql = new ComponentSnapshot(Component::Mysql, ['mysql.variables' => new CollectorResult('mysql.variables', Payloads::mysqlVariables(), null, 1_000)]);
+        $postgresql = new ComponentSnapshot(Component::Postgresql, ['postgresql.settings' => new CollectorResult('postgresql.settings', ['server_version' => '16.4 (Debian 16.4-1)'], null, 1_000)]);
+        $redis = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', ['server' => ['version' => '7.4.1']], null, 1_000)]);
+        $pattern = '#Version</span>.*?<span class="ms-auto"><span class="badge text-bg-success">Active support</span>\s*</span>#si';
+
+        self::assertMatchesRegularExpression($pattern, $this->render('php', $php, new PhpView($php, $this->gauges(), $endOfLife)));
+        self::assertMatchesRegularExpression($pattern, $this->render('symfony', $symfony, new SymfonyView($symfony, $php, endOfLife: $endOfLife)));
+        self::assertMatchesRegularExpression($pattern, $this->render('mysql', $mysql, new MysqlView($mysql, $this->gauges(), 1_000, $endOfLife)));
+        self::assertMatchesRegularExpression($pattern, $this->render('postgresql', $postgresql, new PostgresqlView($postgresql, $this->gauges(), $endOfLife)));
+        self::assertMatchesRegularExpression($pattern, $this->render('redis', $redis, new RedisView($redis, $this->gauges(), $endOfLife)));
     }
 
     public function testThePhpFragmentWithoutOpcacheApcuOrFpm(): void

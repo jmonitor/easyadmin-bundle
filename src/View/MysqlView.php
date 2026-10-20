@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\View;
 
+use Jmonitor\EasyAdminBundle\Metric\Badge;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Peak;
@@ -15,6 +17,7 @@ final readonly class MysqlView
 {
     public ?string $version;
     public ?string $versionComment;
+    public ?Badge $versionStatus;
 
     /** @var array<string, mixed> */
     private array $variables;
@@ -64,7 +67,7 @@ final readonly class MysqlView
     public ?int $indexLength;
     public ?int $totalLength;
 
-    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, int $now)
+    public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, int $now, ?EndOfLife $endOfLife = null)
     {
         $status = $snapshot->data('mysql.status');
         $variables = $snapshot->data('mysql.variables');
@@ -74,6 +77,8 @@ final readonly class MysqlView
 
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
+        $product = self::product($this->version, $this->versionComment);
+        $this->versionStatus = $product === null ? null : $endOfLife?->badge($product, $this->version);
         $this->variables = $variables;
         $this->serverTime = self::serverTime($snapshot, $now);
         $this->longQueryTime = Values::float($variables['long_query_time'] ?? null);
@@ -154,6 +159,21 @@ final readonly class MysqlView
         $timestamp = Values::int($result?->data['timestamp'] ?? null);
 
         return $result === null || $timestamp === null ? null : $now + $timestamp - $result->collectedAt;
+    }
+
+    /**
+     * The endoflife.date product. The forks with their own release cycles have none: their version
+     * looks like the MySQL one they are based on.
+     */
+    private static function product(?string $version, ?string $comment): ?string
+    {
+        $text = strtolower($version . ' ' . $comment);
+
+        return match (true) {
+            str_contains($text, 'mariadb') => 'mariadb',
+            str_contains($text, 'percona'), str_contains($text, 'tidb') => null,
+            default => 'mysql',
+        };
     }
 
     /**

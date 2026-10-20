@@ -6,14 +6,18 @@ namespace Jmonitor\EasyAdminBundle\Tests\View;
 
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\RedisView;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 
 final class RedisViewTest extends TestCase
 {
@@ -104,6 +108,19 @@ final class RedisViewTest extends TestCase
     private function snapshot(array $data, ?Delta $delta = null): ComponentSnapshot
     {
         return new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', $data, null, 1_000, $delta)]);
+    }
+
+    public function testValkeyGetsNoVersionStatus(): void
+    {
+        $fetcher = new FixtureUrlFetcher(null);
+        $endOfLife = new EndOfLife(new ArrayAdapter(), new MockClock(), fetcher: $fetcher);
+        $view = fn(string $version): RedisView => new RedisView(new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', ['server' => ['version' => $version]], null, 1_000)]), $this->gauges(), $endOfLife);
+
+        $view('7.2.4');
+        self::assertSame(0, $fetcher->calls);
+
+        $view('7.4.1');
+        self::assertSame(1, $fetcher->calls);
     }
 
     private function gauges(): GaugeFactory

@@ -7,16 +7,20 @@ namespace Jmonitor\EasyAdminBundle\Tests\View;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
+use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Metric\Rate;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 
 final class PostgresqlViewTest extends TestCase
 {
@@ -274,6 +278,29 @@ final class PostgresqlViewTest extends TestCase
         }
 
         return new PostgresqlView(new ComponentSnapshot(Component::Postgresql, $results), $this->gauges());
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function serverVersions(): iterable
+    {
+        yield 'PostgreSQL' => ['16.4 (Debian 16.4-1.pgdg120+1)', true];
+        yield 'PostgreSQL before 10' => ['9.6.24', true];
+        yield 'CockroachDB' => ['13.0.0', false];
+        yield 'YugabyteDB' => ['11.2-YB-2.20.0.0-b0', false];
+        yield 'development version' => ['17devel', false];
+    }
+
+    #[DataProvider('serverVersions')]
+    public function testTheVersionStatusIsLeftOutForTheCompatibleServers(string $version, bool $fetched): void
+    {
+        $fetcher = new FixtureUrlFetcher(null);
+        new PostgresqlView(new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.settings' => new CollectorResult('postgresql.settings', ['server_version' => $version], null, 1_000),
+        ]), $this->gauges(), new EndOfLife(new ArrayAdapter(), new MockClock(), fetcher: $fetcher));
+
+        self::assertSame($fetched, $fetcher->calls === 1);
     }
 
     private function gauges(): GaugeFactory
