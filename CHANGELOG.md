@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The version cards show the support status of the version, from endoflife.date.
 
+### Fixed
+
+- The stylesheet and scripts are versioned, so a browser no longer keeps them after an upgrade.
+
 ## [1.2.1] - 2026-10-20
 
 ### Changed

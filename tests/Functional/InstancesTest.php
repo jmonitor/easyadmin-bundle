@@ -50,8 +50,8 @@ final class InstancesTest extends WebTestCase
 
         $crawler = $client->request('GET', '/admin/jmonitor/mysql');
 
-        self::assertCount(1, $crawler->filter('script[src$="bundles/jmonitoreasyadmin/navigation.js"]:not([defer])'), 'it hides the fallback button before the page is drawn');
-        self::assertCount(1, $crawler->filter('script[src$="bundles/jmonitoreasyadmin/help.js"][defer]'));
+        self::assertCount(1, $crawler->filter('script[src^="/bundles/jmonitoreasyadmin/navigation.js?v="]:not([defer])'), 'it hides the fallback button before the page is drawn');
+        self::assertCount(1, $crawler->filter('script[src^="/bundles/jmonitoreasyadmin/help.js?v="][defer]'));
     }
 
     public function testTheConnectionParameterSelectsAnInstance(): void

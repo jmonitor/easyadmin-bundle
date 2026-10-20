@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInterface;
+use Jmonitor\EasyAdminBundle\Asset\ContentHashVersionStrategy;
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
@@ -26,6 +27,8 @@ use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
+use Symfony\Component\Asset\Context\RequestStackContext;
+use Symfony\Component\Asset\PathPackage;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
 
@@ -210,6 +213,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
     ;
     $services->set(MonitoringExtension::class)
         ->tag('twig.extension')
+    ;
+    $services->set('jmonitor_easyadmin.assets.package', PathPackage::class)
+        ->args([
+            '/bundles/jmonitoreasyadmin',
+            inline_service(ContentHashVersionStrategy::class)->args([\dirname(__DIR__) . '/public']),
+            inline_service(RequestStackContext::class)->args([service('request_stack')]),
+        ])
+        ->tag('assets.package', ['package' => 'jmonitor_easyadmin'])
     ;
     $services->set(MonitoringController::class)
         ->args([
