@@ -88,12 +88,12 @@ final class Ratios
     }
 
     /**
-     * $sampled tells that the counters were collected, so a missing delta only waits for the next sample.
+     * $current is the counter in the latest sample: when there is one, a missing delta only waits for the next sample.
      */
-    public static function perSecond(?Delta $delta, string $key, string $unit = '/s', bool $sampled = false): Rate
+    public static function perSecond(?Delta $delta, string $key, string $unit = '/s', int|float|null $current = null, string $expected = Rate::AT_NEXT_REFRESH): Rate
     {
-        if ($delta === null && $sampled) {
-            return Rate::pending($unit);
+        if ($delta === null && $current !== null) {
+            return Rate::pending($unit, $expected);
         }
 
         $value = $delta?->getPerSec($key);

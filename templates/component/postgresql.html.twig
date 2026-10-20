@@ -117,7 +117,7 @@
                     <div class="small text-muted">Written</div>
                     <div class="jm-rate">
                         {%- if view.tempBytesPerSec.isPending() -%}
-                            {{ include('@JmonitorEasyAdmin/_pending.html.twig', {compact: true}) }}
+                            {{ include('@JmonitorEasyAdmin/_pending.html.twig', {rate: view.tempBytesPerSec, compact: true}) }}
                         {%- elseif view.tempBytesPerSec.isUnavailable() -%}
                             <span class="text-muted">—</span>
                         {%- else -%}

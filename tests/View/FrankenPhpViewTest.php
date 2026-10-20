@@ -61,7 +61,7 @@ final class FrankenPhpViewTest extends TestCase
         self::assertSame(100.0, $api->busyRate->value);
         self::assertSame(BadgeStyle::Danger, $api->busyRate->badge?->style);
         self::assertSame('None', $api->crashesBadge?->label);
-        self::assertTrue($api->requestsPerSec->isUnavailable(), 'no previous sample for this worker');
+        self::assertTrue($api->requestsPerSec->isPending(), 'no previous sample for this worker');
         self::assertNull($api->restartsDelta);
         self::assertSame(0.02, $api->avgExecTime->value, '40 seconds for 2000 requests since the start');
         self::assertSame('since server start', $api->avgExecTime->hint());
@@ -117,6 +117,17 @@ final class FrankenPhpViewTest extends TestCase
         self::assertNull($view->workers[0]->deltaElapsed);
         self::assertTrue($view->workers[0]->requestsPerSec->isUnavailable());
         self::assertTrue($view->workers[0]->avgExecTime->isSinceStart());
+    }
+
+    public function testAWorkerWithoutRequestCounterHasNoPendingRate(): void
+    {
+        $payload = Payloads::frankenphpWorker();
+        unset($payload['workers'][0]['worker_request_count']);
+
+        $view = new FrankenPhpView($this->snapshot($payload), $this->gauges());
+
+        self::assertTrue($view->workers[0]->requestsPerSec->isUnavailable());
+        self::assertFalse($view->workers[0]->requestsPerSec->isPending(), 'no later sample would bring it');
     }
 
     public function testACounterResetGivesNoDelta(): void

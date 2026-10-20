@@ -64,7 +64,7 @@ final readonly class FrankenPhpWorkerView
         $this->deltaElapsed = $delta?->elapsed;
         $this->restartsDelta = self::count($delta?->getValue($key . 'worker_restarts'));
         $this->crashesDelta = self::count($delta?->getValue($key . 'worker_crashes'));
-        $this->requestsPerSec = Ratios::perSecond($delta, $key . 'worker_request_count', 'req/s', true);
+        $this->requestsPerSec = Ratios::perSecond($delta, $key . 'worker_request_count', 'req/s', Values::int($worker['worker_request_count'] ?? null));
         $this->avgExecTime = Ratios::average(
             $delta,
             $key . 'worker_request_time',

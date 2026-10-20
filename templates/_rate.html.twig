@@ -1,6 +1,6 @@
 {# @var rate \Jmonitor\EasyAdminBundle\Metric\Rate #}
 {% if rate.isPending() %}
-    {{ include('@JmonitorEasyAdmin/_pending.html.twig', {compact: compact|default(false)}) }}
+    {{ include('@JmonitorEasyAdmin/_pending.html.twig', {rate: rate, compact: compact|default(false)}) }}
 {% elseif rate.isUnavailable() %}
     <span class="text-muted">—</span>
 {% else %}

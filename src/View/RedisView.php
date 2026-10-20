@@ -119,7 +119,7 @@ final readonly class RedisView
             : null;
         $this->memoryPeak = Peak::of($this->usedMemory, $this->peakMemory, $this->maxMemoryBytes);
 
-        $this->requestsPerSec = Ratios::perSecond($delta, 'stats.total_commands_processed', 'req/s', $snapshot->has('redis'));
+        $this->requestsPerSec = Ratios::perSecond($delta, 'stats.total_commands_processed', 'req/s', Values::int($stats['total_commands_processed'] ?? null));
         $this->hitRate = $gauges->fromRate('redis.hit_rate', 'Hit rate', Ratios::share(
             $delta,
             'stats.keyspace_hits',
