@@ -41,6 +41,8 @@
     }
 
     function renderToggle() {
+        root.classList.toggle('jm-live-off', !enabled);
+
         if (!toggle) {
             return;
         }
@@ -263,6 +265,7 @@
         toggle.addEventListener('change', function () {
             enabled = toggle.checked;
             writePreference(enabled);
+            renderToggle();
             start();
             refresh();
         });

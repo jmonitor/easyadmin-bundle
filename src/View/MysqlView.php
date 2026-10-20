@@ -86,7 +86,7 @@ final readonly class MysqlView
         $this->connectionsUsage = $gauges->create('mysql.connections_usage', 'Connection usage', Values::percent($this->threadsConnected, $this->maxConnections));
         $this->maxUsedConnections = Values::int($status['Max_used_connections'] ?? null);
         $this->maxConnectionsReached = Peak::of($this->threadsConnected, $this->maxUsedConnections, $this->maxConnections);
-        $this->queriesPerSec = Ratios::perSecond($delta, 'Questions', 'q/s');
+        $this->queriesPerSec = Ratios::perSecond($delta, 'Questions', 'q/s', Values::int($status['Questions'] ?? null));
 
         $this->slowQueriesAvailable = $snapshot->has('mysql.slow_queries');
         $slowQueryLog = $variables['slow_query_log'] ?? null;
@@ -114,12 +114,12 @@ final readonly class MysqlView
         $this->ramRatio = $snapshot->result('system.ram_total') === null
             ? null
             : $gauges->create('mysql.innodb_ram_ratio', 'RAM ratio', Values::percent($this->bufferPoolSize, $this->ramTotal));
-        $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s');
-        $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s');
+        $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s', Values::int($status['Innodb_data_reads'] ?? null));
+        $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s', Values::int($status['Innodb_data_writes'] ?? null));
 
         $waited = Values::int($status['Table_locks_waited'] ?? null);
         $immediate = Values::int($status['Table_locks_immediate'] ?? null);
-        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '');
+        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '', Values::int($status['Table_locks_waited'] ?? null));
         $waitedDelta = $delta?->getValue('Table_locks_waited');
         $immediateDelta = $delta?->getValue('Table_locks_immediate');
         $this->tableLocksWaitedDelta = $waitedDelta === null ? null : (int) $waitedDelta;

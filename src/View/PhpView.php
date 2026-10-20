@@ -177,7 +177,7 @@ final readonly class PhpView
         $this->fpmActive = Values::int($fpm['active-processes'] ?? null);
         $this->fpmIdle = Values::int($fpm['idle-processes'] ?? null);
         $this->fpmProcesses = $this->fpmActive !== null && $this->fpmIdle !== null ? $this->fpmActive + $this->fpmIdle : null;
-        $this->fpmRequestsPerSec = Ratios::perSecond($delta, 'fpm.accepted-conn', 'req/s');
+        $this->fpmRequestsPerSec = Ratios::perSecond($delta, 'fpm.accepted-conn', 'req/s', Values::int($fpm['accepted-conn'] ?? null));
         $this->fpmActiveProcesses = $gauges->create('php.fpm_active_processes', 'Active processes', Values::percent($this->fpmActive, $this->fpmProcesses), 2);
         $this->fpmMaxChildrenReached = Values::int($fpm['max-children-reached'] ?? null);
         $this->fpmMaxChildrenReachedBadge = match (true) {

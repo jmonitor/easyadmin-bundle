@@ -97,6 +97,29 @@
     font-size: inherit;
 }
 
+.jm-pending {
+    display: inline-block;
+    font-size: 1rem;
+    font-weight: normal;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.jm-pending .spinner-border {
+    width: .875rem;
+    height: .875rem;
+    border-width: .15em;
+    vertical-align: -.1em;
+}
+
+.jm-pending-paused,
+.jm-live-off .jm-pending-live {
+    display: none;
+}
+
+.jm-live-off .jm-pending-paused {
+    display: inline;
+}
+
 .jm-kv-row {
     display: flex;
     flex-wrap: wrap;

@@ -272,6 +272,29 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Connection refused', $html);
         self::assertStringNotContainsString('Databases', $html);
+        self::assertStringNotContainsString('jm-pending', $html, 'nothing to wait for while the collect fails');
+    }
+
+    public function testARateWaitingForItsSecondSampleSaysHowItWillCome(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', Payloads::redis(), null, 1_000)]);
+
+        $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Measuring…', $html);
+        self::assertStringContainsString('Shown at the next refresh', $html);
+        self::assertStringContainsString('Turn it on or click Refresh to measure', $html, 'shown instead when Live is off');
+    }
+
+    public function testWithoutPollingARateWaitingForItsSecondSampleAsksForARefresh(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', Payloads::redis(), null, 1_000)]);
+
+        $html = $this->render('redis', $snapshot, new RedisView($snapshot, $this->gauges()), pollingInterval: 0);
+
+        self::assertStringContainsString('Click Refresh to measure', $html);
+        self::assertStringNotContainsString('Measuring…', $html);
+        self::assertStringNotContainsString('Live is off', $html);
     }
 
     public function testACollectInProgressElsewhereShowsOneNoticeAndNoError(): void
@@ -503,7 +526,7 @@ final class ComponentTemplatesTest extends TestCase
         return substr($html, $start);
     }
 
-    private function render(string $component, ComponentSnapshot $snapshot, object $view, ?Instance $instance = null, ?InstanceNavigation $navigation = null): string
+    private function render(string $component, ComponentSnapshot $snapshot, object $view, ?Instance $instance = null, ?InstanceNavigation $navigation = null, int $pollingInterval = 10): string
     {
         $instance ??= Instance::found(Component::from($component), new CollectorSet(Component::from($component), []), 'default', 'shop');
         $navigation ??= InstanceNavigation::of([$instance], $instance);
@@ -511,7 +534,7 @@ final class ComponentTemplatesTest extends TestCase
         return $this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component), [
             'components' => [Component::from($component)],
             'current' => Component::from($component),
-            'polling_interval' => 10,
+            'polling_interval' => $pollingInterval,
             'routes' => ['index' => 'admin_jmonitor_index', 'component' => 'admin_jmonitor_component', 'fragment' => 'admin_jmonitor_fragment', 'refresh' => 'admin_jmonitor_refresh'],
             'snapshot' => $snapshot,
             'view' => $view,

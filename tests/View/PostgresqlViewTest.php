@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
+use Jmonitor\EasyAdminBundle\Metric\Rate;
 use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
@@ -118,6 +119,10 @@ final class PostgresqlViewTest extends TestCase
         self::assertSame('since stats reset', $view->indexUsageRatio->hint);
         self::assertTrue($view->transactionsPerSec->isUnavailable());
         self::assertTrue($view->seqScansPerSec->isUnavailable());
+        self::assertTrue($view->transactionsPerSec->isPending());
+        self::assertSame(Rate::AT_NEXT_REFRESH, $view->transactionsPerSec->expected);
+        self::assertTrue($view->seqScansPerSec->isPending());
+        self::assertSame(Rate::AFTER_A_MINUTE, $view->seqScansPerSec->expected, 'the database collector is sampled once a minute');
         self::assertNull($view->ramRatio);
     }
 

@@ -1,6 +1,8 @@
 {# @var rate \Jmonitor\EasyAdminBundle\Metric\Rate #}
-{% if rate.isUnavailable() %}
-    <span class="text-muted" title="Available after the next refresh">—</span>
+{% if rate.isPending() %}
+    {{ include('@JmonitorEasyAdmin/_pending.html.twig', {rate: rate, compact: compact|default(false)}) }}
+{% elseif rate.isUnavailable() %}
+    <span class="text-muted">—</span>
 {% else %}
     <span class="jm-rate">{{ rate.value|jm_number(2) }} <small class="text-muted">{{ rate.unit }}</small></span>
     {% if rate.hint() %}<small class="text-muted d-block">{{ rate.hint() }}</small>{% endif %}

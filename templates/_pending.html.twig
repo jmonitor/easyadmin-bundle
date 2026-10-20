@@ -1,0 +1,19 @@
+{# @var rate \Jmonitor\EasyAdminBundle\Metric\Rate #}
+{% set compact = compact|default(false) %}
+<span class="jm-pending">
+    {%- if polling_interval > 0 -%}
+        <span class="jm-pending-live" title="Rates compare two samples: shown {{ rate.expected }}">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Measuring…
+            {%- if not compact %}<span class="d-block small">Shown {{ rate.expected }}</span>{% endif -%}
+        </span>
+        <span class="jm-pending-paused" title="Rates compare two samples: turn Live on or click Refresh">
+            Live is off
+            {%- if not compact %}<span class="d-block small">Turn it on or click Refresh to measure</span>{% endif -%}
+        </span>
+    {%- else -%}
+        <span title="Rates compare two samples: click Refresh to get the second one">
+            Waiting for a refresh
+            {%- if not compact %}<span class="d-block small">Click Refresh to measure</span>{% endif -%}
+        </span>
+    {%- endif -%}
+</span>

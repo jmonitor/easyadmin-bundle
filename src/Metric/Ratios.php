@@ -87,8 +87,15 @@ final class Ratios
         return Rate::unavailable($unit);
     }
 
-    public static function perSecond(?Delta $delta, string $key, string $unit = '/s'): Rate
+    /**
+     * $current is the counter in the latest sample: when there is one, a missing delta only waits for the next sample.
+     */
+    public static function perSecond(?Delta $delta, string $key, string $unit = '/s', int|float|null $current = null, string $expected = Rate::AT_NEXT_REFRESH): Rate
     {
+        if ($delta === null && $current !== null) {
+            return Rate::pending($unit, $expected);
+        }
+
         $value = $delta?->getPerSec($key);
 
         return $value === null ? Rate::unavailable($unit) : new Rate($value, RateSource::Delta, $unit);

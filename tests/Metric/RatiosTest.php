@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests\Metric;
 
+use Jmonitor\EasyAdminBundle\Metric\Rate;
 use Jmonitor\EasyAdminBundle\Metric\RateSource;
 use Jmonitor\EasyAdminBundle\Metric\Ratios;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
@@ -81,6 +82,20 @@ final class RatiosTest extends TestCase
         self::assertSame('q/s', Ratios::perSecond($delta, 'Questions', 'q/s')->unit);
         self::assertTrue(Ratios::perSecond(null, 'Questions')->isUnavailable());
         self::assertTrue(Ratios::perSecond($delta, 'Unknown')->isUnavailable());
+        self::assertFalse(Ratios::perSecond(null, 'Questions')->isPending(), 'counter not collected: nothing to wait for');
+    }
+
+    public function testPerSecondIsPendingUntilASecondSampleOfACollectedCounter(): void
+    {
+        $delta = new Delta(['Questions' => 100], ['Questions' => 250], 10);
+        $pending = Ratios::perSecond(null, 'Questions', 'q/s', 250);
+
+        self::assertTrue($pending->isPending());
+        self::assertTrue($pending->isUnavailable());
+        self::assertSame('q/s', $pending->unit);
+        self::assertSame(Rate::AT_NEXT_REFRESH, $pending->expected);
+        self::assertSame(Rate::AFTER_A_MINUTE, Ratios::perSecond(null, 'Questions', 'q/s', 250, Rate::AFTER_A_MINUTE)->expected);
+        self::assertFalse(Ratios::perSecond($delta, 'Unknown', '/s', 250)->isPending(), 'a counter missing from the delta never comes');
     }
 
     public function testAverageUsesTheDeltaWhenItHasTraffic(): void
