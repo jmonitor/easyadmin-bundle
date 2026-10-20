@@ -24,6 +24,7 @@ use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -209,6 +210,17 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ])
     ;
     $services->set(MonitoringExtension::class)
+        ->tag('twig.extension')
+    ;
+    $services->set(AssetExtension::class)
+        ->args([
+            service('assets.packages'),
+            [
+                // the installed copy first: it is what the browser gets, and it may be older than the bundle
+                '%kernel.project_dir%/public/bundles/jmonitoreasyadmin',
+                \dirname(__DIR__) . '/public',
+            ],
+        ])
         ->tag('twig.extension')
     ;
     $services->set(MonitoringController::class)

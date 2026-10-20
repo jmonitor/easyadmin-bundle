@@ -69,7 +69,7 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorExists('.jm-gauge');
         self::assertSelectorTextContains('body', 'RAM usage');
         self::assertCount(1, $crawler->filter('script[src*="live.js"]'));
-        self::assertCount(1, $crawler->filter('link[href*="monitoring.css"]'));
+        self::assertMatchesRegularExpression('#^/bundles/jmonitoreasyadmin/monitoring\.css\?v=[0-9a-f]{8}$#', (string) $crawler->filter('link[href*="monitoring.css"]')->attr('href'));
         self::assertSelectorExists('form[action="/admin/jmonitor/system/refresh"]');
     }
 
