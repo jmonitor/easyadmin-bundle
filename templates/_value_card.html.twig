@@ -2,7 +2,7 @@
     {% block body %}
         <div class="jm-stat">
             {%- if rate|default(null) -%}
-                {{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: rate}) }}
+                {{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: rate, format: format|default('number')}) }}
             {%- else -%}
                 {{ include('@JmonitorEasyAdmin/_value.html.twig', {value: value|default(null)}) }}
             {%- endif -%}

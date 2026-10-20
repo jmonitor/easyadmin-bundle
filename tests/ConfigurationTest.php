@@ -23,7 +23,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame(3600, $config['static_ttl']);
         self::assertNull($config['permission']);
 
-        foreach (['system', 'php', 'frankenphp', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
+        foreach (['system', 'php', 'frankenphp', 'apache', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
         }
 
@@ -37,6 +37,7 @@ final class ConfigurationTest extends TestCase
         self::assertArrayNotHasKey('service', $config['components']['redis']);
         self::assertIsBool($config['components']['symfony']['messenger']);
         self::assertSame('http://localhost:2019/metrics', $config['components']['frankenphp']['endpoint']);
+        self::assertSame('http://localhost/server-status', $config['components']['apache']['endpoint']);
     }
 
     public function testPermissionIsAnyAttributeOfIsGranted(): void
@@ -94,6 +95,14 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame('http://caddy:2019/metrics', $config['components']['frankenphp']['endpoint']);
         self::assertSame('auto', $config['components']['frankenphp']['enabled']);
+    }
+
+    public function testTheApacheEndpointIsConfigurable(): void
+    {
+        $config = $this->process(['components' => ['apache' => ['endpoint' => 'http://apache/server-status']]]);
+
+        self::assertSame('http://apache/server-status', $config['components']['apache']['endpoint']);
+        self::assertSame('auto', $config['components']['apache']['enabled']);
     }
 
     public function testAnEmptyFrankenPhpEndpointIsRefused(): void

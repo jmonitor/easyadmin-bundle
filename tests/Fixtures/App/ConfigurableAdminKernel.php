@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Fixtures\App;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\ApacheDetector;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
@@ -38,6 +39,8 @@ final class ConfigurableAdminKernel extends TestKernel
     public static array $redisServices = [];
     /** @var array{sapi: string, metrics: ?string, version: ?string}|null the SAPI, the Caddy export and the "frankenphp version" output */
     public static ?array $frankenphp = null;
+    /** @var array{sapi: string, status: ?string}|null the SAPI and the mod_status report */
+    public static ?array $apache = null;
 
     private readonly ?string $detectorFailure;
     /** @var list<string> */
@@ -46,6 +49,8 @@ final class ConfigurableAdminKernel extends TestKernel
     private readonly ?array $instances;
     /** @var array{sapi: string, metrics: ?string, version: ?string}|null */
     private readonly ?array $frankenphpFixtures;
+    /** @var array{sapi: string, status: ?string}|null */
+    private readonly ?array $apacheFixtures;
 
     public function __construct(string $environment = 'test', bool $debug = true)
     {
@@ -54,6 +59,7 @@ final class ConfigurableAdminKernel extends TestKernel
         $this->instances = self::$mysqlInstances;
         $this->fakeRedisServices = self::$redisServices;
         $this->frankenphpFixtures = self::$frankenphp;
+        $this->apacheFixtures = self::$apache;
     }
 
     public static function reset(): void
@@ -63,17 +69,18 @@ final class ConfigurableAdminKernel extends TestKernel
         self::$mysqlInstances = null;
         self::$redisServices = [];
         self::$frankenphp = null;
+        self::$apache = null;
     }
 
     public function getCacheDir(): string
     {
         $replacement = $this->mysqlDetector();
 
-        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null) {
+        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null && $this->apacheFixtures === null) {
             return parent::getCacheDir();
         }
 
-        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures]));
+        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures, $this->apacheFixtures]));
     }
 
     protected function build(ContainerBuilder $container): void
@@ -112,6 +119,24 @@ final class ConfigurableAdminKernel extends TestKernel
                         new Definition(FixtureShellExecutor::class, [$this->fixtures['version']]),
                     ]);
                     $container->setDefinition(FrankenPhpDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value]));
+                }
+            }, PassConfig::TYPE_BEFORE_REMOVING);
+        }
+
+        if ($this->apacheFixtures !== null) {
+            $container->addCompilerPass(new class ($this->apacheFixtures) implements CompilerPassInterface {
+                /** @param array{sapi: string, status: ?string} $fixtures */
+                public function __construct(private readonly array $fixtures) {}
+
+                public function process(ContainerBuilder $container): void
+                {
+                    $definition = new Definition(ApacheDetector::class, [
+                        'http://localhost/server-status',
+                        new Reference('request_stack'),
+                        $this->fixtures['sapi'],
+                        new Definition(FixtureUrlFetcher::class, [$this->fixtures['status']]),
+                    ]);
+                    $container->setDefinition(ApacheDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::Apache->value]));
                 }
             }, PassConfig::TYPE_BEFORE_REMOVING);
         }

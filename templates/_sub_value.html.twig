@@ -1,7 +1,7 @@
 <div class="small text-muted">{{ label }} {% if metric|default(null) %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: metric, label: label}) }}{% endif %}</div>
 <div class="jm-rate">
     {%- if rate|default(null) -%}
-        {{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: rate, compact: true}) }}
+        {{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: rate, compact: true, format: format|default('number')}) }}
     {%- else -%}
         {{ include('@JmonitorEasyAdmin/_value.html.twig', {value: value|default(null)}) }}
     {%- endif -%}

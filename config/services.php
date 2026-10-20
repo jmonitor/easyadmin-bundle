@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Contracts\Provider\AdminContextProviderInter
 use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
+use Jmonitor\EasyAdminBundle\Detection\ApacheDetector;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
@@ -57,6 +58,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(MinimumLevelLogger::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value])
+    ;
+
+    $services->set(ApacheDetector::class)
+        ->args([
+            $config['components']['apache']['endpoint'],
+            service('request_stack'),
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Apache->value])
     ;
 
     $services->set(SymfonyDetector::class)
