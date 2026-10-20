@@ -62,7 +62,7 @@
             <ul class="nav nav-pills jm-instances mb-3">
                 {% for item in navigation.pills %}
                     <li class="nav-item">
-                        <a class="nav-link py-1 px-2{{ item.active ? ' active' }}"{% if item.active %} aria-current="true"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.target.id}) }}">
+                        <a class="nav-link py-1 px-2{{ item.active ? ' active' }}"{% if item.active %} aria-current="true"{% endif %}{% if item.title %} title="{{ item.title }}"{% endif %} href="{{ path(routes.component, {component: current.value, connection: item.target.id}) }}">
                             {{ item.label }}{% if item.detail %} <span class="small opacity-75">· {{ item.detail }}</span>{% endif %}{% if item.error %} <span class="jm-instance-error" role="img" title="{{ item.error }}" aria-label="Detection failed"></span>{% endif %}
                         </a>
                     </li>

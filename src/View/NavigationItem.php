@@ -17,5 +17,6 @@ final readonly class NavigationItem
         public Instance $target,
         public bool $active,
         public ?string $error,
+        public ?string $title = null,
     ) {}
 }

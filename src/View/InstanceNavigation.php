@@ -36,14 +36,6 @@ final readonly class InstanceNavigation
         }
         $groups = array_values($groups);
 
-        $hostCounts = [];
-        foreach ($groups as $group) {
-            $server = $group[0]->server;
-            if ($server !== null) {
-                $hostCounts[$server->host] = ($hostCounts[$server->host] ?? 0) + 1;
-            }
-        }
-
         $pills = [];
         $databases = [];
         foreach ($groups as $group) {
@@ -61,13 +53,10 @@ final readonly class InstanceNavigation
                 continue;
             }
 
-            $label = $server->host;
+            $target = $active ? $current : $first;
+            $label = ($target->id ?? $server->address()) . (count($group) > 1 ? ' +' . (count($group) - 1) : '');
 
-            if ($hostCounts[$server->host] > 1) {
-                $label = $server->port === null ? ($server->socket ?? $label) : $server->host . ':' . $server->port;
-            }
-
-            $pills[] = new NavigationItem($label, null, $first, $active, null);
+            $pills[] = new NavigationItem($label, null, $target, $active, null, $server->address());
         }
 
         $count = count($databases);

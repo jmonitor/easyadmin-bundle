@@ -16,4 +16,15 @@ final readonly class Server
         public ?int $port,
         public ?string $socket = null,
     ) {}
+
+    public function address(): string
+    {
+        if ($this->socket !== null) {
+            return $this->socket;
+        }
+
+        $host = str_contains($this->host, ':') && !str_starts_with($this->host, '[') ? '[' . $this->host . ']' : $this->host;
+
+        return $this->port === null ? $host : $host . ':' . $this->port;
+    }
 }
