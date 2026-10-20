@@ -53,10 +53,10 @@ final readonly class InstanceNavigation
                 continue;
             }
 
-            $address = $server->socket ?? ($server->port === null ? $server->host : $server->host . ':' . $server->port);
-            $label = ($first->id ?? $address) . (count($group) > 1 ? ' +' . (count($group) - 1) : '');
+            $target = $active ? $current : $first;
+            $label = ($target->id ?? $server->address()) . (count($group) > 1 ? ' +' . (count($group) - 1) : '');
 
-            $pills[] = new NavigationItem($label, null, $first, $active, null, $address);
+            $pills[] = new NavigationItem($label, null, $target, $active, null, $server->address());
         }
 
         $count = count($databases);

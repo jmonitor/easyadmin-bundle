@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The server pills of the MySQL tab are named after their connections instead of their host, shown on hover.
+- The server pills of the MySQL tab are named after their connections instead of their host, shown on hover; an IPv6 host is written in brackets.
 
 ## [1.2.0] - 2026-10-19
 

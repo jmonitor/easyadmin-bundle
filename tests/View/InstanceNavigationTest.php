@@ -52,10 +52,11 @@ final class InstanceNavigationTest extends TestCase
 
         $navigation = InstanceNavigation::of([$default, $reports, $legacy], $legacy);
 
-        self::assertSame(['default', 'reports +1'], array_map(static fn($item) => $item->label, $navigation->pills));
+        self::assertSame(['default', 'legacy +1'], array_map(static fn($item) => $item->label, $navigation->pills), 'the active pill names the connection shown');
         self::assertSame(['db1:3306', 'db2:3306'], array_map(static fn($item) => $item->title, $navigation->pills));
         self::assertSame([false, true], array_map(static fn($item) => $item->active, $navigation->pills));
-        self::assertSame($reports, $navigation->pills[1]->target);
+        self::assertSame($default, $navigation->pills[0]->target);
+        self::assertSame($legacy, $navigation->pills[1]->target);
         self::assertNull($navigation->pills[1]->detail);
         self::assertSame([$reports, $legacy], $navigation->databases);
         self::assertSame('pills', $navigation->databaseSelector);

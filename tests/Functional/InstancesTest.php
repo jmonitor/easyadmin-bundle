@@ -168,7 +168,8 @@ final class InstancesTest extends WebTestCase
 
         $client->request('GET', '/admin/jmonitor/mysql?connection=reports');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.jm-instances a.active', 'default +1');
+        self::assertSelectorTextContains('.jm-instances a.active', 'reports +1');
+        self::assertSelectorExists('.jm-instances a.active[href="/admin/jmonitor/mysql?connection=reports"]');
     }
 
     public function testRefreshStaysOnADatabaseOfAServer(): void
