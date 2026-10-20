@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Collector;
 
 use Jmonitor\EasyAdminBundle\Collector\ApacheStatusCollector;
+use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use PHPUnit\Framework\TestCase;
@@ -27,6 +28,7 @@ final class ApacheStatusCollectorTest extends TestCase
             (new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher(null)))->collect();
             self::fail('no exception');
         } catch (\RuntimeException $e) {
+            self::assertInstanceOf(UnreachableServerException::class, $e, 'kept longer than a poll');
             self::assertSame('Cannot read the Apache status at http://localhost/server-status. Enable mod_status with a "SetHandler server-status" location reachable from PHP and check "components.apache.endpoint".', $e->getMessage());
             self::assertSame('Failed to fetch "http://localhost/server-status?auto": Connection refused', $e->getPrevious()?->getMessage(), 'the root cause is chained for SnapshotProvider::describe()');
         }
@@ -38,9 +40,30 @@ final class ApacheStatusCollectorTest extends TestCase
             (new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher("<!DOCTYPE html>\n<title>Welcome</title>")))->collect();
             self::fail('no exception');
         } catch (\RuntimeException $e) {
+            self::assertInstanceOf(UnreachableServerException::class, $e, 'the application would answer each poll otherwise');
             self::assertStringStartsWith('Cannot read the Apache status at http://localhost/server-status.', $e->getMessage());
             self::assertSame('"http://localhost/server-status?auto" is not a mod_status report.', $e->getPrevious()?->getMessage());
         }
+    }
+
+    public function testTheDurationsKeepTheirFractionOfAMillisecond(): void
+    {
+        $report = str_replace(['Total Duration: 2080000', 'DurationPerReq: 40'], ['Total Duration: 38168', 'DurationPerReq: .734'], self::report());
+
+        $payload = (new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher($report)))->collect();
+
+        self::assertSame(38.168, $payload['total_duration'], 'in seconds');
+        self::assertSame(0.734, $payload['duration_per_request'], 'in milliseconds, which ApacheCollector rounds to 0');
+    }
+
+    public function testAReportWithoutDurationsHasNone(): void
+    {
+        $report = (string) preg_replace('/^(Total Duration|DurationPerReq): .*\n/m', '', self::report());
+
+        $payload = (new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher($report)))->collect();
+
+        self::assertNull($payload['total_duration']);
+        self::assertNull($payload['duration_per_request']);
     }
 
     public function testNameAndVersionDelegate(): void

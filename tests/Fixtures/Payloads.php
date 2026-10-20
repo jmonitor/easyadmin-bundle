@@ -259,16 +259,17 @@ final class Payloads
      *
      * @return array<string, mixed>
      */
-    public static function apache(int $accesses = 52_000, int $bytes = 1_331_200_000): array
+    public static function apache(int $accesses = 52_000, int $bytes = 1_331_200_000, float $duration = 2_080.0): array
     {
         return [
             'server_version' => 'Apache/2.4.62 (Debian) OpenSSL/3.0.15', 'server_mpm' => 'event', 'uptime' => 1_040_619,
             'load1' => 0.42, 'load5' => 0.37, 'load15' => 0.31,
             'total_accesses' => $accesses, 'total_bytes' => $bytes,
-            'requests_per_second' => 0, 'bytes_per_second' => 1_279, 'bytes_per_request' => 25_600, 'duration_per_request' => 40,
+            'requests_per_second' => 0, 'bytes_per_second' => 1_279, 'bytes_per_request' => 25_600, 'duration_per_request' => 40.0,
             'workers' => ['busy' => 3, 'idle' => 47],
             'scoreboard' => ['_' => 47, 'W' => 1, 'K' => 1, 'R' => 1, '.' => 350],
             'modules' => [],
+            'total_duration' => $duration,
         ];
     }
 }

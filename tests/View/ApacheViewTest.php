@@ -51,13 +51,13 @@ final class ApacheViewTest extends TestCase
         self::assertTrue($view->bytesPerSec->isPending());
         self::assertSame(25_600.0, $view->bytesPerRequest->value);
         self::assertSame('since server start', $view->bytesPerRequest->hint());
-        self::assertSame(0.04, $view->durationPerRequest->value, '40 ms');
+        self::assertSame(0.04, $view->durationPerRequest->value, '2080 seconds over 52000 requests');
         self::assertSame('since server start', $view->durationPerRequest->hint());
     }
 
     public function testTheTrafficComesFromTheDelta(): void
     {
-        $delta = new Delta(Delta::flatten(Payloads::apache(51_900, 1_330_176_000)), Delta::flatten(Payloads::apache()), 10);
+        $delta = new Delta(Delta::flatten(Payloads::apache(51_900, 1_330_176_000, 2_077.5)), Delta::flatten(Payloads::apache()), 10);
 
         $view = new ApacheView($this->snapshot(Payloads::apache(), $delta), $this->gauges());
 
@@ -66,6 +66,16 @@ final class ApacheViewTest extends TestCase
         self::assertSame(102_400.0, $view->bytesPerSec->value, '1000 KB in 10 seconds');
         self::assertSame(10_240.0, $view->bytesPerRequest->value);
         self::assertNull($view->bytesPerRequest->hint());
+        self::assertSame(0.025, $view->durationPerRequest->value, '2.5 seconds over 100 requests');
+        self::assertNull($view->durationPerRequest->hint());
+    }
+
+    public function testWithoutTotalDurationTheMeanSinceStartRemains(): void
+    {
+        $view = new ApacheView($this->snapshot(['total_duration' => null, 'duration_per_request' => 0.734] + Payloads::apache()), $this->gauges());
+
+        self::assertSame(0.000734, $view->durationPerRequest->value);
+        self::assertSame('since server start', $view->durationPerRequest->hint());
     }
 
     public function testServerTokensProdHidesTheVersionNumber(): void
@@ -90,7 +100,7 @@ final class ApacheViewTest extends TestCase
 
     public function testMissingLoadAndCountersAreUnavailable(): void
     {
-        $payload = ['load1' => null, 'load5' => null, 'load15' => null, 'total_accesses' => null, 'total_bytes' => null, 'duration_per_request' => null] + Payloads::apache();
+        $payload = ['load1' => null, 'load5' => null, 'load15' => null, 'total_accesses' => null, 'total_bytes' => null, 'duration_per_request' => null, 'total_duration' => null] + Payloads::apache();
 
         $view = new ApacheView($this->snapshot($payload), $this->gauges());
 

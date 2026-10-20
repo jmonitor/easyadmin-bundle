@@ -105,6 +105,19 @@ final class ConfigurationTest extends TestCase
         self::assertSame('auto', $config['components']['apache']['enabled']);
     }
 
+    public function testTheApacheEndpointMayEndWithAuto(): void
+    {
+        self::assertSame('http://apache/server-status?auto', $this->process(['components' => ['apache' => ['endpoint' => 'http://apache/server-status?auto']]])['components']['apache']['endpoint']);
+    }
+
+    public function testAnotherQueryStringInTheApacheEndpointIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The Apache "endpoint" takes no query string, "?auto" is added to it: "http://apache/server-status?refresh=5".');
+
+        $this->process(['components' => ['apache' => ['endpoint' => 'http://apache/server-status?refresh=5']]]);
+    }
+
     public function testAnEmptyFrankenPhpEndpointIsRefused(): void
     {
         $this->expectException(InvalidConfigurationException::class);

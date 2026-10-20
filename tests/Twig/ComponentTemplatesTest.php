@@ -515,7 +515,7 @@ final class ComponentTemplatesTest extends TestCase
 
     public function testTheApacheFragmentRenders(): void
     {
-        $delta = new Delta(Delta::flatten(Payloads::apache(51_900, 1_330_176_000)), Delta::flatten(Payloads::apache()), 10);
+        $delta = new Delta(Delta::flatten(Payloads::apache(51_900, 1_330_176_000, 2_077.5)), Delta::flatten(Payloads::apache()), 10);
         $snapshot = new ComponentSnapshot(Component::Apache, ['apache' => new CollectorResult('apache', Payloads::apache(), null, 1_000, $delta)]);
 
         $html = $this->render('apache', $snapshot, new ApacheView($snapshot, $this->gauges()));
@@ -535,11 +535,10 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('<dt>Sending reply</dt>', $html);
         self::assertStringNotContainsString('DNS lookup', $html, 'the empty states are left out');
         self::assertStringContainsString('10.00 <small class="text-muted">req/s</small>', $html);
-        self::assertStringContainsString('100 KB <small class="text-muted">/s</small>', $html);
+        self::assertStringContainsString('100 KB<small class="text-muted">/s</small>', $html);
         self::assertStringContainsString('aria-label="Help: Outgoing traffic"', $html);
         self::assertStringContainsString('10 KB</span>', $html, 'average response size from the delta');
-        self::assertStringContainsString('40 ms', $html);
-        self::assertStringContainsString('since server start', $html, 'the request duration is a mean since start only');
+        self::assertStringContainsString('25 ms', $html, 'average request duration from the delta');
         self::assertStringNotContainsString('Help: Uptime', $html, 'no help page for the uptime');
         self::assertStringNotContainsString('<html', $html);
     }
@@ -552,6 +551,7 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Measuring', $html);
         self::assertStringContainsString('25 KB</span>', $html, 'average response size since start');
+        self::assertStringContainsString('40 ms', $html, 'average request duration since start');
     }
 
     public function testAFailedApacheCollectorStillRenders(): void

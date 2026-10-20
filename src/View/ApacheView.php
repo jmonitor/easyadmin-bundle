@@ -96,8 +96,9 @@ final readonly class ApacheView
         $this->requestsPerSec = Ratios::perSecond($delta, 'total_accesses', 'req/s', $accesses);
         $this->bytesPerSec = Ratios::perSecond($delta, 'total_bytes', '/s', $bytes);
         $this->bytesPerRequest = Ratios::average($delta, 'total_bytes', 'total_accesses', $bytes, $accesses, '');
-        // mod_status only gives the mean since start, in milliseconds.
-        $duration = Values::int($data['duration_per_request'] ?? null);
-        $this->durationPerRequest = $duration === null ? Rate::unavailable() : new Rate($duration / 1000, RateSource::SinceStart);
+        $duration = Ratios::average($delta, 'total_duration', 'total_accesses', Values::float($data['total_duration'] ?? null), $accesses, '');
+        // Older versions print no Total Duration: their mean since start, in milliseconds, is the only one.
+        $perRequest = Values::float($data['duration_per_request'] ?? null);
+        $this->durationPerRequest = !$duration->isUnavailable() || $perRequest === null ? $duration : new Rate($perRequest / 1000, RateSource::SinceStart);
     }
 }

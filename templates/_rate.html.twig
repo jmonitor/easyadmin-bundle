@@ -8,7 +8,7 @@
 {% else %}
     <span class="jm-rate">
         {%- if format == 'bytes' -%}{{ rate.value|jm_bytes }}{%- elseif format == 'duration' -%}{{ rate.value|jm_duration }}{%- else -%}{{ rate.value|jm_number(2) }}{%- endif -%}
-        {%- if rate.unit != '' %} <small class="text-muted">{{ rate.unit }}</small>{% endif -%}
+        {%- if rate.unit != '' -%}{{ format == 'bytes' ? '' : ' ' }}<small class="text-muted">{{ rate.unit }}</small>{%- endif -%}
     </span>
     {% if rate.hint() %}<small class="text-muted d-block">{{ rate.hint() }}</small>{% endif %}
 {% endif %}
