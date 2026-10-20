@@ -97,7 +97,7 @@ final readonly class PostgresqlView
 
         $this->version = Values::string($settings['server_version'] ?? null);
         $this->majorVersion = self::majorVersion($this->version);
-        $this->versionStatus = $endOfLife?->badge('postgresql', $this->version);
+        $this->versionStatus = self::isPostgresql($this->version) ? $endOfLife?->badge('postgresql', $this->version) : null;
         $this->settings = $settings;
 
         $this->activityAvailable = $snapshot->has('postgresql.activity');
@@ -180,6 +180,19 @@ final readonly class PostgresqlView
         $major = explode('.', explode(' ', $version)[0])[0];
 
         return $major === '' ? null : $major;
+    }
+
+    /**
+     * PostgreSQL numbers its versions "major.minor" from 10 on, "9.6.24" before. The compatible
+     * servers report another shape: "13.0.0" for CockroachDB, "11.2-YB-2.20.0.0" for YugabyteDB.
+     */
+    private static function isPostgresql(?string $version): bool
+    {
+        if ($version === null || preg_match('/^(\d+)\.\d+(\.\d+)?(?:\s|$)/', $version, $matches) !== 1) {
+            return false;
+        }
+
+        return ((int) $matches[1] >= 10) === !isset($matches[2]);
     }
 
     private static function onOff(mixed $value, BadgeStyle $off): ?Badge

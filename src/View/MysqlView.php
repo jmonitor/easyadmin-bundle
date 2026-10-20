@@ -171,7 +171,7 @@ final readonly class MysqlView
 
         return match (true) {
             str_contains($text, 'mariadb') => 'mariadb',
-            str_contains($text, 'percona'), str_contains($text, 'tidb'), str_contains($text, 'aurora') => null,
+            str_contains($text, 'percona'), str_contains($text, 'tidb') => null,
             default => 'mysql',
         };
     }

@@ -19,6 +19,7 @@ final readonly class EndOfLife
 {
     private const URL = 'https://endoflife.date/api/%s.json';
     private const DATE = '/^\d{4}-\d{2}-\d{2}$/';
+    private const FETCHING = 60;
 
     public function __construct(
         private CacheItemPoolInterface $cache,
@@ -40,12 +41,13 @@ final readonly class EndOfLife
             return null;
         }
 
+        // The dates are the last day of support.
         $today = $this->clock->now()->format('Y-m-d');
-        $ended = is_bool($cycle['eol']) ? $cycle['eol'] : $cycle['eol'] <= $today;
+        $ended = is_bool($cycle['eol']) ? $cycle['eol'] : $cycle['eol'] < $today;
         $supported = match (true) {
             $cycle['support'] === null => !$ended,
             is_bool($cycle['support']) => $cycle['support'],
-            default => $cycle['support'] > $today,
+            default => $cycle['support'] >= $today,
         };
 
         return match (true) {
@@ -86,10 +88,14 @@ final readonly class EndOfLife
         $item = $this->cache->getItem('jmonitor_easyadmin.eol.' . $product);
         $cached = $item->isHit() ? $item->get() : null;
 
-        if (is_array($cached) && is_array($cached['cycles'] ?? null)) {
-            /** @var array<string, array{eol: bool|string, support: bool|string|null}> */
+        if (is_array($cached) && is_array($cached['cycles'] ?? null) && self::areCycles($cached['cycles'])) {
             return $cached['cycles'];
         }
+
+        // The requests opened during the fetch show no badge instead of fetching too.
+        $item->set(['cycles' => []]);
+        $item->expiresAfter(self::FETCHING);
+        $this->cache->save($item);
 
         try {
             $cycles = self::parse($this->fetcher->fetchJson(sprintf(self::URL, $product)));
@@ -129,6 +135,22 @@ final readonly class EndOfLife
         }
 
         return $cycles;
+    }
+
+    /**
+     * @param array<mixed> $cycles
+     *
+     * @phpstan-assert-if-true array<string, array{eol: bool|string, support: bool|string|null}> $cycles
+     */
+    private static function areCycles(array $cycles): bool
+    {
+        foreach ($cycles as $cycle) {
+            if (!is_array($cycle) || !self::isDate($cycle['eol'] ?? null) || !array_key_exists('support', $cycle) || ($cycle['support'] !== null && !self::isDate($cycle['support']))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

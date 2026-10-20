@@ -78,7 +78,8 @@ final readonly class RedisView
         $replication = $data['replication'] ?? [];
 
         $this->version = Values::string($server['version'] ?? null);
-        $this->versionStatus = $endOfLife?->badge('redis', $this->version);
+        // Valkey reports redis_version 7.2.4 whatever its own version.
+        $this->versionStatus = $this->version === '7.2.4' ? null : $endOfLife?->badge('redis', $this->version);
         $this->mode = Values::string($server['mode'] ?? null);
 
         $this->maxMemoryBytes = Values::int($memory['max_memory'] ?? null);

@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Metric\Badge;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
+use Jmonitor\Utils\UrlFetcher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -17,11 +18,14 @@ final class EndOfLifeTest extends TestCase
 {
     private const CYCLES = [
         ['cycle' => '8.5', 'releaseDate' => '2025-11-20', 'eol' => '2029-12-31', 'latest' => '8.5.1', 'lts' => false, 'support' => '2027-12-31'],
+        ['cycle' => '8.4', 'releaseDate' => '2024-11-21', 'eol' => '2028-12-31', 'latest' => '8.4.13', 'lts' => false, 'support' => '2026-10-20'],
+        ['cycle' => '8.3', 'releaseDate' => '2023-11-23', 'eol' => '2027-12-31', 'latest' => '8.3.26', 'lts' => false, 'support' => '2026-10-19'],
         ['cycle' => '8.2', 'releaseDate' => '2022-12-08', 'eol' => '2026-12-31', 'latest' => '8.2.30', 'lts' => false, 'support' => '2024-12-31'],
         ['cycle' => '8.1', 'releaseDate' => '2021-11-25', 'eol' => '2025-12-31', 'latest' => '8.1.34', 'lts' => false, 'support' => '2023-11-25'],
         ['cycle' => '8.0', 'releaseDate' => '2020-11-26', 'eol' => true, 'latest' => '8.0.30', 'lts' => false, 'support' => false],
         ['cycle' => '17', 'releaseDate' => '2024-09-26', 'eol' => '2029-11-08', 'latest' => '17.6', 'lts' => false],
         ['cycle' => '7', 'releaseDate' => '2015-12-03', 'eol' => '2026-10-20', 'latest' => '7.4.33', 'lts' => false],
+        ['cycle' => '5', 'releaseDate' => '2009-06-30', 'eol' => '2026-10-19', 'latest' => '5.6.40', 'lts' => false],
         ['cycle' => '9.6', 'releaseDate' => '2016-09-29', 'eol' => false, 'latest' => '9.6.24', 'lts' => false, 'support' => true],
     ];
 
@@ -35,10 +39,13 @@ final class EndOfLifeTest extends TestCase
         yield 'past its end of life date' => ['8.1.34', new Badge(BadgeStyle::Danger, 'End of life')];
         yield 'flagged end of life' => ['8.0.30-0ubuntu0.22.04.1', new Badge(BadgeStyle::Danger, 'End of life')];
         yield 'no support date, before its end of life' => ['17.6 (Debian 17.6-1.pgdg120+1)', new Badge(BadgeStyle::Success, 'Active support')];
-        yield 'no support date, on its end of life day' => ['7.4.33', new Badge(BadgeStyle::Danger, 'End of life')];
+        yield 'on its last day of active support' => ['8.4.13', new Badge(BadgeStyle::Success, 'Active support')];
+        yield 'the day after its active support' => ['8.3.26', new Badge(BadgeStyle::Warning, 'Security fixes only')];
+        yield 'no support date, on its last day' => ['7.4.33', new Badge(BadgeStyle::Success, 'Active support')];
+        yield 'no support date, the day after its last day' => ['5.6.40', new Badge(BadgeStyle::Danger, 'End of life')];
         yield 'two parts preferred to one' => ['9.6.24', new Badge(BadgeStyle::Success, 'Active support')];
         yield 'leading v' => ['v8.5.0', new Badge(BadgeStyle::Success, 'Active support')];
-        yield 'unknown cycle' => ['8.3.0', null];
+        yield 'unknown cycle' => ['8.6.0', null];
         yield 'no number' => ['unknown', null];
         yield 'no version' => [null, null];
     }
@@ -104,10 +111,49 @@ final class EndOfLifeTest extends TestCase
         self::assertEqualsWithDelta(time() + 3_600, $expiry, 5);
     }
 
-    public function testACachedPayloadOfUnknownShapeIsAMiss(): void
+    public function testTheRequestsOpenedDuringTheFetchDoNotFetch(): void
     {
         $cache = new ArrayAdapter();
-        $cache->save($cache->getItem('jmonitor_easyadmin.eol.php')->set('8.5'));
+        $clock = new MockClock('2026-10-20');
+        $fetcher = new class (json_encode(self::CYCLES, JSON_THROW_ON_ERROR)) extends UrlFetcher {
+            public ?EndOfLife $other = null;
+            public ?Badge $otherBadge = null;
+            public int $calls = 0;
+
+            public function __construct(private readonly string $content) {}
+
+            public function fetch(string $url): string
+            {
+                $this->calls++;
+                $this->otherBadge = $this->other?->badge('php', '8.5.1');
+
+                return $this->content;
+            }
+        };
+        $fetcher->other = new EndOfLife($cache, $clock, fetcher: $fetcher);
+
+        self::assertEquals(new Badge(BadgeStyle::Success, 'Active support'), (new EndOfLife($cache, $clock, fetcher: $fetcher))->badge('php', '8.5.1'));
+        self::assertNull($fetcher->otherBadge);
+        self::assertSame(1, $fetcher->calls);
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function unknownShapes(): iterable
+    {
+        yield 'not an array' => ['8.5'];
+        yield 'no cycles' => [['8.5' => ['eol' => '2029-12-31', 'support' => null]]];
+        yield 'a cycle without eol' => [['cycles' => ['8.5' => ['support' => '2027-12-31']]]];
+        yield 'a cycle without support' => [['cycles' => ['8.5' => ['eol' => '2029-12-31']]]];
+        yield 'an eol that is no date' => [['cycles' => ['8.5' => ['eol' => 'soon', 'support' => null]]]];
+    }
+
+    #[DataProvider('unknownShapes')]
+    public function testACachedPayloadOfUnknownShapeIsAMiss(mixed $payload): void
+    {
+        $cache = new ArrayAdapter();
+        $cache->save($cache->getItem('jmonitor_easyadmin.eol.php')->set($payload));
         $fetcher = new FixtureUrlFetcher(json_encode(self::CYCLES, JSON_THROW_ON_ERROR));
 
         self::assertEquals(new Badge(BadgeStyle::Success, 'Active support'), (new EndOfLife($cache, new MockClock('2026-10-20'), fetcher: $fetcher))->badge('php', '8.5.1'));
