@@ -50,7 +50,7 @@
                                         <div class="small text-muted">PHP avg execution time {{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: 'frankenphp.worker_php_exec_time', label: 'PHP avg execution time'}) }}</div>
                                         <div class="jm-rate">
                                             {%- if worker.avgExecTime.isUnavailable() -%}
-                                                <span class="text-muted" title="Available after the next refresh">—</span>
+                                                <span class="text-muted">—</span>
                                             {%- else -%}
                                                 {{ worker.avgExecTime.value|jm_duration }}
                                                 {% if worker.avgExecTime.hint() %}<small class="text-muted d-block">{{ worker.avgExecTime.hint() }}</small>{% endif %}

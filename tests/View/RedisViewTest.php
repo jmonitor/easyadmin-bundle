@@ -81,7 +81,7 @@ final class RedisViewTest extends TestCase
         self::assertSame('Uncertain', $view->rdb->label);
         self::assertFalse($view->aofEnabled);
         self::assertNull($view->aofGrowth);
-        self::assertTrue($view->requestsPerSec->isUnavailable());
+        self::assertTrue($view->requestsPerSec->isPending(), 'no previous sample yet');
         self::assertSame(90.5, $view->hitRate->value, 'without delta: cumulative 9 950 hits for 1 050 misses, rounded to one decimal');
         self::assertSame('since server start', $view->hitRate->hint);
     }
@@ -94,6 +94,8 @@ final class RedisViewTest extends TestCase
         self::assertFalse($view->hitRate->available());
         self::assertSame([], $view->databases);
         self::assertNull($view->rdbLastSaveStatus);
+        self::assertTrue($view->requestsPerSec->isUnavailable());
+        self::assertFalse($view->requestsPerSec->isPending());
     }
 
     /**

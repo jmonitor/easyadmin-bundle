@@ -89,6 +89,8 @@ final readonly class PostgresqlView
         $slow = $snapshot->data('postgresql.slow_queries');
         $delta = $snapshot->delta('postgresql.activity');
         $databaseDelta = $snapshot->delta('postgresql.database');
+        $sampled = $snapshot->has('postgresql.activity');
+        $databaseSampled = $snapshot->has('postgresql.database');
         $stats = is_array($activity['database_stats'] ?? null) ? $activity['database_stats'] : [];
         $sessions = is_array($activity['sessions'] ?? null) ? $activity['sessions'] : [];
         $tables = is_array($database['tables'] ?? null) ? $database['tables'] : [];
@@ -106,20 +108,20 @@ final readonly class PostgresqlView
         $this->idleConnections = $connections === null ? null : Values::int($connections['idle'] ?? 0);
         $this->idleInTransactionConnections = $connections === null ? null : Values::int($connections['idle in transaction'] ?? 0);
 
-        $this->commitsPerSec = Ratios::perSecond($delta, 'database_stats.xact_commit', 'tx/s');
-        $this->rollbacksPerSec = Ratios::perSecond($delta, 'database_stats.xact_rollback', 'tx/s');
+        $this->commitsPerSec = Ratios::perSecond($delta, 'database_stats.xact_commit', 'tx/s', $sampled);
+        $this->rollbacksPerSec = Ratios::perSecond($delta, 'database_stats.xact_rollback', 'tx/s', $sampled);
         $this->transactionsPerSec = self::sum($this->commitsPerSec, $this->rollbacksPerSec, 'tx/s');
         $rollbackRatio = Ratios::share($delta, 'database_stats.xact_rollback', 'database_stats.xact_commit', Values::int($stats['xact_rollback'] ?? null), Values::int($stats['xact_commit'] ?? null), self::SINCE_STATS_RESET);
         $this->rollbackRatio = $gauges->fromRate('postgres.rollback_ratio', 'Rollback ratio', $rollbackRatio, 2, $rollbackRatio->fraction());
         $cacheHitRatio = Ratios::share($delta, 'database_stats.blks_hit', 'database_stats.blks_read', Values::int($stats['blks_hit'] ?? null), Values::int($stats['blks_read'] ?? null), self::SINCE_STATS_RESET);
         $this->cacheHitRatio = $gauges->fromRate('postgres.cache_hit_ratio', 'Cache hit ratio', $cacheHitRatio, 2, $cacheHitRatio->fraction());
-        $this->diskReadsPerSec = Ratios::perSecond($delta, 'database_stats.blks_read', 'blocks/s');
-        $this->tempFilesPerSec = Ratios::perSecond($delta, 'database_stats.temp_files', 'files/s');
-        $this->tempBytesPerSec = Ratios::perSecond($delta, 'database_stats.temp_bytes', 'B/s');
-        $this->rowsInsertedPerSec = Ratios::perSecond($delta, 'database_stats.tup_inserted', 'rows/s');
-        $this->rowsUpdatedPerSec = Ratios::perSecond($delta, 'database_stats.tup_updated', 'rows/s');
-        $this->rowsDeletedPerSec = Ratios::perSecond($delta, 'database_stats.tup_deleted', 'rows/s');
-        $this->deadlocksPerSec = Ratios::perSecond($delta, 'database_stats.deadlocks', '/s');
+        $this->diskReadsPerSec = Ratios::perSecond($delta, 'database_stats.blks_read', 'blocks/s', $sampled);
+        $this->tempFilesPerSec = Ratios::perSecond($delta, 'database_stats.temp_files', 'files/s', $sampled);
+        $this->tempBytesPerSec = Ratios::perSecond($delta, 'database_stats.temp_bytes', 'B/s', $sampled);
+        $this->rowsInsertedPerSec = Ratios::perSecond($delta, 'database_stats.tup_inserted', 'rows/s', $sampled);
+        $this->rowsUpdatedPerSec = Ratios::perSecond($delta, 'database_stats.tup_updated', 'rows/s', $sampled);
+        $this->rowsDeletedPerSec = Ratios::perSecond($delta, 'database_stats.tup_deleted', 'rows/s', $sampled);
+        $this->deadlocksPerSec = Ratios::perSecond($delta, 'database_stats.deadlocks', '/s', $sampled);
         $this->deadlocksTotal = Values::int($stats['deadlocks'] ?? null);
 
         $this->liveTuples = Values::int($tables['live_tuples'] ?? null);
@@ -127,8 +129,8 @@ final readonly class PostgresqlView
         $this->deadTupleRatio = $gauges->create('postgres.dead_tuple_ratio', 'Dead rows ratio', Values::percent($this->deadTuples, $this->liveTuples === null || $this->deadTuples === null ? null : $this->liveTuples + $this->deadTuples), 2);
         $indexUsage = Ratios::share($databaseDelta, 'tables.idx_scans', 'tables.seq_scans', Values::int($tables['idx_scans'] ?? null), Values::int($tables['seq_scans'] ?? null), self::SINCE_STATS_RESET);
         $this->indexUsageRatio = $gauges->fromRate('postgres.index_usage_ratio', 'Index usage', $indexUsage, 2, $indexUsage->fraction());
-        $this->seqScansPerSec = Ratios::perSecond($databaseDelta, 'tables.seq_scans', 'scans/s');
-        $this->idxScansPerSec = Ratios::perSecond($databaseDelta, 'tables.idx_scans', 'scans/s');
+        $this->seqScansPerSec = Ratios::perSecond($databaseDelta, 'tables.seq_scans', 'scans/s', $databaseSampled);
+        $this->idxScansPerSec = Ratios::perSecond($databaseDelta, 'tables.idx_scans', 'scans/s', $databaseSampled);
 
         $this->blockedCount = Values::int($sessions['blocked_count'] ?? null);
         $this->maxWaitSeconds = Values::int($sessions['max_wait_seconds'] ?? null);
@@ -201,6 +203,10 @@ final readonly class PostgresqlView
 
     private static function sum(Rate $a, Rate $b, string $unit): Rate
     {
+        if ($a->isPending() || $b->isPending()) {
+            return Rate::pending($unit);
+        }
+
         if ($a->value === null || $b->value === null) {
             return Rate::unavailable($unit);
         }

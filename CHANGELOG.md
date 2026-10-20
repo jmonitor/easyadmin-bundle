@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The server pills of the MySQL tab are named after their connections instead of their host, shown on hover; an IPv6 host is written in brackets.
+- A per-second rate waiting for its second sample says so instead of showing a dash: measuring until the next refresh while Live is on, how to get it while Live is off or polling is disabled.
 
 ## [1.2.0] - 2026-10-19
 

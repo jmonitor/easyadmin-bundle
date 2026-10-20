@@ -71,6 +71,7 @@ final readonly class MysqlView
         $schema = $snapshot->data('mysql.information_schema');
         $slow = $snapshot->data('mysql.slow_queries');
         $delta = $snapshot->delta('mysql.status');
+        $sampled = $snapshot->has('mysql.status');
 
         $this->version = Values::string($variables['version'] ?? null);
         $this->versionComment = Values::string($variables['version_comment'] ?? null);
@@ -86,7 +87,7 @@ final readonly class MysqlView
         $this->connectionsUsage = $gauges->create('mysql.connections_usage', 'Connection usage', Values::percent($this->threadsConnected, $this->maxConnections));
         $this->maxUsedConnections = Values::int($status['Max_used_connections'] ?? null);
         $this->maxConnectionsReached = Peak::of($this->threadsConnected, $this->maxUsedConnections, $this->maxConnections);
-        $this->queriesPerSec = Ratios::perSecond($delta, 'Questions', 'q/s');
+        $this->queriesPerSec = Ratios::perSecond($delta, 'Questions', 'q/s', $sampled);
 
         $this->slowQueriesAvailable = $snapshot->has('mysql.slow_queries');
         $slowQueryLog = $variables['slow_query_log'] ?? null;
@@ -114,12 +115,12 @@ final readonly class MysqlView
         $this->ramRatio = $snapshot->result('system.ram_total') === null
             ? null
             : $gauges->create('mysql.innodb_ram_ratio', 'RAM ratio', Values::percent($this->bufferPoolSize, $this->ramTotal));
-        $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s');
-        $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s');
+        $this->innodbReadsPerSec = Ratios::perSecond($delta, 'Innodb_data_reads', 'reads/s', $sampled);
+        $this->innodbWritesPerSec = Ratios::perSecond($delta, 'Innodb_data_writes', 'writes/s', $sampled);
 
         $waited = Values::int($status['Table_locks_waited'] ?? null);
         $immediate = Values::int($status['Table_locks_immediate'] ?? null);
-        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '');
+        $this->tableLocksWaitedPerSec = Ratios::perSecond($delta, 'Table_locks_waited', '', $sampled);
         $waitedDelta = $delta?->getValue('Table_locks_waited');
         $immediateDelta = $delta?->getValue('Table_locks_immediate');
         $this->tableLocksWaitedDelta = $waitedDelta === null ? null : (int) $waitedDelta;

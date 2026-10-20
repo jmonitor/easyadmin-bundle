@@ -81,6 +81,17 @@ final class RatiosTest extends TestCase
         self::assertSame('q/s', Ratios::perSecond($delta, 'Questions', 'q/s')->unit);
         self::assertTrue(Ratios::perSecond(null, 'Questions')->isUnavailable());
         self::assertTrue(Ratios::perSecond($delta, 'Unknown')->isUnavailable());
+        self::assertFalse(Ratios::perSecond(null, 'Questions')->isPending(), 'counters not collected: nothing to wait for');
+    }
+
+    public function testPerSecondIsPendingUntilASecondSampleOfCollectedCounters(): void
+    {
+        $delta = new Delta(['Questions' => 100], ['Questions' => 250], 10);
+
+        self::assertTrue(Ratios::perSecond(null, 'Questions', 'q/s', true)->isPending());
+        self::assertTrue(Ratios::perSecond(null, 'Questions', 'q/s', true)->isUnavailable());
+        self::assertSame('q/s', Ratios::perSecond(null, 'Questions', 'q/s', true)->unit);
+        self::assertFalse(Ratios::perSecond($delta, 'Unknown', '/s', true)->isPending(), 'a counter missing from the delta never comes');
     }
 
     public function testAverageUsesTheDeltaWhenItHasTraffic(): void

@@ -87,8 +87,15 @@ final class Ratios
         return Rate::unavailable($unit);
     }
 
-    public static function perSecond(?Delta $delta, string $key, string $unit = '/s'): Rate
+    /**
+     * $sampled tells that the counters were collected, so a missing delta only waits for the next sample.
+     */
+    public static function perSecond(?Delta $delta, string $key, string $unit = '/s', bool $sampled = false): Rate
     {
+        if ($delta === null && $sampled) {
+            return Rate::pending($unit);
+        }
+
         $value = $delta?->getPerSec($key);
 
         return $value === null ? Rate::unavailable($unit) : new Rate($value, RateSource::Delta, $unit);

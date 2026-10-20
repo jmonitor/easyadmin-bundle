@@ -26,6 +26,11 @@ final readonly class Rate
         return new self(null, RateSource::Unavailable, $unit);
     }
 
+    public static function pending(string $unit = ''): self
+    {
+        return new self(null, RateSource::Pending, $unit);
+    }
+
     public function isSinceStart(): bool
     {
         return $this->source === RateSource::SinceStart;
@@ -38,7 +43,12 @@ final readonly class Rate
 
     public function isUnavailable(): bool
     {
-        return $this->source === RateSource::Unavailable;
+        return $this->source === RateSource::Unavailable || $this->isPending();
+    }
+
+    public function isPending(): bool
+    {
+        return $this->source === RateSource::Pending;
     }
 
     public function fraction(): ?string

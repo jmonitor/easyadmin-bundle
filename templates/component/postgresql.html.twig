@@ -116,8 +116,10 @@
                     <div class="jm-stat mb-3">{{ include('@JmonitorEasyAdmin/_rate.html.twig', {rate: view.tempFilesPerSec}) }}</div>
                     <div class="small text-muted">Written</div>
                     <div class="jm-rate">
-                        {%- if view.tempBytesPerSec.isUnavailable() -%}
-                            <span class="text-muted" title="Available after the next refresh">—</span>
+                        {%- if view.tempBytesPerSec.isPending() -%}
+                            {{ include('@JmonitorEasyAdmin/_pending.html.twig', {compact: true}) }}
+                        {%- elseif view.tempBytesPerSec.isUnavailable() -%}
+                            <span class="text-muted">—</span>
                         {%- else -%}
                             {{ view.tempBytesPerSec.value|jm_bytes }}<small class="text-muted">/s</small>
                         {%- endif -%}
