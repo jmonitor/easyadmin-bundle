@@ -20,7 +20,7 @@ CPUChildrenUser: 0
 CPUChildrenSystem: 0
 CPULoad: .0154
 Uptime: 1040619
-ReqPerSec: .0499702
+ReqPerSec: 0.0499702
 BytesPerSec: 1279.27
 BytesPerReq: 25600
 DurationPerReq: 40

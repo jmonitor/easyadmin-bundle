@@ -115,16 +115,7 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                             $children->scalarNode('endpoint')->defaultValue('http://localhost:2019/metrics')->cannotBeEmpty()->info('URL of the Caddy Prometheus endpoint, served by its admin API.');
                         }))
                         ->append($this->componentNode('apache', 'Detected when the page is served by Apache, through mod_php or PHP-FPM, when "auto".', static function (NodeBuilder $children): void {
-                            $children->scalarNode('endpoint')
-                                ->defaultValue('http://localhost/server-status')
-                                ->cannotBeEmpty()
-                                ->info('URL of the mod_status page, read in its machine-readable form (?auto).')
-                                ->validate()
-                                    // ApacheCollector appends "?auto" after any other query string.
-                                    ->ifTrue(static fn(mixed $v): bool => is_string($v) && str_contains($v, '?') && !str_ends_with($v, '?auto'))
-                                    ->then(static fn(string $v): never => throw new InvalidConfigurationException(sprintf('The Apache "endpoint" takes no query string, "?auto" is added to it: "%s".', $v)))
-                                ->end()
-                            ;
+                            $children->scalarNode('endpoint')->defaultValue('http://localhost/server-status')->cannotBeEmpty()->info('URL of the mod_status page, read in its machine-readable form (?auto).');
                         }))
                         ->append($this->componentNode('symfony', 'Always available when "auto".', static function (NodeBuilder $children): void {
                             $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class) && Kernel::VERSION_ID >= 70200)->info('Show the Messenger transports (runs "messenger:stats --format=json", Symfony 7.2+).');
