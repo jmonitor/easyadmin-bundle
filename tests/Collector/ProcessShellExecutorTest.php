@@ -14,6 +14,11 @@ final class ProcessShellExecutorTest extends TestCase
         self::assertSame('hello', trim((string) (new ProcessShellExecutor())->execute('echo hello')));
     }
 
+    public function testASuccessfulCommandPrintingOnItsErrorOutputOnlyGivesThatOutput(): void
+    {
+        self::assertSame('nginx version: nginx/1.26.2', trim((string) (new ProcessShellExecutor())->execute('echo nginx version: nginx/1.26.2 1>&2')), 'like "nginx -V"');
+    }
+
     public function testAnEmptyOutputIsAnExceptionCarryingTheExitCodeAndTheErrorOutput(): void
     {
         try {

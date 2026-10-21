@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ApacheDetector;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\NginxDetector;
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\InstancesDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\ThrowingDetector;
@@ -41,6 +42,8 @@ final class ConfigurableAdminKernel extends TestKernel
     public static ?array $frankenphp = null;
     /** @var array{sapi: string, status: ?string}|null the SAPI and the mod_status report */
     public static ?array $apache = null;
+    /** @var array{status: ?string, commands: array<string, ?string>}|null the stub_status page and the outputs of the commands */
+    public static ?array $nginx = null;
 
     private readonly ?string $detectorFailure;
     /** @var list<string> */
@@ -51,6 +54,8 @@ final class ConfigurableAdminKernel extends TestKernel
     private readonly ?array $frankenphpFixtures;
     /** @var array{sapi: string, status: ?string}|null */
     private readonly ?array $apacheFixtures;
+    /** @var array{status: ?string, commands: array<string, ?string>}|null */
+    private readonly ?array $nginxFixtures;
 
     public function __construct(string $environment = 'test', bool $debug = true)
     {
@@ -60,6 +65,7 @@ final class ConfigurableAdminKernel extends TestKernel
         $this->fakeRedisServices = self::$redisServices;
         $this->frankenphpFixtures = self::$frankenphp;
         $this->apacheFixtures = self::$apache;
+        $this->nginxFixtures = self::$nginx;
     }
 
     public static function reset(): void
@@ -70,17 +76,18 @@ final class ConfigurableAdminKernel extends TestKernel
         self::$redisServices = [];
         self::$frankenphp = null;
         self::$apache = null;
+        self::$nginx = null;
     }
 
     public function getCacheDir(): string
     {
         $replacement = $this->mysqlDetector();
 
-        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null && $this->apacheFixtures === null) {
+        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null && $this->apacheFixtures === null && $this->nginxFixtures === null) {
             return parent::getCacheDir();
         }
 
-        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures, $this->apacheFixtures]));
+        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures, $this->apacheFixtures, $this->nginxFixtures]));
     }
 
     protected function build(ContainerBuilder $container): void
@@ -137,6 +144,27 @@ final class ConfigurableAdminKernel extends TestKernel
                         new Definition(FixtureUrlFetcher::class, [$this->fixtures['status']]),
                     ]);
                     $container->setDefinition(ApacheDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::Apache->value]));
+                }
+            }, PassConfig::TYPE_BEFORE_REMOVING);
+        }
+
+        if ($this->nginxFixtures !== null) {
+            $container->addCompilerPass(new class ($this->nginxFixtures) implements CompilerPassInterface {
+                /** @param array{status: ?string, commands: array<string, ?string>} $fixtures */
+                public function __construct(private readonly array $fixtures) {}
+
+                public function process(ContainerBuilder $container): void
+                {
+                    $definition = new Definition(NginxDetector::class, [
+                        'http://localhost/nginx_status',
+                        new Reference('request_stack'),
+                        new Reference('cache.app'),
+                        3600,
+                        new Reference(MinimumLevelLogger::class),
+                        new Definition(FixtureUrlFetcher::class, [$this->fixtures['status']]),
+                        new Definition(FixtureShellExecutor::class, [$this->fixtures['commands']]),
+                    ]);
+                    $container->setDefinition(NginxDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::Nginx->value]));
                 }
             }, PassConfig::TYPE_BEFORE_REMOVING);
         }

@@ -64,6 +64,11 @@ return [
         [60, 85, BadgeStyle::Warning, 'Under Pressure'],
         [85, 100, BadgeStyle::Danger, 'Overloaded'],
     ],
+    'nginx.active_connections' => [
+        [0, 60, BadgeStyle::Success, 'Available Capacity'],
+        [60, 85, BadgeStyle::Warning, 'High Load'],
+        [85, 100, BadgeStyle::Danger, 'Connection Limit Risk'],
+    ],
     'mysql.connections_usage' => [
         [0, 60, BadgeStyle::Success, 'Available Capacity'],
         [60, 85, BadgeStyle::Warning, 'High Usage'],

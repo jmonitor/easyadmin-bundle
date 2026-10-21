@@ -22,6 +22,7 @@ use Jmonitor\EasyAdminBundle\View\ApacheView;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use Jmonitor\EasyAdminBundle\View\NginxView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
@@ -561,6 +562,61 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('apache', $snapshot, new ApacheView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('Cannot read the Apache status', $html);
+        self::assertStringContainsString('n/a', $html);
+    }
+
+    public function testTheNginxFragmentRenders(): void
+    {
+        $delta = new Delta(Delta::flatten(Payloads::nginx(18_400, 18_400, 41_000)), Delta::flatten(Payloads::nginx()), 10);
+        $snapshot = new ComponentSnapshot(Component::Nginx, ['nginx' => new CollectorResult('nginx', Payloads::nginx(18_450, 18_437), null, 1_000, $delta)]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('1.26.2', $html);
+        self::assertStringContainsString('aria-label="Help: Version"', $html);
+        self::assertStringContainsString('aria-label="Help: Max connections"', $html);
+        self::assertStringContainsString('auto (4 CPUs)', $html);
+        self::assertStringContainsString('<dd>3072</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Config: core &amp; system"', $html);
+        self::assertStringContainsString('<li>/etc/nginx/sites-enabled/*</li>', $html);
+        self::assertStringContainsString('<dd>warn</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Config: performance &amp; security"', $html);
+        self::assertStringContainsString('<dd>65s</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Active connections"', $html);
+        self::assertStringContainsString('12 / 3072', $html);
+        self::assertStringContainsString('<dt>Waiting</dt>', $html);
+        self::assertStringContainsString('20.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('aria-label="Help: Refused connections"', $html);
+        self::assertStringContainsString('Limit reached', $html);
+        self::assertStringContainsString('aria-label="Help: Requests per connection"', $html);
+        self::assertStringContainsString('4.00', $html);
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheNginxFragmentRendersWithoutTheConfiguration(): void
+    {
+        $payload = Payloads::nginx();
+        unset($payload['config'], $payload['cpu_count']);
+        $snapshot = new ComponentSnapshot(Component::Nginx, ['nginx' => new CollectorResult('nginx', $payload, null, 1_000)]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('<code>nginx -T</code> gave no configuration', $html);
+        self::assertStringNotContainsString('Max connections', $html, 'nothing to show without the configuration');
+        self::assertStringNotContainsString('Config: core', $html);
+        self::assertStringContainsString('connection limit unknown', $html);
+        self::assertStringContainsString('<dt>Active</dt>', $html);
+        self::assertStringContainsString('Measuring', $html);
+        self::assertStringContainsString('since server start', $html);
+    }
+
+    public function testAFailedNginxCollectorStillRenders(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Nginx, ['nginx' => new CollectorResult('nginx', [], 'Cannot read the Nginx status at http://localhost/nginx_status.', 1_000)]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Cannot read the Nginx status', $html);
         self::assertStringContainsString('n/a', $html);
     }
 

@@ -10,5 +10,5 @@
         {%- if format == 'bytes' -%}{{ rate.value|jm_bytes }}{%- elseif format == 'duration' -%}{{ rate.value|jm_duration }}{%- else -%}{{ rate.value|jm_number(2) }}{%- endif -%}
         {%- if rate.unit != '' -%}{{ format == 'bytes' ? '' : ' ' }}<small class="text-muted">{{ rate.unit }}</small>{%- endif -%}
     </span>
-    {% if rate.hint() %}<small class="text-muted d-block">{{ rate.hint() }}</small>{% endif %}
+    {% if rate.hint() %}<small class="text-muted d-block jm-rate-hint">{{ rate.hint() }}</small>{% endif %}
 {% endif %}
