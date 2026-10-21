@@ -602,8 +602,8 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('<code>nginx -T</code> gave no configuration', $html);
-        self::assertStringNotContainsString('Max connections', $html, 'nothing to show without the configuration');
-        self::assertStringNotContainsString('Config: core', $html);
+        self::assertSame(3, substr_count($html, '<code>nginx -T</code> gave no configuration'), 'in each card it feeds');
+        self::assertStringNotContainsString('worker_connections', $html);
         self::assertStringContainsString('connection limit unknown', $html);
         self::assertStringContainsString('<dt>Active</dt>', $html);
         self::assertStringContainsString('Measuring', $html);
