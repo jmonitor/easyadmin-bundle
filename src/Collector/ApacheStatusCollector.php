@@ -11,13 +11,11 @@ use Jmonitor\Utils\UrlFetcher;
 
 /**
  * Turns an unreachable status page, or a page that is not mod_status, into an error that says how
- * to expose it. ApacheCollector wraps the failure of the fetch: its root cause is the one chained
- * for SnapshotProvider::describe(). The failure is an UnreachableServerException, kept longer than
- * a poll: the default endpoint is the web server itself, which would boot the application again
- * at each poll to answer that the page does not exist.
+ * to expose it. It is an UnreachableServerException: the default endpoint is the web server itself,
+ * which would boot the application again to answer that the page does not exist.
  *
- * The payload adds "total_duration" (seconds) and keeps "duration_per_request" (milliseconds) as a
- * float, which ApacheCollector rounds to an integer.
+ * The payload adds "total_duration" (seconds) and keeps the fraction of "duration_per_request"
+ * (milliseconds).
  */
 final readonly class ApacheStatusCollector implements CollectorInterface
 {
@@ -40,13 +38,7 @@ final readonly class ApacheStatusCollector implements CollectorInterface
         try {
             $payload = $this->inner->collect();
         } catch (JmonitorException|\RuntimeException $e) {
-            $cause = $e;
-
-            while ($cause->getPrevious() !== null) {
-                $cause = $cause->getPrevious();
-            }
-
-            throw new UnreachableServerException(sprintf('Cannot read the Apache status at %s. Enable mod_status with a "SetHandler server-status" location reachable from PHP and check "components.apache.endpoint".', $this->endpoint), 0, $cause);
+            throw UnreachableServerException::withRootCause(sprintf('Cannot read the Apache status at %s. Enable mod_status with a "SetHandler server-status" location reachable from PHP and check "components.apache.endpoint".', $this->endpoint), $e);
         }
 
         $totalDuration = $this->fetcher->value('Total Duration');

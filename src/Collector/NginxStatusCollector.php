@@ -7,54 +7,48 @@ namespace Jmonitor\EasyAdminBundle\Collector;
 use Jmonitor\Collector\CollectorInterface;
 use Jmonitor\Collector\Nginx\NginxCollector;
 use Jmonitor\Exceptions\JmonitorException;
+use Jmonitor\Utils\ShellExecutor;
+use Jmonitor\Utils\UrlFetcher;
 
 /**
- * Turns an unreachable status page, or a page that is not stub_status, into an error that says how
- * to expose it, with its root cause chained for SnapshotProvider::describe(). The failure is an
- * UnreachableServerException, kept longer than a poll: the default endpoint is the web server
- * itself, which would boot the application again at each poll to answer that the page does not exist.
- *
- * When "nginx -V" gives no version, the payload takes the one Nginx passed to PHP-FPM. A Refresh
- * also drops the cached outputs of the commands.
+ * The stub_status page only: NginxConfigCollector runs the commands, at their own pace. A page that
+ * cannot be read, or that is not stub_status, is an error that says how to expose it, and an
+ * UnreachableServerException: the default endpoint is the web server itself, which would boot the
+ * application again to answer that the page does not exist.
  */
-final readonly class NginxStatusCollector implements CollectorInterface, RefreshableCollectorInterface
+final readonly class NginxStatusCollector implements CollectorInterface
 {
+    private NginxCollector $inner;
+
     public function __construct(
-        private NginxCollector $inner,
         private string $endpoint,
-        private CachedShellExecutor $shell,
-        private ?string $fallbackVersion = null,
-    ) {}
+        ?UrlFetcher $urlFetcher = null,
+    ) {
+        $noCommand = new class extends ShellExecutor {
+            public function execute(string $command): ?string
+            {
+                return null;
+            }
+        };
+        $this->inner = new NginxCollector($endpoint, $noCommand, $urlFetcher);
+    }
 
     /**
-     * @return array<string, mixed>
+     * @return array{status: array<string, ?int>}
      */
     public function collect(): array
     {
         try {
-            $payload = $this->inner->collect();
+            $status = $this->inner->collect()['status'];
 
-            if (($payload['status']['active'] ?? null) === null) {
+            if (($status['active'] ?? null) === null) {
                 throw new \RuntimeException(sprintf('"%s" is not a stub_status page.', $this->endpoint));
             }
         } catch (JmonitorException|\RuntimeException $e) {
-            $cause = $e;
-
-            while ($cause->getPrevious() !== null) {
-                $cause = $cause->getPrevious();
-            }
-
-            throw new UnreachableServerException(sprintf('Cannot read the Nginx status at %s. Enable stub_status in a location reachable from PHP and check "components.nginx.endpoint".', $this->endpoint), 0, $cause);
+            throw UnreachableServerException::withRootCause(sprintf('Cannot read the Nginx status at %s. Enable stub_status in a location reachable from PHP and check "components.nginx.endpoint".', $this->endpoint), $e);
         }
 
-        $payload['version'] ??= $this->fallbackVersion;
-
-        return $payload;
-    }
-
-    public function refresh(): void
-    {
-        $this->shell->forget();
+        return ['status' => $status];
     }
 
     public function getVersion(): int
@@ -64,6 +58,6 @@ final readonly class NginxStatusCollector implements CollectorInterface, Refresh
 
     public function getName(): string
     {
-        return $this->inner->getName();
+        return 'nginx.status';
     }
 }

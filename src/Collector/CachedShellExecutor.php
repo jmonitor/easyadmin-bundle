@@ -11,8 +11,8 @@ use Psr\Log\NullLogger;
 
 /**
  * Keeps the outputs of the commands in one cache item per collector, so a static value such as
- * a version is not fetched by a new process at every poll. A failure is kept too, and logged,
- * since the cached item hides it until a Refresh.
+ * a version is not fetched by a new process at every poll. A failure is kept too, and logged when
+ * the command runs, since the cached item hides it until a Refresh.
  */
 final class CachedShellExecutor extends ShellExecutor
 {
@@ -26,10 +26,10 @@ final class CachedShellExecutor extends ShellExecutor
         private readonly CacheItemPoolInterface $cache,
         private readonly int $ttl,
         string $name,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        LoggerInterface $logger = new NullLogger(),
         ?ShellExecutor $inner = null,
     ) {
-        $this->inner = $inner ?? new ProcessShellExecutor();
+        $this->inner = new LoggingShellExecutor($logger, $inner);
         $this->key = 'jmonitor_easyadmin.shell.' . $name;
     }
 
@@ -42,18 +42,7 @@ final class CachedShellExecutor extends ShellExecutor
             return $outputs[$command];
         }
 
-        try {
-            $output = $this->inner->execute($command);
-
-            if ($output === null) {
-                $this->logger->warning('"{command}" gave no output.', ['command' => $command]);
-            }
-        } catch (\Throwable $e) {
-            // No proc_open, a process that cannot start or fails: the value is decorative.
-            $this->logger->warning('Cannot run "{command}": {reason}', ['command' => $command, 'reason' => $e->getMessage(), 'exception' => $e]);
-            $output = null;
-        }
-
+        $output = $this->inner->execute($command);
         $outputs[$command] = $output;
         // The commands of a collector share the item, so a late one renews the others.
         $item->set($outputs);

@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Detection;
 
-use Jmonitor\Collector\Nginx\NginxCollector;
-use Jmonitor\EasyAdminBundle\Collector\CachedShellExecutor;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\LoggingShellExecutor;
+use Jmonitor\EasyAdminBundle\Collector\NginxConfigCollector;
 use Jmonitor\EasyAdminBundle\Collector\NginxStatusCollector;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\Utils\ShellExecutor;
 use Jmonitor\Utils\UrlFetcher;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -26,8 +25,6 @@ final readonly class NginxDetector implements ComponentDetectorInterface
     public function __construct(
         private string $endpoint,
         private RequestStack $requestStack,
-        private CacheItemPoolInterface $cache,
-        private int $staticTtl,
         private LoggerInterface $logger,
         private ?UrlFetcher $urlFetcher = null,
         private ?ShellExecutor $shellExecutor = null,
@@ -47,11 +44,11 @@ final readonly class NginxDetector implements ComponentDetectorInterface
             return Detection::unavailable(sprintf('Nginx is not serving this page (server software "%s").', $software ?? 'unknown'));
         }
 
-        $shell = new CachedShellExecutor($this->cache, $this->staticTtl, Component::Nginx->value, $this->logger, $this->shellExecutor);
-        $collector = new NginxCollector($this->endpoint, $shell, $this->urlFetcher);
+        $shell = new LoggingShellExecutor($this->logger, $this->shellExecutor);
 
         return Detection::found(new CollectorSet(Component::Nginx, [
-            new CollectorSpec(new NginxStatusCollector($collector, $this->endpoint, $shell, ($m[1] ?? '') !== '' ? $m[1] : null), Lifetime::Dynamic, trackDelta: true),
+            new CollectorSpec(new NginxStatusCollector($this->endpoint, $this->urlFetcher), Lifetime::Dynamic, trackDelta: true),
+            new CollectorSpec(new NginxConfigCollector($shell, ($m[1] ?? '') !== '' ? $m[1] : null), Lifetime::Static),
         ]));
     }
 }

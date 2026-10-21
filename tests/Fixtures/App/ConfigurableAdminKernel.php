@@ -158,8 +158,6 @@ final class ConfigurableAdminKernel extends TestKernel
                     $definition = new Definition(NginxDetector::class, [
                         'http://localhost/nginx_status',
                         new Reference('request_stack'),
-                        new Reference('cache.app'),
-                        3600,
                         new Reference(MinimumLevelLogger::class),
                         new Definition(FixtureUrlFetcher::class, [$this->fixtures['status']]),
                         new Definition(FixtureShellExecutor::class, [$this->fixtures['commands']]),

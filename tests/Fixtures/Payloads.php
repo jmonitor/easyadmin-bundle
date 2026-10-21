@@ -274,16 +274,25 @@ final class Payloads
     }
 
     /**
-     * The payload of NginxCollector for the outputs of tests/Fixtures/Nginx and "nproc --all" giving 4.
+     * The payload of NginxStatusCollector for tests/Fixtures/Nginx/stub_status.txt.
+     *
+     * @return array{status: array<string, int>}
+     */
+    public static function nginxStatus(int $accepts = 18_450, int $handled = 18_450, int $requests = 41_200): array
+    {
+        return ['status' => ['active' => 12, 'accepts' => $accepts, 'handled' => $handled, 'requests' => $requests, 'reading' => 1, 'writing' => 3, 'waiting' => 8]];
+    }
+
+    /**
+     * The payload of NginxConfigCollector for the command outputs of tests/Fixtures/Nginx and "nproc --all" giving 4.
      *
      * @return array<string, mixed>
      */
-    public static function nginx(int $accepts = 18_450, int $handled = 18_450, int $requests = 41_200): array
+    public static function nginxConfig(): array
     {
         return [
             'version' => '1.26.2',
             'modules' => ['http_ssl_module', 'http_stub_status_module', 'http_v2_module'],
-            'status' => ['active' => 12, 'accepts' => $accepts, 'handled' => $handled, 'requests' => $requests, 'reading' => 1, 'writing' => 3, 'waiting' => 8],
             'config' => [
                 'config_path' => '/etc/nginx/nginx.conf', 'user' => 'www-data', 'worker_processes' => 'auto',
                 'include' => ['/etc/nginx/modules-enabled/*.conf', '/etc/nginx/mime.types', '/etc/nginx/conf.d/*.conf', '/etc/nginx/sites-enabled/*'],

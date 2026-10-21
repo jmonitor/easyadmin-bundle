@@ -73,8 +73,6 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             $config['components']['nginx']['endpoint'],
             service('request_stack'),
-            service($config['cache_pool']),
-            $config['static_ttl'],
             service(MinimumLevelLogger::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Nginx->value])

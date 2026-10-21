@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests\Functional;
 
+use Jmonitor\EasyAdminBundle\Tests\Collector\NginxConfigCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Collector\NginxStatusCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\ConfigurableAdminKernel;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -34,7 +35,7 @@ final class NginxTest extends WebTestCase
 
     public function testTheTabIsServedBehindNginx(): void
     {
-        ConfigurableAdminKernel::$nginx = ['status' => NginxStatusCollectorTest::stubStatus(), 'commands' => NginxStatusCollectorTest::commands()];
+        ConfigurableAdminKernel::$nginx = ['status' => NginxStatusCollectorTest::stubStatus(), 'commands' => NginxConfigCollectorTest::commands()];
         $client = $this->adminClient();
 
         $client->request('GET', '/admin/jmonitor/nginx', server: self::BEHIND_NGINX);
@@ -99,6 +100,7 @@ final class NginxTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.alert-warning', 'Cannot read the Nginx status at http://localhost/nginx_status. Enable stub_status in a location reachable from PHP and check "components.nginx.endpoint". (Failed to fetch "http://localhost/nginx_status": Connection refused)');
+        self::assertSelectorTextContains('body', '1.27.2', 'the version does not depend on the status page');
     }
 
     /**

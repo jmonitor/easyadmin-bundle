@@ -18,8 +18,8 @@ final readonly class NginxView
     public ?string $version;
     public ?Badge $versionStatus;
 
-    /** False when "nginx -T" gave no configuration. */
-    public bool $configAvailable;
+    /** False when "nginx -T" gave no configuration, null when the commands were not collected. */
+    public ?bool $configAvailable;
     public ?string $workerProcesses;
     public ?int $workerConnections;
     public ?int $maxConnections;
@@ -52,16 +52,17 @@ final readonly class NginxView
 
     public function __construct(ComponentSnapshot $snapshot, GaugeFactory $gauges, ?EndOfLife $endOfLife = null)
     {
-        $data = $snapshot->data('nginx');
-        $delta = $snapshot->delta('nginx');
+        $data = $snapshot->data('nginx.config');
+        $delta = $snapshot->delta('nginx.status');
         $config = is_array($data['config'] ?? null) ? $data['config'] : [];
-        $status = is_array($data['status'] ?? null) ? $data['status'] : [];
+        $status = $snapshot->data('nginx.status')['status'] ?? null;
+        $status = is_array($status) ? $status : [];
 
         $this->version = Values::string($data['version'] ?? null);
         $this->versionStatus = $endOfLife?->badge('nginx', $this->version);
 
         $this->configPath = Values::string($config['config_path'] ?? null);
-        $this->configAvailable = $this->configPath !== null;
+        $this->configAvailable = $data === [] ? null : $this->configPath !== null;
         $processes = Values::string($config['worker_processes'] ?? null);
         $cpus = Values::int($data['cpu_count'] ?? null);
         $this->workerProcesses = $processes === 'auto' && $cpus !== null ? sprintf('auto (%d CPUs)', $cpus) : $processes;
@@ -69,7 +70,7 @@ final readonly class NginxView
         $processCount = $processes === 'auto' ? $cpus : Values::int($processes);
         $this->maxConnections = $processCount === null || $this->workerConnections === null ? null : $processCount * $this->workerConnections;
 
-        $this->includes = array_values(array_filter(is_array($config['include'] ?? null) ? $config['include'] : [], is_string(...)));
+        $this->includes = array_values(array_unique(array_filter(is_array($config['include'] ?? null) ? $config['include'] : [], is_string(...))));
         $this->user = Values::string($config['user'] ?? null);
         $this->accessLog = Values::string($config['access_log'] ?? null);
         $errorLog = explode(' ', Values::string($config['error_log'] ?? null) ?? '', 2);
@@ -103,10 +104,13 @@ final readonly class NginxView
         $this->requestsPerSec = Ratios::perSecond($delta, 'status.requests', 'req/s', $requests);
         $this->requestsPerConnection = Ratios::average($delta, 'status.requests', 'status.handled', $requests, $handled, '');
         $this->refused = $accepts === null || $handled === null ? null : max(0, $accepts - $handled);
+        $acceptedLately = $delta?->getValue('status.accepts');
+        $handledLately = $delta?->getValue('status.handled');
         $this->refusedStatus = match (true) {
             $this->refused === null => null,
             $this->refused === 0 => new Badge(BadgeStyle::Success, 'None'),
-            default => new Badge(BadgeStyle::Danger, 'Limit reached'),
+            $acceptedLately !== null && $handledLately !== null && $acceptedLately > $handledLately => new Badge(BadgeStyle::Danger, 'Limit reached'),
+            default => new Badge(BadgeStyle::Warning, 'Earlier'),
         };
     }
 

@@ -11,7 +11,7 @@
                 <div class="flex-fill">
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Max connections', metric: 'nginx.processes_config'} %}
                         {% block body %}
-                            {% if not view.configAvailable %}
+                            {% if view.configAvailable is same as(false) %}
                                 {{ no_config }}
                             {% else %}
                                 {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
@@ -28,7 +28,7 @@
         <div class="col-md-6 col-xxl-4">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: core & system', metric: 'nginx.core_config', scroll: true} %}
                 {% block body %}
-                    {% if not view.configAvailable %}
+                    {% if view.configAvailable is same as(false) %}
                         {{ no_config }}
                     {% else %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
@@ -53,7 +53,7 @@
         <div class="col-md-6 col-xxl-4">
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: performance & security', metric: 'nginx.other_config'} %}
                 {% block body %}
-                    {% if not view.configAvailable %}
+                    {% if view.configAvailable is same as(false) %}
                         {{ no_config }}
                     {% else %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {

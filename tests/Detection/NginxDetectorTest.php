@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\Detection;
 
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Collector\NginxConfigCollector;
 use Jmonitor\EasyAdminBundle\Collector\NginxStatusCollector;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\NginxDetector;
 use Jmonitor\EasyAdminBundle\Tests\Collector\NginxStatusCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Logging\RecordingLogger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -29,24 +30,38 @@ final class NginxDetectorTest extends TestCase
         self::assertTrue($detection->isFound());
         self::assertSame(Component::Nginx, $detection->instances[0]->component);
         self::assertNull($detection->instances[0]->id, 'implicit instance');
-        $spec = $detection->instances[0]->collectors?->get('nginx');
-        self::assertNotNull($spec);
-        self::assertInstanceOf(NginxStatusCollector::class, $spec->collector);
-        self::assertSame(Lifetime::Dynamic, $spec->lifetime);
-        self::assertTrue($spec->trackDelta);
+        $status = $detection->instances[0]->collectors?->get('nginx.status');
+        self::assertNotNull($status);
+        self::assertInstanceOf(NginxStatusCollector::class, $status->collector);
+        self::assertSame(Lifetime::Dynamic, $status->lifetime);
+        self::assertTrue($status->trackDelta);
+        $config = $detection->instances[0]->collectors?->get('nginx.config');
+        self::assertNotNull($config);
+        self::assertInstanceOf(NginxConfigCollector::class, $config->collector);
+        self::assertSame(Lifetime::Static, $config->lifetime, 'the commands run once per static_ttl');
         self::assertSame(0, $fetcher->calls, 'detection never touches the network');
         self::assertSame(0, $shell->calls, 'nor runs a command');
     }
 
-    public function testTheCollectorReadsTheConfiguredEndpointAndFallsBackToTheServerSoftwareVersion(): void
+    public function testTheStatusCollectorReadsTheConfiguredEndpoint(): void
     {
         $fetcher = new FixtureUrlFetcher(NginxStatusCollectorTest::stubStatus());
-        $detection = self::detector(self::requests('nginx/1.27.2'), $fetcher, new FixtureShellExecutor(null), 'http://nginx:8080/status')->detect();
+        $detection = self::detector(self::requests('nginx/1.27.2'), $fetcher, endpoint: 'http://nginx:8080/status')->detect();
 
-        $payload = $detection->instances[0]->collectors?->get('nginx')?->collector->collect();
+        $detection->instances[0]->collectors?->get('nginx.status')?->collector->collect();
+
+        self::assertSame('http://nginx:8080/status', $fetcher->url);
+    }
+
+    public function testTheConfigCollectorFallsBackToTheServerSoftwareVersionAndLogsTheFailedCommands(): void
+    {
+        $logger = new RecordingLogger();
+        $detection = self::detector(self::requests('nginx/1.27.2'), logger: $logger)->detect();
+
+        $payload = $detection->instances[0]->collectors?->get('nginx.config')?->collector->collect();
 
         self::assertSame('1.27.2', $payload['version'] ?? null);
-        self::assertSame('http://nginx:8080/status', $fetcher->url);
+        self::assertNotSame([], $logger->records, 'the reason of an empty configuration is logged');
     }
 
     public function testAServerSoftwareWithoutVersionIsNginxToo(): void
@@ -76,9 +91,9 @@ final class NginxDetectorTest extends TestCase
         self::assertSame('Nginx is not serving this page (server software "unknown").', $detection->error);
     }
 
-    private static function detector(RequestStack $requests, ?FixtureUrlFetcher $fetcher = null, ?FixtureShellExecutor $shell = null, string $endpoint = 'http://localhost/nginx_status'): NginxDetector
+    private static function detector(RequestStack $requests, ?FixtureUrlFetcher $fetcher = null, ?FixtureShellExecutor $shell = null, string $endpoint = 'http://localhost/nginx_status', ?RecordingLogger $logger = null): NginxDetector
     {
-        return new NginxDetector($endpoint, $requests, new ArrayAdapter(), 3600, new NullLogger(), $fetcher ?? new FixtureUrlFetcher(null), $shell ?? new FixtureShellExecutor(null));
+        return new NginxDetector($endpoint, $requests, $logger ?? new NullLogger(), $fetcher ?? new FixtureUrlFetcher(null), $shell ?? new FixtureShellExecutor(null));
     }
 
     private static function requests(string $software): RequestStack

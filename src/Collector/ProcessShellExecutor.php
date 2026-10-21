@@ -9,8 +9,7 @@ use Symfony\Component\Process\Process;
 
 /**
  * Runs the command like the library executor, but an empty output is an exception carrying the
- * exit code and the error output, so the log says why instead of guessing. A command that succeeds
- * printing on its error output only, such as "nginx -V", gives that output.
+ * exit code and the error output, so the log says why instead of guessing.
  */
 final class ProcessShellExecutor extends ShellExecutor
 {
@@ -25,10 +24,6 @@ final class ProcessShellExecutor extends ShellExecutor
         }
 
         $stderr = trim($process->getErrorOutput());
-
-        if ($process->isSuccessful() && $stderr !== '') {
-            return $process->getErrorOutput();
-        }
 
         throw new \RuntimeException(sprintf(
             'exit code %s (%s): %s',
