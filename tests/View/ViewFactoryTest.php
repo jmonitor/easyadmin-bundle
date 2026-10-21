@@ -24,6 +24,7 @@ use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\View\ApacheView;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use Jmonitor\EasyAdminBundle\View\NginxView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
@@ -51,6 +52,7 @@ final class ViewFactoryTest extends TestCase
         self::assertInstanceOf(PhpView::class, $factory->create(Component::Php, $snapshot(Component::Php)));
         self::assertInstanceOf(FrankenPhpView::class, $factory->create(Component::FrankenPhp, $snapshot(Component::FrankenPhp)));
         self::assertInstanceOf(ApacheView::class, $factory->create(Component::Apache, $snapshot(Component::Apache)));
+        self::assertInstanceOf(NginxView::class, $factory->create(Component::Nginx, $snapshot(Component::Nginx)));
         self::assertInstanceOf(MysqlView::class, $factory->create(Component::Mysql, $snapshot(Component::Mysql)));
         self::assertInstanceOf(PostgresqlView::class, $factory->create(Component::Postgresql, $snapshot(Component::Postgresql)));
         self::assertInstanceOf(RedisView::class, $factory->create(Component::Redis, $snapshot(Component::Redis)));

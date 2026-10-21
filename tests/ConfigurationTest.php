@@ -23,7 +23,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame(3600, $config['static_ttl']);
         self::assertNull($config['permission']);
 
-        foreach (['system', 'php', 'frankenphp', 'apache', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
+        foreach (['system', 'php', 'frankenphp', 'apache', 'nginx', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
         }
 
@@ -38,6 +38,7 @@ final class ConfigurationTest extends TestCase
         self::assertIsBool($config['components']['symfony']['messenger']);
         self::assertSame('http://localhost:2019/metrics', $config['components']['frankenphp']['endpoint']);
         self::assertSame('http://localhost/server-status', $config['components']['apache']['endpoint']);
+        self::assertSame('http://localhost/nginx_status', $config['components']['nginx']['endpoint']);
     }
 
     public function testPermissionIsAnyAttributeOfIsGranted(): void
@@ -103,6 +104,14 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame('http://apache/server-status', $config['components']['apache']['endpoint']);
         self::assertSame('auto', $config['components']['apache']['enabled']);
+    }
+
+    public function testTheNginxEndpointIsConfigurable(): void
+    {
+        $config = $this->process(['components' => ['nginx' => ['endpoint' => 'http://nginx/status']]]);
+
+        self::assertSame('http://nginx/status', $config['components']['nginx']['endpoint']);
+        self::assertSame('auto', $config['components']['nginx']['enabled']);
     }
 
     public function testAnEmptyFrankenPhpEndpointIsRefused(): void

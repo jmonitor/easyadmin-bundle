@@ -13,6 +13,7 @@ use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
+use Jmonitor\EasyAdminBundle\Detection\NginxDetector;
 use Jmonitor\EasyAdminBundle\Detection\PhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\PostgresqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\RedisDetector;
@@ -66,6 +67,15 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service('request_stack'),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Apache->value])
+    ;
+
+    $services->set(NginxDetector::class)
+        ->args([
+            $config['components']['nginx']['endpoint'],
+            service('request_stack'),
+            service(MinimumLevelLogger::class),
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Nginx->value])
     ;
 
     $services->set(SymfonyDetector::class)

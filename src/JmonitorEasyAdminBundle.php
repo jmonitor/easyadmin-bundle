@@ -117,6 +117,9 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                         ->append($this->componentNode('apache', 'Detected when the page is served by Apache, through mod_php or PHP-FPM, when "auto".', static function (NodeBuilder $children): void {
                             $children->scalarNode('endpoint')->defaultValue('http://localhost/server-status')->cannotBeEmpty()->info('URL of the mod_status page, read in its machine-readable form (?auto).');
                         }))
+                        ->append($this->componentNode('nginx', 'Detected when the page is served by Nginx, through PHP-FPM, when "auto".', static function (NodeBuilder $children): void {
+                            $children->scalarNode('endpoint')->defaultValue('http://localhost/nginx_status')->cannotBeEmpty()->info('URL of the stub_status page.');
+                        }))
                         ->append($this->componentNode('symfony', 'Always available when "auto".', static function (NodeBuilder $children): void {
                             $children->booleanNode('messenger')->defaultValue(class_exists(Worker::class) && Kernel::VERSION_ID >= 70200)->info('Show the Messenger transports (runs "messenger:stats --format=json", Symfony 7.2+).');
                             $children->booleanNode('scheduler')->defaultValue(class_exists(Scheduler::class))->info('Show the Scheduler tasks (runs "debug:scheduler").');

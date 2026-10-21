@@ -22,6 +22,7 @@ use Jmonitor\EasyAdminBundle\View\ApacheView;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
+use Jmonitor\EasyAdminBundle\View\NginxView;
 use Jmonitor\EasyAdminBundle\View\PhpView;
 use Jmonitor\EasyAdminBundle\View\PostgresqlView;
 use Jmonitor\EasyAdminBundle\View\RedisView;
@@ -562,6 +563,83 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('Cannot read the Apache status', $html);
         self::assertStringContainsString('n/a', $html);
+    }
+
+    public function testTheNginxFragmentRenders(): void
+    {
+        $delta = new Delta(Delta::flatten(Payloads::nginxStatus(18_400, 18_390, 41_000)), Delta::flatten(Payloads::nginxStatus(18_450, 18_437)), 10);
+        $snapshot = new ComponentSnapshot(Component::Nginx, [
+            'nginx.status' => new CollectorResult('nginx.status', Payloads::nginxStatus(18_450, 18_437), null, 1_000, $delta),
+            'nginx.config' => new CollectorResult('nginx.config', Payloads::nginxConfig(), null, 1_000),
+        ]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('1.26.2', $html);
+        self::assertStringContainsString('aria-label="Help: Version"', $html);
+        self::assertStringContainsString('aria-label="Help: Max connections"', $html);
+        self::assertStringContainsString('auto (4 CPUs)', $html);
+        self::assertStringContainsString('<dd>3072</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Config: core &amp; system"', $html);
+        self::assertStringContainsString('<li>/etc/nginx/sites-enabled/*</li>', $html);
+        self::assertStringContainsString('<dd>warn</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Config: performance &amp; security"', $html);
+        self::assertStringContainsString('<dd>65s</dd>', $html);
+        self::assertStringContainsString('aria-label="Help: Active connections"', $html);
+        self::assertStringContainsString('12 / 3072', $html);
+        self::assertStringContainsString('<dt>Waiting</dt>', $html);
+        self::assertStringContainsString('20.00 <small class="text-muted">req/s</small>', $html);
+        self::assertStringContainsString('aria-label="Help: Refused connections"', $html);
+        self::assertStringContainsString('Limit reached', $html);
+        self::assertStringContainsString('aria-label="Help: Requests per connection"', $html);
+        self::assertStringContainsString('4.26', $html, '200 requests over 47 connections');
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheNginxFragmentRendersWithoutTheConfiguration(): void
+    {
+        $config = Payloads::nginxConfig();
+        $config['config'] = array_map(static fn(mixed $value): mixed => is_array($value) ? [] : null, $config['config']);
+        unset($config['cpu_count']);
+        $snapshot = new ComponentSnapshot(Component::Nginx, [
+            'nginx.status' => new CollectorResult('nginx.status', Payloads::nginxStatus(), null, 1_000),
+            'nginx.config' => new CollectorResult('nginx.config', $config, null, 1_000),
+        ]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertSame(3, substr_count($html, '<code>nginx -T</code> gave no configuration'), 'in each card it feeds');
+        self::assertStringNotContainsString('worker_connections', $html);
+        self::assertStringContainsString('1.26.2', $html, 'from "nginx -V"');
+        self::assertStringContainsString('connection limit unknown', $html);
+        self::assertStringContainsString('<dt>Active</dt>', $html);
+        self::assertStringContainsString('Measuring', $html);
+        self::assertStringContainsString('since server start', $html);
+    }
+
+    public function testAFailedNginxStatusStillRendersTheConfiguration(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Nginx, [
+            'nginx.status' => new CollectorResult('nginx.status', [], 'Cannot read the Nginx status at http://localhost/nginx_status.', 1_000),
+            'nginx.config' => new CollectorResult('nginx.config', Payloads::nginxConfig(), null, 1_000),
+        ]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringContainsString('Cannot read the Nginx status', $html);
+        self::assertStringContainsString('n/a', $html);
+        self::assertStringContainsString('1.26.2', $html);
+        self::assertStringContainsString('<dd>3072</dd>', $html);
+    }
+
+    public function testNginxCommandsNotCollectedSayNothingAboutNginxT(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Nginx, ['nginx.status' => new CollectorResult('nginx.status', Payloads::nginxStatus(), null, 1_000)]);
+
+        $html = $this->render('nginx', $snapshot, new NginxView($snapshot, $this->gauges()));
+
+        self::assertStringNotContainsString('nginx -T', $html, 'a collect in progress or failed is not a failed command');
+        self::assertStringContainsString('<dt>worker_connections</dt>', $html);
     }
 
     /**

@@ -57,6 +57,7 @@ final class RangesTest extends TestCase
             'redis.memory_usage', 'redis.hit_rate',
             'frankenphp.busy_threads_percent', 'frankenphp.worker_busy_workers_rate',
             'apache.busy_workers', 'apache.busy_process',
+            'nginx.active_connections',
         ] as $metric) {
             self::assertNotNull($this->ranges->badge($metric, 50), $metric);
         }
@@ -81,6 +82,14 @@ final class RangesTest extends TestCase
         self::assertSame('Stable', $this->ranges->badge('apache.busy_process', 0.75)?->label);
         self::assertSame(BadgeStyle::Warning, $this->ranges->badge('apache.busy_process', 60)?->style);
         self::assertSame('Overloaded', $this->ranges->badge('apache.busy_process', 100)?->label);
+    }
+
+    public function testNginxThresholdsMatchJmonitorIo(): void
+    {
+        self::assertSame('Available Capacity', $this->ranges->badge('nginx.active_connections', 59.9)?->label);
+        self::assertSame('High Load', $this->ranges->badge('nginx.active_connections', 60)?->label);
+        self::assertSame('Connection Limit Risk', $this->ranges->badge('nginx.active_connections', 85)?->label);
+        self::assertSame(BadgeStyle::Danger, $this->ranges->badge('nginx.active_connections', 100)?->style);
     }
 
     public function testPostgresThresholdsMatchJmonitorIo(): void

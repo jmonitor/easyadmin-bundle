@@ -1,0 +1,105 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+    {% set no_config %}<p class="text-muted small mb-0"><code>nginx -T</code> gave no configuration to the PHP user: the reason is logged on the <code>jmonitor_easyadmin</code> channel.</p>{% endset %}
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xxl-4">
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Version', metric: 'nginx.version', value: view.version, badge: view.versionStatus}) }}</div>
+                <div class="flex-fill">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Max connections', metric: 'nginx.processes_config'} %}
+                        {% block body %}
+                            {% if view.configAvailable is same as(false) %}
+                                {{ no_config }}
+                            {% else %}
+                                {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                    'worker_processes': view.workerProcesses,
+                                    'worker_connections': view.workerConnections,
+                                    'Max connections': view.maxConnections,
+                                }}) }}
+                            {% endif %}
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xxl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: core & system', metric: 'nginx.core_config', scroll: true} %}
+                {% block body %}
+                    {% if view.configAvailable is same as(false) %}
+                        {{ no_config }}
+                    {% else %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'config file': view.configPath,
+                            'user': view.user,
+                            'access_log': view.accessLog,
+                            'error_log': view.errorLog,
+                            'log level': view.errorLogLevel,
+                        }}) }}
+                        {% if view.includes is not empty %}
+                            <div class="small text-muted mt-3">include</div>
+                            <ul class="list-unstyled small mb-0 jm-files">
+                                {% for file in view.includes %}
+                                    <li>{{ file }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+        <div class="col-md-6 col-xxl-4">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Config: performance & security', metric: 'nginx.other_config'} %}
+                {% block body %}
+                    {% if view.configAvailable is same as(false) %}
+                        {{ no_config }}
+                    {% else %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'sendfile': view.sendfile,
+                            'tcp_nopush': view.tcpNopush,
+                            'tcp_nodelay': view.tcpNodelay,
+                            'keepalive_timeout': view.keepaliveTimeout is null ? null : view.keepaliveTimeout ~ 's',
+                            'gzip': view.gzip,
+                        }}) }}
+                        <hr>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'ssl_protocols': view.sslProtocols,
+                            'ssl_prefer_server_ciphers': view.sslPreferServerCiphers,
+                            'server_tokens': view.serverTokens,
+                        }}) }}
+                    {% endif %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Connections</h2>
+    <div class="row g-3">
+        <div class="col-lg-8 col-xxl-6">
+            {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.activeConnections, rows: {
+                'Reading': view.reading,
+                'Writing': view.writing,
+                'Waiting': view.waiting,
+                'Active': view.active,
+            }}) }}
+        </div>
+        <div class="col-md-6 col-lg-4 col-xxl-3">
+            <div class="d-flex flex-column gap-3 h-100">
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Requests per second', metric: 'nginx.req_per_sec', rate: view.requestsPerSec}) }}</div>
+                <div class="flex-fill">{{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Requests per connection', metric: 'nginx.reused_connections_ratio', rate: view.requestsPerConnection}) }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 col-xxl-3">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Refused connections', metric: 'nginx.refused_connections', badge: view.refusedStatus} %}
+                {% block body %}
+                    <div class="jm-stat">
+                        {{- include('@JmonitorEasyAdmin/_value.html.twig', {value: view.refused is null ? null : view.refused|jm_number}) -}}
+                        {%- if view.refused is not null %}<small class="text-muted d-block jm-rate-hint">since server start</small>{% endif -%}
+                    </div>
+                {% endblock %}
+            {% endembed %}
+        </div>
+    </div>
+{% endblock %}

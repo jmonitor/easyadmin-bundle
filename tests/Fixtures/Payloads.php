@@ -272,4 +272,35 @@ final class Payloads
             'total_duration' => $duration,
         ];
     }
+
+    /**
+     * The payload of NginxStatusCollector for tests/Fixtures/Nginx/stub_status.txt.
+     *
+     * @return array{status: array<string, int>}
+     */
+    public static function nginxStatus(int $accepts = 18_450, int $handled = 18_450, int $requests = 41_200): array
+    {
+        return ['status' => ['active' => 12, 'accepts' => $accepts, 'handled' => $handled, 'requests' => $requests, 'reading' => 1, 'writing' => 3, 'waiting' => 8]];
+    }
+
+    /**
+     * The payload of NginxConfigCollector for the command outputs of tests/Fixtures/Nginx and "nproc --all" giving 4.
+     *
+     * @return array<string, mixed>
+     */
+    public static function nginxConfig(): array
+    {
+        return [
+            'version' => '1.26.2',
+            'modules' => ['http_ssl_module', 'http_stub_status_module', 'http_v2_module'],
+            'config' => [
+                'config_path' => '/etc/nginx/nginx.conf', 'user' => 'www-data', 'worker_processes' => 'auto',
+                'include' => ['/etc/nginx/modules-enabled/*.conf', '/etc/nginx/mime.types', '/etc/nginx/conf.d/*.conf', '/etc/nginx/sites-enabled/*'],
+                'worker_connections' => 768, 'sendfile' => 'on', 'tcp_nopush' => 'on', 'tcp_nodelay' => null, 'keepalive_timeout' => 65, 'types_hash_max_size' => 2048,
+                'server_tokens' => 'off', 'ssl_protocols' => 'TLSv1.2 TLSv1.3', 'ssl_prefer_server_ciphers' => 'off',
+                'access_log' => '/var/log/nginx/access.log', 'error_log' => '/var/log/nginx/error.log warn', 'gzip' => 'on',
+            ],
+            'cpu_count' => 4,
+        ];
+    }
 }
