@@ -10,9 +10,8 @@ use Jmonitor\Utils\ShellExecutor;
 use Jmonitor\Utils\UrlFetcher;
 
 /**
- * The version, modules, configuration and CPU count, read from the commands of NginxCollector
- * without the status page, which NginxStatusCollector reads. Without a version from "nginx -V", the
- * payload takes the one Nginx passed to PHP-FPM.
+ * The payload of NginxCollector without its status page. Without a version from "nginx -V", it takes
+ * the one Nginx passed to PHP-FPM.
  */
 final readonly class NginxConfigCollector implements CollectorInterface
 {

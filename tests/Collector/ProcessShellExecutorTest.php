@@ -23,4 +23,14 @@ final class ProcessShellExecutorTest extends TestCase
             self::assertMatchesRegularExpression('/^exit code [1-9]\d* \(.+\): .*jmonitor-easyadmin-no-such-binary/s', $e->getMessage());
         }
     }
+
+    public function testAFailedCommandIsAnExceptionEvenWithAnOutput(): void
+    {
+        try {
+            (new ProcessShellExecutor())->execute('jmonitor-easyadmin-no-such-binary -V 2>&1');
+            self::fail('no exception');
+        } catch (\RuntimeException $e) {
+            self::assertMatchesRegularExpression('/^exit code [1-9]\d* \(.+\): .*jmonitor-easyadmin-no-such-binary/s', $e->getMessage());
+        }
+    }
 }
