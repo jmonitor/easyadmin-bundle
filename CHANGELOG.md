@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Apache tab.
 - Nginx tab.
 
+### Fixed
+
+- The FrankenPHP version is shown when the binary prints it with a doubled "v".
+- The Redis tab no longer fails when `CONFIG GET` is disabled, as on managed Redis.
+
 ## [1.3.0] - 2026-10-20
 
 ### Added

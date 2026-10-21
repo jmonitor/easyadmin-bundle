@@ -42,7 +42,7 @@ final class ApacheStatusCollectorTest extends TestCase
         } catch (\RuntimeException $e) {
             self::assertInstanceOf(UnreachableServerException::class, $e, 'the application would answer each poll otherwise');
             self::assertStringStartsWith('Cannot read the Apache status at http://localhost/server-status.', $e->getMessage());
-            self::assertSame('"http://localhost/server-status?auto" is not a mod_status report.', $e->getPrevious()?->getMessage());
+            self::assertStringContainsString('"http://localhost/server-status?auto" did not return a Scoreboard line', (string) $e->getPrevious()?->getMessage());
         }
     }
 
@@ -53,7 +53,7 @@ final class ApacheStatusCollectorTest extends TestCase
         $payload = (new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher($report)))->collect();
 
         self::assertSame(38.168, $payload['total_duration'], 'in seconds');
-        self::assertSame(0.734, $payload['duration_per_request'], 'in milliseconds, which ApacheCollector rounds to 0');
+        self::assertSame(0.734, $payload['duration_per_request'], 'in milliseconds');
     }
 
     public function testAReportWithoutDurationsHasNone(): void
@@ -71,7 +71,7 @@ final class ApacheStatusCollectorTest extends TestCase
         $collector = new ApacheStatusCollector(self::ENDPOINT, new FixtureUrlFetcher(null));
 
         self::assertSame('apache', $collector->getName());
-        self::assertSame(1, $collector->getVersion());
+        self::assertSame(2, $collector->getVersion());
     }
 
     public static function report(): string

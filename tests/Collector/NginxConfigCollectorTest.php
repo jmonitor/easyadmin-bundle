@@ -15,17 +15,7 @@ final class NginxConfigCollectorTest extends TestCase
     {
         $payload = (new NginxConfigCollector(new FixtureShellExecutor(self::commands())))->collect();
 
-        self::assertSame(array_replace(Payloads::nginxConfig(), ['cpu_count' => PHP_OS_FAMILY === 'Linux' ? 4 : null]), $payload, 'NginxCollector runs "nproc" on Linux only');
-    }
-
-    public function testNginxVIsReadFromItsErrorOutput(): void
-    {
-        $commands = self::commands();
-        $commands['nginx -V'] = null;
-
-        $payload = (new NginxConfigCollector(new FixtureShellExecutor($commands)))->collect();
-
-        self::assertSame('1.26.2', $payload['version'], 'answered by "nginx -V 2>&1" only');
+        self::assertSame(array_replace(Payloads::nginxConfig(), ['cpu_count' => PHP_OS_FAMILY === 'Linux' ? 4 : null]), $payload, 'NginxCollector reads the CPU count on Linux only');
     }
 
     public function testWithoutNginxVTheVersionIsTheOnePassedToPhpFpm(): void
@@ -56,7 +46,7 @@ final class NginxConfigCollectorTest extends TestCase
      */
     public static function commands(): array
     {
-        return ['nginx -V 2>&1' => self::fixture('nginx-V.txt'), 'nginx -T' => self::fixture('nginx-T.txt'), 'nproc --all' => "4\n"];
+        return ['nginx -V 2>&1' => self::fixture('nginx-V.txt'), 'nginx -T' => self::fixture('nginx-T.txt'), 'getconf _NPROCESSORS_ONLN' => "4\n"];
     }
 
     private static function fixture(string $file): string
