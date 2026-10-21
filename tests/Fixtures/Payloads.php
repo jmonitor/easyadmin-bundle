@@ -264,12 +264,11 @@ final class Payloads
         return [
             'server_version' => 'Apache/2.4.62 (Debian) OpenSSL/3.0.15', 'server_mpm' => 'event', 'uptime' => 1_040_619,
             'load1' => 0.42, 'load5' => 0.37, 'load15' => 0.31,
-            'total_accesses' => $accesses, 'total_bytes' => $bytes,
-            'requests_per_second' => 0, 'bytes_per_second' => 1_279, 'bytes_per_request' => 25_600, 'duration_per_request' => 40.0,
+            'total_accesses' => $accesses, 'total_bytes' => $bytes, 'total_duration' => $duration,
+            'requests_per_second' => 0.0499702, 'bytes_per_second' => 1_279, 'bytes_per_request' => 25_600, 'duration_per_request' => 40.0,
             'workers' => ['busy' => 3, 'idle' => 47],
             'scoreboard' => ['_' => 47, 'W' => 1, 'K' => 1, 'R' => 1, '.' => 350],
             'modules' => [],
-            'total_duration' => $duration,
         ];
     }
 
@@ -284,7 +283,7 @@ final class Payloads
     }
 
     /**
-     * The payload of NginxConfigCollector for the command outputs of tests/Fixtures/Nginx and "nproc --all" giving 4.
+     * The payload of NginxConfigCollector for the command outputs of tests/Fixtures/Nginx and a CPU count of 4.
      *
      * @return array<string, mixed>
      */

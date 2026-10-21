@@ -10,9 +10,8 @@ use Jmonitor\Utils\ShellExecutor;
 use Jmonitor\Utils\UrlFetcher;
 
 /**
- * The version, modules, configuration and CPU count, read from "nginx -V", "nginx -T" and "nproc"
- * without the status page, which NginxStatusCollector reads. "nginx -V" prints on its error output.
- * Without a version from it, the payload takes the one Nginx passed to PHP-FPM.
+ * The payload of NginxCollector without its status page. Without a version from "nginx -V", it takes
+ * the one Nginx passed to PHP-FPM.
  */
 final readonly class NginxConfigCollector implements CollectorInterface
 {
@@ -22,23 +21,13 @@ final readonly class NginxConfigCollector implements CollectorInterface
         ShellExecutor $shell,
         private ?string $fallbackVersion = null,
     ) {
-        $withErrorOutput = new class ($shell) extends ShellExecutor {
-            public function __construct(
-                private readonly ShellExecutor $inner,
-            ) {}
-
-            public function execute(string $command): ?string
-            {
-                return $this->inner->execute($command === 'nginx -V' ? 'nginx -V 2>&1' : $command);
-            }
-        };
         $noStatus = new class extends UrlFetcher {
             public function fetch(string $url): string
             {
                 return '';
             }
         };
-        $this->inner = new NginxCollector('', $withErrorOutput, $noStatus);
+        $this->inner = new NginxCollector('', $shell, $noStatus);
     }
 
     /**
