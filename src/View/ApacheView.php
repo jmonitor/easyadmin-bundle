@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Metric\Badge;
-use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
@@ -35,7 +34,7 @@ final readonly class ApacheView
     public ?string $version;
     public ?string $serverVersion;
     public ?Badge $versionStatus;
-    public ?Badge $mpm;
+    public ?string $mpm;
     public ?int $uptime;
     public ?float $load1;
     public ?float $load5;
@@ -60,8 +59,7 @@ final readonly class ApacheView
         $number = preg_match('~\bApache/(\d+(?:\.\d+){1,3})\b~i', $this->serverVersion ?? '', $m) === 1 ? $m[1] : null;
         $this->version = $number ?? $this->serverVersion;
         $this->versionStatus = $endOfLife?->badge('apache-http-server', $number);
-        $mpm = Values::string($data['server_mpm'] ?? null);
-        $this->mpm = $mpm === null ? null : new Badge(BadgeStyle::Info, $mpm);
+        $this->mpm = Values::string($data['server_mpm'] ?? null);
         $this->uptime = Values::int($data['uptime'] ?? null);
         $this->load1 = Values::float($data['load1'] ?? null);
         $this->load5 = Values::float($data['load5'] ?? null);

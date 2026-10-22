@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Tests\View;
 
 use Jmonitor\EasyAdminBundle\Component;
-use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
@@ -28,8 +27,7 @@ final class ApacheViewTest extends TestCase
         self::assertSame('2.4.62', $view->version);
         self::assertSame('Apache/2.4.62 (Debian) OpenSSL/3.0.15', $view->serverVersion);
         self::assertNull($view->versionStatus, 'no EndOfLife given');
-        self::assertSame('event', $view->mpm?->label);
-        self::assertSame(BadgeStyle::Info, $view->mpm->style);
+        self::assertSame('event', $view->mpm);
         self::assertSame(1_040_619, $view->uptime);
         self::assertSame([0.42, 0.37, 0.31], [$view->load1, $view->load5, $view->load15]);
 
