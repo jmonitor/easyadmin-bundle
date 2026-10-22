@@ -460,7 +460,7 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('1.4.0', $html);
         self::assertStringContainsString('aria-label="Help: Version"', $html);
-        self::assertStringContainsString('>Worker</span>', $html);
+        self::assertStringContainsString('<div class="jm-stat">Worker</div>', $html);
         self::assertStringContainsString('aria-label="Help: Mode"', $html);
         self::assertStringContainsString('Busy threads', $html);
         self::assertStringContainsString('aria-label="Help: Busy threads"', $html);
@@ -496,7 +496,7 @@ final class ComponentTemplatesTest extends TestCase
 
         $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('>Classic</span>', $html);
+        self::assertStringContainsString('<div class="jm-stat">Classic</div>', $html);
         self::assertStringContainsString('Busy threads', $html);
         self::assertStringNotContainsString('Workers', $html);
         self::assertStringNotContainsString('Busy workers', $html);
