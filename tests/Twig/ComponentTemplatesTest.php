@@ -460,7 +460,7 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringContainsString('1.4.0', $html);
         self::assertStringContainsString('aria-label="Help: Version"', $html);
-        self::assertStringContainsString('>Worker</span>', $html);
+        self::assertStringContainsString('<div class="jm-stat">Worker</div>', $html);
         self::assertStringContainsString('aria-label="Help: Mode"', $html);
         self::assertStringContainsString('Busy threads', $html);
         self::assertStringContainsString('aria-label="Help: Busy threads"', $html);
@@ -496,7 +496,7 @@ final class ComponentTemplatesTest extends TestCase
 
         $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
 
-        self::assertStringContainsString('>Classic</span>', $html);
+        self::assertStringContainsString('<div class="jm-stat">Classic</div>', $html);
         self::assertStringContainsString('Busy threads', $html);
         self::assertStringNotContainsString('Workers', $html);
         self::assertStringNotContainsString('Busy workers', $html);
@@ -524,7 +524,7 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringContainsString('2.4.62', $html);
         self::assertStringContainsString('Apache/2.4.62 (Debian) OpenSSL/3.0.15', $html, 'the server string under the version');
         self::assertStringContainsString('aria-label="Help: Version"', $html);
-        self::assertStringContainsString('>event</span>', $html);
+        self::assertStringContainsString('<div class="jm-stat">event</div>', $html);
         self::assertStringContainsString('aria-label="Help: Server MPM"', $html);
         self::assertStringContainsString('12d', $html, 'uptime');
         self::assertStringContainsString('aria-label="Help: Load average"', $html);

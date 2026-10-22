@@ -67,7 +67,7 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Max memory policy', metric: 'redis.max_memory_policy'} %}
                 {% block body %}
                     {% if view.maxMemoryPolicy %}
-                        <div class="fs-5 mb-2">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: view.maxMemoryPolicy}) }}</div>
+                        <div class="fs-5 mb-2">{{ view.maxMemoryPolicy.label }}</div>
                         {% if view.maxMemoryPolicyDescription %}<p class="text-muted mb-0">{{ view.maxMemoryPolicyDescription }}</p>{% endif %}
                     {% else %}
                         <span class="text-muted">—</span>

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\View;
 
-use Jmonitor\EasyAdminBundle\Metric\Badge;
-use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Metric\Gauge;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
@@ -13,7 +11,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 final readonly class FrankenPhpView
 {
     public ?string $version;
-    public ?Badge $mode;
+    public ?string $mode;
 
     public ?int $busyThreads;
     public ?int $totalThreads;
@@ -32,8 +30,8 @@ final readonly class FrankenPhpView
         $this->version = Values::string($data['version'] ?? null);
         $mode = Values::string($data['mode'] ?? null);
         $this->mode = match ($mode) {
-            'worker' => new Badge(BadgeStyle::Success, 'Worker'),
-            'classic' => new Badge(BadgeStyle::Neutral, 'Classic'),
+            'worker' => 'Worker',
+            'classic' => 'Classic',
             default => null,
         };
 

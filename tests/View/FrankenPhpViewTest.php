@@ -22,8 +22,7 @@ final class FrankenPhpViewTest extends TestCase
         $view = new FrankenPhpView($this->snapshot(Payloads::frankenphpWorker(), self::delta()), $this->gauges());
 
         self::assertSame('1.4.0', $view->version);
-        self::assertSame('Worker', $view->mode?->label);
-        self::assertSame(BadgeStyle::Success, $view->mode->style);
+        self::assertSame('Worker', $view->mode);
         self::assertSame(13, $view->busyThreads);
         self::assertSame(16, $view->totalThreads);
         self::assertSame(25.0, $view->busyThreadsPercent->value, 'the 12 worker threads always count as busy: 1 of the 4 regular threads is');
@@ -72,8 +71,7 @@ final class FrankenPhpViewTest extends TestCase
     {
         $view = new FrankenPhpView($this->snapshot(Payloads::frankenphpClassic()), $this->gauges());
 
-        self::assertSame('Classic', $view->mode?->label);
-        self::assertSame(BadgeStyle::Neutral, $view->mode->style);
+        self::assertSame('Classic', $view->mode);
         self::assertFalse($view->workerMode);
         self::assertSame([], $view->workers);
         self::assertSame(18.75, $view->busyThreadsPercent->value);
