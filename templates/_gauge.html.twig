@@ -2,30 +2,38 @@
 {% set detailText = detail|default(gauge.detail) %}
 {% set rows = rows|default(null) %}
 {% set bare = bare|default(false) %}
-<div class="{{ bare ? '' : 'card h-100 jm-gauge-card' }}">
-    <div class="{{ bare ? '' : 'card-body' }}{{ rows ? '' : ' text-center' }}">
-        <div class="{{ rows ? 'row align-items-center g-3' }}">
-            <div class="{{ rows ? 'col-md-6 text-center' }}">
-                {% if gauge.available %}
-                    <svg class="jm-gauge jm-gauge-{{ gauge.badge ? gauge.badge.style.value : 'none' }}" viewBox="0 0 120 90" role="img" aria-label="{{ gauge.label }}: {{ gauge.value|jm_number(1) }}%">
-                        <circle class="jm-gauge-track" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="192 1000"/>
-                        <circle class="jm-gauge-value" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="{{ (192 * gauge.fraction)|round(2) }} 1000"/>
-                        <text class="jm-gauge-text" x="60" y="68" text-anchor="middle">{{ gauge.value|jm_number(gauge.value < 10 ? 1 : 0) }}%</text>
-                    </svg>
-                {% else %}
-                    <div class="jm-gauge-empty text-muted" title="Not available">n/a</div>
-                {% endif %}
+{% set help = help ?? true %}
+{% set content %}
+    <div class="{{ rows ? 'row align-items-center g-3' : 'text-center' }}">
+        <div class="{{ rows ? 'col-md-6 text-center' }}">
+            {% if gauge.available %}
+                <svg class="jm-gauge jm-gauge-{{ gauge.badge ? gauge.badge.style.value : 'none' }}" viewBox="0 0 120 90" role="img" aria-label="{{ gauge.label }}: {{ gauge.value|jm_number(1) }}%">
+                    <circle class="jm-gauge-track" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="192 1000"/>
+                    <circle class="jm-gauge-value" cx="60" cy="60" r="50" transform="rotate(160 60 60)" stroke-dasharray="{{ (192 * gauge.fraction)|round(2) }} 1000"/>
+                    <text class="jm-gauge-text" x="60" y="68" text-anchor="middle">{{ gauge.value|jm_number(gauge.value < 10 ? 1 : 0) }}%</text>
+                </svg>
+            {% else %}
+                <div class="jm-gauge-empty text-muted" title="Not available">n/a</div>
+            {% endif %}
+            {% if bare %}
                 <div class="jm-gauge-label">
                     {{ gauge.label }}
-                    {% if help ?? true %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: gauge.metric, label: gauge.label}) }}{% endif %}
+                    {% if help %}{{ include('@JmonitorEasyAdmin/_help.html.twig', {metric: gauge.metric, label: gauge.label}) }}{% endif %}
                 </div>
-                {% if detailText %}<div class="small text-muted">{{ detailText }}</div>{% endif %}
-                {% if gauge.hint %}<div class="small text-muted">{{ gauge.hint }}</div>{% endif %}
-                {% if gauge.badge %}<div class="mt-1">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: gauge.badge}) }}</div>{% endif %}
-            </div>
-            {% if rows %}
-                <div class="col-md-6">{{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: rows}) }}</div>
             {% endif %}
+            {% if detailText %}<div class="small text-muted">{{ detailText }}</div>{% endif %}
+            {% if gauge.hint %}<div class="small text-muted">{{ gauge.hint }}</div>{% endif %}
+            {% if gauge.badge %}<div class="mt-1">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: gauge.badge}) }}</div>{% endif %}
         </div>
+        {% if rows %}
+            <div class="col-md-6">{{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: rows}) }}</div>
+        {% endif %}
     </div>
-</div>
+{% endset %}
+{% if bare %}
+    {{ content }}
+{% else %}
+    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: gauge.label, metric: help ? gauge.metric : null, cardClass: 'jm-gauge-card', content: content} only %}
+        {% block body %}{{ content }}{% endblock %}
+    {% endembed %}
+{% endif %}
