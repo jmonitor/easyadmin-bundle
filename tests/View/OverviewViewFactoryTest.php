@@ -22,6 +22,7 @@ use Jmonitor\EasyAdminBundle\View\OverviewComponent;
 use Jmonitor\EasyAdminBundle\View\OverviewInstance;
 use Jmonitor\EasyAdminBundle\View\OverviewView;
 use Jmonitor\EasyAdminBundle\View\OverviewViewFactory;
+use Jmonitor\EasyAdminBundle\WebNode;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\Request;
@@ -228,7 +229,7 @@ final class OverviewViewFactoryTest extends TestCase
             'cache.app',
             'ROLE_ADMIN',
             static fn(string $package): string => '1.3.0',
-            $node,
+            new WebNode($node),
         );
 
         return $factory->create();

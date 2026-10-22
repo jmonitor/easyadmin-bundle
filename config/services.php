@@ -31,6 +31,7 @@ use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use Jmonitor\EasyAdminBundle\View\OverviewViewFactory;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
 
@@ -44,6 +45,8 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->autowire(false)
         ->autoconfigure(false)
     ;
+
+    $services->set(WebNode::class);
 
     $services->set(SystemDetector::class)
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::System->value])
@@ -59,6 +62,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service($config['cache_pool']),
             $config['static_ttl'],
             service(MinimumLevelLogger::class),
+            '$node' => service(WebNode::class),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::FrankenPhp->value])
     ;
@@ -208,6 +212,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service('clock'),
             $config['polling_interval'],
             $config['static_ttl'],
+            service(WebNode::class),
         ])
     ;
     $services->set(EndOfLife::class)
@@ -249,6 +254,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['static_ttl'],
             $config['cache_pool'],
             $config['permission'],
+            '$node' => service(WebNode::class),
         ])
     ;
     $services->set(MonitoringExtension::class)

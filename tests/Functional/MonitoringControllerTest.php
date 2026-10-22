@@ -72,17 +72,13 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorTextSame('[data-live-node-source]', (string) gethostname());
     }
 
-    public function testASharedTabDoesNotNameTheWebServer(): void
+    public function testTheSymfonyTabNamesTheWebServerWhosePhpItRecommendsFor(): void
     {
         $client = $this->adminClient();
 
         $client->request('GET', '/admin/jmonitor/symfony');
 
-        self::assertSelectorExists('.jm-status [data-live-node][hidden]');
-
-        $client->request('GET', '/admin/jmonitor/symfony/fragment');
-
-        self::assertSelectorNotExists('[data-live-node-source]');
+        self::assertSelectorTextSame('.jm-status [data-live-node]:not([hidden]) [data-live-node-name]', (string) gethostname());
     }
 
     public function testTheOverviewTellsWhichWebServerAnswered(): void

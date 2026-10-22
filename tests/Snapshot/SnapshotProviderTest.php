@@ -18,6 +18,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cache\RecordingCachePool;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Jmonitor\Collector\CollectorInterface;
 use Jmonitor\Exceptions\BootFailedException;
 use Psr\Cache\CacheItemInterface;
@@ -373,12 +374,12 @@ final class SnapshotProviderTest extends TestCase
 
     public function testTheImplicitInstanceKeepsTheUnprefixedKeys(): void
     {
-        $symfony = Instance::found(Component::Symfony, new CollectorSet(Component::Symfony, [new CollectorSpec(new FakeCollector('symfony', ['version' => '7.4']), Lifetime::Dynamic, trackDelta: true)]));
+        $redis = Instance::found(Component::Redis, new CollectorSet(Component::Redis, [new CollectorSpec(new FakeCollector('redis', ['version' => '7.4']), Lifetime::Dynamic, trackDelta: true)]));
 
-        $this->bareProvider()->get($symfony);
+        $this->bareProvider()->get($redis);
 
-        self::assertArrayHasKey('jmonitor_easyadmin.collect.symfony', $this->cache->ttls);
-        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.symfony'));
+        self::assertArrayHasKey('jmonitor_easyadmin.collect.redis', $this->cache->ttls);
+        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.redis'));
     }
 
     public function testEachWebServerKeepsItsOwnValuesAndDeltasOfANodeLocalComponent(): void
@@ -426,7 +427,7 @@ final class SnapshotProviderTest extends TestCase
         self::assertFalse($snapshot->inProgress());
     }
 
-    public function testRefreshForgetsTheValuesOfTheWebServerAnsweringOnly(): void
+    public function testARefreshOnOneWebServerOutdatesTheValuesOfTheOthers(): void
     {
         $php = new FakeCollector('php', ['version' => '8.4']);
         $instance = Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Static)]));
@@ -435,12 +436,26 @@ final class SnapshotProviderTest extends TestCase
         $web1->get($instance);
         $web2->get($instance);
         $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.%node.web-1.php')->set('token of a dead request'));
+        $this->clock->sleep(5);
 
         $web1->refresh($instance);
+        $php->setData(['version' => '8.5']);
+        $fromWeb2 = $web2->get($instance);
+        $web2->get($instance);
 
         self::assertFalse($this->cache->hasItem(SnapshotProvider::cacheKey('php', '%node.web-1.')));
         self::assertFalse($this->cache->hasItem('jmonitor_easyadmin.collecting.%node.web-1.php'));
-        self::assertTrue($this->cache->hasItem(SnapshotProvider::cacheKey('php', '%node.web-2.')));
+        self::assertSame(['version' => '8.5'], $fromWeb2->data('php'), 'collected again, the entry of web-2 predates the Refresh');
+        self::assertSame(3, $php->collects, 'and kept once collected after it');
+    }
+
+    public function testARefreshOfASharedComponentLeavesNoMarkForTheOtherWebServers(): void
+    {
+        [$provider, $instance] = $this->provider(Component::Mysql, [new CollectorSpec(new FakeCollector('mysql.status', ['Questions' => 1]), Lifetime::Dynamic)]);
+
+        $provider->refresh($instance);
+
+        self::assertFalse($this->cache->hasItem('jmonitor_easyadmin.refreshed.mysql'), 'its entries are deleted for every server');
     }
 
     public function testAnUnavailableNodeLocalComponentTellsWhichServerAnswered(): void
@@ -663,6 +678,6 @@ final class SnapshotProviderTest extends TestCase
 
     private function bareProvider(string $node = 'web-1'): SnapshotProvider
     {
-        return new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($this->cache, 5), $this->cache, $this->clock, 10, 3600, $node);
+        return new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($this->cache, 5), $this->cache, $this->clock, 10, 3600, new WebNode($node));
     }
 }

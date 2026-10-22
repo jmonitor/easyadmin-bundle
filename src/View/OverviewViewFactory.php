@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Detection\ComponentStatus;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
 use Jmonitor\EasyAdminBundle\Release\Releases;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Kernel;
 
@@ -26,11 +27,8 @@ final readonly class OverviewViewFactory
     /** @var \Closure(string): ?string */
     private \Closure $installedVersion;
 
-    private ?string $node;
-
     /**
      * @param ?\Closure(string): ?string $installedVersion the installed version of a package, from Composer by default
-     * @param ?string                    $node             the name of the web server answering, its host name by default
      */
     public function __construct(
         private ComponentRegistry $registry,
@@ -42,10 +40,9 @@ final readonly class OverviewViewFactory
         private string $cachePool,
         private ?string $permission,
         ?\Closure $installedVersion = null,
-        ?string $node = null,
+        private WebNode $node = new WebNode(),
     ) {
         $this->installedVersion = $installedVersion ?? static fn(string $package): ?string => InstalledVersions::isInstalled($package) ? InstalledVersions::getPrettyVersion($package) : null;
-        $this->node = ($node ?? (function_exists('gethostname') ? (string) gethostname() : '')) ?: null;
     }
 
     public function create(): OverviewView
@@ -54,7 +51,7 @@ final readonly class OverviewViewFactory
         usort($components, static fn(OverviewComponent $a, OverviewComponent $b): int => $b->isAvailable() <=> $a->isAvailable());
         $versions = array_map(fn(string $package): PackageVersion => PackageVersion::of($package, ($this->installedVersion)($package), $this->releases->latest($package)), self::PACKAGES);
 
-        return new OverviewView($components, $versions, $this->pollingInterval, $this->staticTtl, $this->cachePool, $this->permission, $this->skipped->skipped(), $this->node);
+        return new OverviewView($components, $versions, $this->pollingInterval, $this->staticTtl, $this->cachePool, $this->permission, $this->skipped->skipped(), $this->node->name);
     }
 
     private function component(ComponentStatus $status): OverviewComponent

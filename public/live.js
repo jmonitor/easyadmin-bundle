@@ -18,6 +18,7 @@
     var indexUrl = root.getAttribute('data-live-index-url');
     var status = root.querySelector('[data-live-status]');
     var failedLabel = root.querySelector('[data-live-failed]');
+    var node = root.querySelector('[data-live-node]');
     var nodeName = root.querySelector('[data-live-node-name]');
     var enabled = readPreference();
     var timer = null;
@@ -106,9 +107,12 @@
     function renderNode() {
         var source = content.querySelector('[data-live-node-source]');
 
-        if (nodeName && source) {
-            nodeName.textContent = source.textContent;
+        if (!node || !nodeName) {
+            return;
         }
+
+        node.hidden = !source;
+        nodeName.textContent = source ? source.textContent : '';
     }
 
     function hasSelectionInside(element) {

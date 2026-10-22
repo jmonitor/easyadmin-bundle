@@ -27,7 +27,7 @@ final class ComponentTest extends TestCase
     {
         $local = array_values(array_filter(Component::cases(), static fn(Component $component): bool => $component->isNodeLocal()));
 
-        self::assertSame([Component::System, Component::Php, Component::FrankenPhp, Component::Apache, Component::Nginx], $local);
+        self::assertSame([Component::System, Component::Php, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony], $local);
     }
 
     public function testFrankenPhpComesRightAfterPhp(): void

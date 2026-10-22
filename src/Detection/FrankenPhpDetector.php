@@ -11,6 +11,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\FrankenPhpEndpointCollector;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Jmonitor\Prometheus\PrometheusMetricsProvider;
 use Jmonitor\Utils\ShellExecutor;
 use Jmonitor\Utils\UrlFetcher;
@@ -31,6 +32,7 @@ final readonly class FrankenPhpDetector implements ComponentDetectorInterface
         private string $sapi = PHP_SAPI,
         private ?UrlFetcher $urlFetcher = null,
         private ?ShellExecutor $shellExecutor = null,
+        private WebNode $node = new WebNode(),
     ) {}
 
     public function component(): Component
@@ -44,7 +46,7 @@ final readonly class FrankenPhpDetector implements ComponentDetectorInterface
             return Detection::unavailable('FrankenPHP is not serving this page.');
         }
 
-        $shell = new CachedShellExecutor($this->cache, $this->staticTtl, Component::FrankenPhp->value, $this->logger, $this->shellExecutor);
+        $shell = new CachedShellExecutor($this->cache, $this->staticTtl, $this->node->keyPrefix() . Component::FrankenPhp->value, $this->logger, $this->shellExecutor);
         $collector = new FrankenPhpCollector(new PrometheusMetricsProvider($this->endpoint, $this->urlFetcher), $shell);
 
         return Detection::found(new CollectorSet(Component::FrankenPhp, [

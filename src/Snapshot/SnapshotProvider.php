@@ -10,6 +10,7 @@ use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Collector\RefreshableCollectorInterface;
 use Jmonitor\EasyAdminBundle\Collector\UnreachableServerException;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
@@ -20,7 +21,8 @@ use Psr\Clock\ClockInterface;
  * unreachable server for at least a minute since each attempt may wait for a timeout.
  * One request at a time collects an instance: the others do not pile up on the same timeout.
  * The connections of one server share the results and deltas of its server-wide collectors.
- * Each web server keeps its own entries of a node-local component.
+ * Each web server keeps its own entries of a node-local component, and a Refresh on one of them
+ * outdates the entries of the others.
  */
 final readonly class SnapshotProvider
 {
@@ -32,12 +34,6 @@ final readonly class SnapshotProvider
      */
     private const LOCK_TTL = 300;
 
-    /** empty when the web server has no name */
-    private string $node;
-
-    /**
-     * @param ?string $node the name of the web server answering, its host name by default
-     */
     public function __construct(
         private CollectorRunner $runner,
         private DeltaCalculator $deltas,
@@ -45,14 +41,12 @@ final readonly class SnapshotProvider
         private ClockInterface $clock,
         private int $pollingInterval,
         private int $staticTtl,
-        ?string $node = null,
-    ) {
-        $this->node = $node ?? (function_exists('gethostname') ? (string) gethostname() : '');
-    }
+        private WebNode $node = new WebNode(),
+    ) {}
 
     public function get(Instance $instance): ComponentSnapshot
     {
-        $node = $this->node($instance) === '' ? null : $this->node;
+        $node = $instance->component->isNodeLocal() ? $this->node->name : null;
 
         if (!$instance->isFound()) {
             return new ComponentSnapshot($instance->component, [], $instance->error, $node);
@@ -74,6 +68,7 @@ final readonly class SnapshotProvider
         }
 
         $prefix = $this->keyPrefix($instance);
+        $refreshedAt = $this->refreshedAt($instance);
         /** @var array<string, string|false> $tokens lock key => our token, false when another request holds it */
         $tokens = [];
         $results = [];
@@ -81,7 +76,7 @@ final readonly class SnapshotProvider
         try {
             foreach ($specs as $spec) {
                 $serverPrefix = self::serverPrefix($instance, $spec);
-                [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
+                [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix, $refreshedAt);
                 $lockKey = $this->lockKey($instance, $serverPrefix);
 
                 if ($cached === null && !array_key_exists($lockKey, $tokens)) {
@@ -89,7 +84,7 @@ final readonly class SnapshotProvider
 
                     if (is_string($tokens[$lockKey])) {
                         // another request may have collected between the first read and the lock
-                        [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
+                        [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix, $refreshedAt);
                     }
                 }
 
@@ -143,6 +138,12 @@ final readonly class SnapshotProvider
         if ($instance->serverKeyPrefix() !== null) {
             $this->cache->deleteItem($this->lockKey($instance, $instance->serverKeyPrefix()));
         }
+
+        // the entries of the other web servers cannot be listed
+        if ($instance->component->isNodeLocal()) {
+            $item = $this->cache->getItem($this->refreshKey($instance));
+            $this->cache->save($item->set($this->clock->now()->getTimestamp())->expiresAfter(max($this->staticTtl, $this->unreachableTtl())));
+        }
     }
 
     public static function cacheKey(string $name, string $prefix = ''): string
@@ -155,19 +156,25 @@ final readonly class SnapshotProvider
         return self::cacheKey('%build', $this->keyPrefix($instance));
     }
 
-    private function node(Instance $instance): string
-    {
-        return $instance->component->isNodeLocal() ? $this->node : '';
-    }
-
-    /**
-     * The unencoded "%node" segment cannot appear in Instance::keyPrefix(), which encodes any "%".
-     */
     private function nodePrefix(Instance $instance): string
     {
-        $node = $this->node($instance);
+        return $instance->component->isNodeLocal() ? $this->node->keyPrefix() : '';
+    }
 
-        return $node === '' ? '' : '%node.' . rawurlencode($node) . '.';
+    private function refreshKey(Instance $instance): string
+    {
+        return 'jmonitor_easyadmin.refreshed.' . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
+    }
+
+    private function refreshedAt(Instance $instance): ?int
+    {
+        if (!$instance->component->isNodeLocal()) {
+            return null;
+        }
+
+        $refreshedAt = $this->cache->getItem($this->refreshKey($instance))->get();
+
+        return is_int($refreshedAt) ? $refreshedAt : null;
     }
 
     private function keyPrefix(Instance $instance): string
@@ -204,12 +211,12 @@ final readonly class SnapshotProvider
      *
      * @return array{?CollectorResult, ?CacheItemInterface, CacheItemInterface} the cached result, the server item, the connection item
      */
-    private function lookup(CollectorSpec $spec, string $prefix, ?string $serverPrefix): array
+    private function lookup(CollectorSpec $spec, string $prefix, ?string $serverPrefix, ?int $refreshedAt): array
     {
         $serverItem = $serverPrefix === null ? null : $this->cache->getItem(self::cacheKey($spec->name, $serverPrefix));
         $item = $this->cache->getItem(self::cacheKey($spec->name, $prefix));
 
-        return [self::cached($spec, $serverItem) ?? self::cached($spec, $item), $serverItem, $item];
+        return [self::cached($spec, $serverItem, $refreshedAt) ?? self::cached($spec, $item, $refreshedAt), $serverItem, $item];
     }
 
     private static function serverPrefix(Instance $instance, CollectorSpec $spec): ?string
@@ -217,11 +224,12 @@ final readonly class SnapshotProvider
         return $spec->perServer ? $instance->serverKeyPrefix() : null;
     }
 
-    private static function cached(CollectorSpec $spec, ?CacheItemInterface $item): ?CollectorResult
+    private static function cached(CollectorSpec $spec, ?CacheItemInterface $item, ?int $refreshedAt): ?CollectorResult
     {
         $values = $item?->get();
+        $result = CollectorResult::isValidArray($values) ? CollectorResult::fromArray($spec->name, $values) : null;
 
-        return CollectorResult::isValidArray($values) ? CollectorResult::fromArray($spec->name, $values) : null;
+        return $result !== null && $result->collectedAt >= ($refreshedAt ?? PHP_INT_MIN) ? $result : null;
     }
 
     private static function isUnreachable(\Throwable $e): bool

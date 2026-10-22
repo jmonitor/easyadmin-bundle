@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The System, PHP, FrankenPHP, Apache and Nginx tabs name the web server that answered.
+- The System, PHP, FrankenPHP, Apache, Nginx and Symfony tabs name the web server that answered.
 
 ### Changed
 
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Behind a load balancer, each web server keeps its own System, PHP, FrankenPHP, Apache and Nginx values and rates.
+- Behind a load balancer, each web server keeps its own System, PHP, FrankenPHP, Apache, Nginx and Symfony values and rates.
 
 ## [1.5.0] - 2026-10-22
 
