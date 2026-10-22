@@ -44,7 +44,7 @@ final class FrankenPhpDetectorTest extends TestCase
         $detection = (new FrankenPhpDetector('http://localhost:2019/metrics', new ArrayAdapter(), 3600, new NullLogger(), 'fpm-fcgi'))->detect();
 
         self::assertFalse($detection->isFound());
-        self::assertSame('FrankenPHP is not serving this page (PHP SAPI "fpm-fcgi").', $detection->error);
+        self::assertSame('FrankenPHP is not serving this page.', $detection->error);
     }
 
     public function testTheCollectorReadsTheConfiguredEndpoint(): void

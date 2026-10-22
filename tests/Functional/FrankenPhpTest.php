@@ -76,7 +76,7 @@ final class FrankenPhpTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/frankenphp');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.alert-warning', 'FrankenPHP is not serving this page (PHP SAPI "cli").');
+        self::assertSelectorTextContains('.alert-warning', 'FrankenPHP is not serving this page.');
 
         $client->request('GET', '/admin/jmonitor/frankenphp/fragment');
         self::assertResponseIsSuccessful();
