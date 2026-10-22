@@ -10,6 +10,7 @@ final readonly class OverviewView
      * @param list<OverviewComponent> $components         every component, the available ones first, each group in the order of the tabs
      * @param list<PackageVersion>    $versions
      * @param array<string, string>   $skippedConnections Doctrine connection name => error
+     * @param ?string                 $node               the web server that answered
      */
     public function __construct(
         public array $components,
@@ -19,5 +20,6 @@ final readonly class OverviewView
         public string $cachePool,
         public ?string $permission,
         public array $skippedConnections,
+        public ?string $node = null,
     ) {}
 }

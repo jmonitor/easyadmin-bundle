@@ -55,8 +55,11 @@ final class MonitoringController
     {
         $this->denyAccessUnlessGranted();
 
+        $overview = $this->overview->create();
+
         return new Response($this->twig->render('@JmonitorEasyAdmin/overview.html.twig', $this->context(null) + [
-            'overview' => $this->overview->create(),
+            'overview' => $overview,
+            'node' => $overview->node,
         ]));
     }
 
@@ -126,6 +129,7 @@ final class MonitoringController
 
         return new Response($this->twig->render(sprintf('@JmonitorEasyAdmin/component/%s.html.twig', $component->value), $this->context($component, $instance, tabs: !$fragment) + [
             'snapshot' => $snapshot,
+            'node' => $snapshot->node,
             'view' => $this->views->create($component, $snapshot),
             'fragment' => $fragment,
         ]));

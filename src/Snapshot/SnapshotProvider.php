@@ -20,6 +20,7 @@ use Psr\Clock\ClockInterface;
  * unreachable server for at least a minute since each attempt may wait for a timeout.
  * One request at a time collects an instance: the others do not pile up on the same timeout.
  * The connections of one server share the results and deltas of its server-wide collectors.
+ * Each web server keeps its own entries of a node-local component.
  */
 final readonly class SnapshotProvider
 {
@@ -31,6 +32,12 @@ final readonly class SnapshotProvider
      */
     private const LOCK_TTL = 300;
 
+    /** empty when the web server has no name */
+    private string $node;
+
+    /**
+     * @param ?string $node the name of the web server answering, its host name by default
+     */
     public function __construct(
         private CollectorRunner $runner,
         private DeltaCalculator $deltas,
@@ -38,18 +45,23 @@ final readonly class SnapshotProvider
         private ClockInterface $clock,
         private int $pollingInterval,
         private int $staticTtl,
-    ) {}
+        ?string $node = null,
+    ) {
+        $this->node = $node ?? (function_exists('gethostname') ? (string) gethostname() : '');
+    }
 
     public function get(Instance $instance): ComponentSnapshot
     {
+        $node = $this->node($instance) === '' ? null : $this->node;
+
         if (!$instance->isFound()) {
-            return new ComponentSnapshot($instance->component, [], $instance->error);
+            return new ComponentSnapshot($instance->component, [], $instance->error, $node);
         }
 
-        $buildItem = $this->cache->getItem(self::buildKey($instance));
+        $buildItem = $this->cache->getItem($this->buildKey($instance));
 
         if (is_string($buildItem->get())) {
-            return new ComponentSnapshot($instance->component, [], $buildItem->get());
+            return new ComponentSnapshot($instance->component, [], $buildItem->get(), $node);
         }
 
         try {
@@ -58,10 +70,10 @@ final readonly class SnapshotProvider
             // building a connection may open it: a dead server would cost its timeout on each poll
             $this->cache->save($buildItem->set(self::describe($e))->expiresAfter($this->unreachableTtl()));
 
-            return new ComponentSnapshot($instance->component, [], self::describe($e));
+            return new ComponentSnapshot($instance->component, [], self::describe($e), $node);
         }
 
-        $prefix = $instance->keyPrefix();
+        $prefix = $this->keyPrefix($instance);
         /** @var array<string, string|false> $tokens lock key => our token, false when another request holds it */
         $tokens = [];
         $results = [];
@@ -70,7 +82,7 @@ final readonly class SnapshotProvider
             foreach ($specs as $spec) {
                 $serverPrefix = self::serverPrefix($instance, $spec);
                 [$cached, $serverItem, $item] = $this->lookup($spec, $prefix, $serverPrefix);
-                $lockKey = self::lockKey($instance, $serverPrefix);
+                $lockKey = $this->lockKey($instance, $serverPrefix);
 
                 if ($cached === null && !array_key_exists($lockKey, $tokens)) {
                     $tokens[$lockKey] = $this->lock($lockKey);
@@ -97,7 +109,7 @@ final readonly class SnapshotProvider
             }
         }
 
-        return new ComponentSnapshot($instance->component, $results);
+        return new ComponentSnapshot($instance->component, $results, null, $node);
     }
 
     /**
@@ -107,13 +119,13 @@ final readonly class SnapshotProvider
     {
         try {
             // a connection that could not be built has collected nothing, and building it may wait again
-            $specs = is_string($this->cache->getItem(self::buildKey($instance))->get()) ? [] : $instance->collectors?->specs() ?? [];
+            $specs = is_string($this->cache->getItem($this->buildKey($instance))->get()) ? [] : $instance->collectors?->specs() ?? [];
         } catch (\Throwable) {
             $specs = [];
         }
 
         foreach ($specs as $spec) {
-            $this->cache->deleteItem(self::cacheKey($spec->name, $instance->keyPrefix()));
+            $this->cache->deleteItem(self::cacheKey($spec->name, $this->keyPrefix($instance)));
             $serverPrefix = self::serverPrefix($instance, $spec);
 
             if ($serverPrefix !== null) {
@@ -125,11 +137,11 @@ final readonly class SnapshotProvider
             }
         }
 
-        $this->cache->deleteItem(self::buildKey($instance));
-        $this->cache->deleteItem(self::lockKey($instance, null));
+        $this->cache->deleteItem($this->buildKey($instance));
+        $this->cache->deleteItem($this->lockKey($instance, null));
 
         if ($instance->serverKeyPrefix() !== null) {
-            $this->cache->deleteItem(self::lockKey($instance, $instance->serverKeyPrefix()));
+            $this->cache->deleteItem($this->lockKey($instance, $instance->serverKeyPrefix()));
         }
     }
 
@@ -138,9 +150,29 @@ final readonly class SnapshotProvider
         return 'jmonitor_easyadmin.collect.' . $prefix . $name;
     }
 
-    private static function buildKey(Instance $instance): string
+    private function buildKey(Instance $instance): string
     {
-        return self::cacheKey('%build', $instance->keyPrefix());
+        return self::cacheKey('%build', $this->keyPrefix($instance));
+    }
+
+    private function node(Instance $instance): string
+    {
+        return $instance->component->isNodeLocal() ? $this->node : '';
+    }
+
+    /**
+     * The unencoded "%node" segment cannot appear in Instance::keyPrefix(), which encodes any "%".
+     */
+    private function nodePrefix(Instance $instance): string
+    {
+        $node = $this->node($instance);
+
+        return $node === '' ? '' : '%node.' . rawurlencode($node) . '.';
+    }
+
+    private function keyPrefix(Instance $instance): string
+    {
+        return $this->nodePrefix($instance) . $instance->keyPrefix();
     }
 
     private static function describe(\Throwable $e): string
@@ -158,13 +190,13 @@ final readonly class SnapshotProvider
      * The server collectors of the connections of one server share its lock: they would all wait on
      * the same timeout. The collectors of a database keep the lock of their connection.
      */
-    private static function lockKey(Instance $instance, ?string $serverPrefix): string
+    private function lockKey(Instance $instance, ?string $serverPrefix): string
     {
         if ($serverPrefix !== null) {
             return 'jmonitor_easyadmin.collecting.' . rtrim($serverPrefix, '.');
         }
 
-        return 'jmonitor_easyadmin.collecting.' . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
+        return 'jmonitor_easyadmin.collecting.' . $this->nodePrefix($instance) . ($instance->id === null ? $instance->component->value : rtrim($instance->keyPrefix(), '.'));
     }
 
     /**

@@ -245,7 +245,7 @@ final class SnapshotProviderTest extends TestCase
 
     public function testTheImplicitInstancesOfTwoComponentsHaveTheirOwnLock(): void
     {
-        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.system')->set(true));
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.%node.web-1.system')->set(true));
         $php = new FakeCollector('php', ['version' => '8.4']);
 
         $snapshot = $this->bareProvider()->get(Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Dynamic)])));
@@ -373,12 +373,91 @@ final class SnapshotProviderTest extends TestCase
 
     public function testTheImplicitInstanceKeepsTheUnprefixedKeys(): void
     {
-        $php = Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php', ['version' => '8.4']), Lifetime::Dynamic, trackDelta: true)]));
+        $symfony = Instance::found(Component::Symfony, new CollectorSet(Component::Symfony, [new CollectorSpec(new FakeCollector('symfony', ['version' => '7.4']), Lifetime::Dynamic, trackDelta: true)]));
 
-        $this->bareProvider()->get($php);
+        $this->bareProvider()->get($symfony);
+
+        self::assertArrayHasKey('jmonitor_easyadmin.collect.symfony', $this->cache->ttls);
+        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.symfony'));
+    }
+
+    public function testEachWebServerKeepsItsOwnValuesAndDeltasOfANodeLocalComponent(): void
+    {
+        $php = new FakeCollector('php', ['requests' => 100]);
+        $instance = Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Dynamic, trackDelta: true)]));
+        $web1 = $this->bareProvider('web-1');
+        $web2 = $this->bareProvider('web-2');
+
+        $web1->get($instance);
+        $php->setData(['requests' => 5000]);
+        $fromWeb2 = $web2->get($instance);
+        $this->clock->sleep(11);
+        $php->setData(['requests' => 160]);
+        $this->cache->deleteItem(SnapshotProvider::cacheKey('php', '%node.web-1.'));
+        $fromWeb1 = $web1->get($instance);
+
+        self::assertSame(3, $php->collects, 'each server collects its own values');
+        self::assertSame(['requests' => 5000], $fromWeb2->data('php'));
+        self::assertSame('web-2', $fromWeb2->node);
+        self::assertSame(60, $fromWeb1->delta('php')?->getValue('requests'), 'compared with the previous sample of the same server');
+        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.%node.web-2.php'));
+    }
+
+    public function testASharedComponentIsCollectedOnceForEveryWebServer(): void
+    {
+        $status = new FakeCollector('mysql.status', ['Questions' => 100]);
+        $instance = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, [new CollectorSpec($status, Lifetime::Dynamic)]), 'default');
+
+        $this->bareProvider('web-1')->get($instance);
+        $snapshot = $this->bareProvider('web-2')->get($instance);
+
+        self::assertSame(1, $status->collects);
+        self::assertNull($snapshot->node, 'the server answering does not matter');
+    }
+
+    public function testAWebServerCollectingANodeLocalComponentLeavesTheOthersFree(): void
+    {
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.%node.web-1.php')->set('token of web-1'));
+        $php = new FakeCollector('php', ['version' => '8.4']);
+
+        $snapshot = $this->bareProvider('web-2')->get(Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Dynamic)])));
+
+        self::assertSame(1, $php->collects);
+        self::assertFalse($snapshot->inProgress());
+    }
+
+    public function testRefreshForgetsTheValuesOfTheWebServerAnsweringOnly(): void
+    {
+        $php = new FakeCollector('php', ['version' => '8.4']);
+        $instance = Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec($php, Lifetime::Static)]));
+        $web1 = $this->bareProvider('web-1');
+        $web2 = $this->bareProvider('web-2');
+        $web1->get($instance);
+        $web2->get($instance);
+        $this->cache->save($this->cache->getItem('jmonitor_easyadmin.collecting.%node.web-1.php')->set('token of a dead request'));
+
+        $web1->refresh($instance);
+
+        self::assertFalse($this->cache->hasItem(SnapshotProvider::cacheKey('php', '%node.web-1.')));
+        self::assertFalse($this->cache->hasItem('jmonitor_easyadmin.collecting.%node.web-1.php'));
+        self::assertTrue($this->cache->hasItem(SnapshotProvider::cacheKey('php', '%node.web-2.')));
+    }
+
+    public function testAnUnavailableNodeLocalComponentTellsWhichServerAnswered(): void
+    {
+        $snapshot = $this->bareProvider('web-1')->get(Instance::unavailable(Component::System, 'System metrics are only collected on Linux.'));
+
+        self::assertSame('web-1', $snapshot->node);
+    }
+
+    public function testAServerWithoutNameKeepsTheUnprefixedKeys(): void
+    {
+        $php = Instance::found(Component::Php, new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php', ['version' => '8.4']), Lifetime::Dynamic)]));
+
+        $snapshot = $this->bareProvider('')->get($php);
 
         self::assertArrayHasKey('jmonitor_easyadmin.collect.php', $this->cache->ttls);
-        self::assertTrue($this->cache->hasItem('jmonitor_easyadmin.previous.php'));
+        self::assertNull($snapshot->node);
     }
 
     public function testTwoConnectionsOfAServerShareItsCollectorsAndDeltas(): void
@@ -582,8 +661,8 @@ final class SnapshotProviderTest extends TestCase
         return [$this->bareProvider(), Instance::found($component, new CollectorSet($component, $specs))];
     }
 
-    private function bareProvider(): SnapshotProvider
+    private function bareProvider(string $node = 'web-1'): SnapshotProvider
     {
-        return new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($this->cache, 5), $this->cache, $this->clock, 10, 3600);
+        return new SnapshotProvider(new CollectorRunner(), new DeltaCalculator($this->cache, 5), $this->cache, $this->clock, 10, 3600, $node);
     }
 }

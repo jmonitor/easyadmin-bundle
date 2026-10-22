@@ -11,11 +11,13 @@ final readonly class ComponentSnapshot
     /**
      * @param array<string, CollectorResult> $results keyed by collector name
      * @param ?string                        $error   why the whole component is unavailable, if it is
+     * @param ?string                        $node    the web server that answered, for a node-local component
      */
     public function __construct(
         public Component $component,
         public array $results,
         public ?string $error = null,
+        public ?string $node = null,
     ) {}
 
     public function result(string $name): ?CollectorResult

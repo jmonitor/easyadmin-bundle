@@ -197,11 +197,17 @@ final class OverviewViewFactoryTest extends TestCase
         self::assertSame('ROLE_ADMIN', $view->permission);
     }
 
+    public function testItTellsWhichWebServerAnswered(): void
+    {
+        self::assertSame('web-1', $this->overview([], node: 'web-1')->node);
+        self::assertNull($this->overview([], node: '')->node, 'a server without name');
+    }
+
     /**
      * @param array<string, ComponentDetectorInterface>     $detectors
      * @param array<string, array{enabled: 'auto'|bool}> $overrides
      */
-    private function overview(array $detectors, array $overrides = [], ?LatestRelease $latest = null, ?Request $request = null): OverviewView
+    private function overview(array $detectors, array $overrides = [], ?LatestRelease $latest = null, ?Request $request = null, string $node = 'web-1'): OverviewView
     {
         $config = [];
 
@@ -222,6 +228,7 @@ final class OverviewViewFactoryTest extends TestCase
             'cache.app',
             'ROLE_ADMIN',
             static fn(string $package): string => '1.3.0',
+            $node,
         );
 
         return $factory->create();

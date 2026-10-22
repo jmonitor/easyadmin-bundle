@@ -689,6 +689,7 @@ final class ComponentTemplatesTest extends TestCase
             'polling_interval' => $pollingInterval,
             'routes' => ['index' => 'admin_jmonitor_index', 'component' => 'admin_jmonitor_component', 'fragment' => 'admin_jmonitor_fragment', 'refresh' => 'admin_jmonitor_refresh'],
             'snapshot' => $snapshot,
+            'node' => $snapshot->node,
             'view' => $view,
             'navigation' => $navigation,
             'instance' => $instance,

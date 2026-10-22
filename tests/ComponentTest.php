@@ -23,6 +23,13 @@ final class ComponentTest extends TestCase
         self::assertSame('Redis', Component::Redis->label());
     }
 
+    public function testTheComponentsReadOnTheWebServerAreNodeLocal(): void
+    {
+        $local = array_values(array_filter(Component::cases(), static fn(Component $component): bool => $component->isNodeLocal()));
+
+        self::assertSame([Component::System, Component::Php, Component::FrankenPhp, Component::Apache, Component::Nginx], $local);
+    }
+
     public function testFrankenPhpComesRightAfterPhp(): void
     {
         $cases = Component::cases();

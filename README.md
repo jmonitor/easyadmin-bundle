@@ -174,7 +174,7 @@ The Overview tab tells whether the bundle and `jmonitor/collector` are up to dat
 
 A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL tabs and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds, and listed on the Overview tab; a connection listed in `connections` is shown in its tab with the error instead.
 
-Several web servers behind a load balancer are not well handled yet: the System and PHP values depend on the server that answered, and may change from one refresh to the next.
+Behind a load balancer, each web server keeps its own System, PHP, FrankenPHP, Apache and Nginx values and rates in the cache pool, and these tabs name the server that answered: without sticky sessions, the live refresh may show another server at each refresh. The server is named after its host name (`gethostname()`); in containers, set a `hostname` to tell them apart. The MySQL, PostgreSQL, Redis and Symfony tabs are shared by every server.
 
 ## Security
 
