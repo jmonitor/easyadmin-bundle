@@ -15,7 +15,7 @@
                                     <span class="text-muted">{{ row.component.label }}</span>
                                 {% endif %}
                             </div>
-                            <div class="small{{ row.failing ? ' text-danger' : ' text-muted' }}">
+                            <div class="small text-end{{ row.failing ? ' text-danger' : ' text-muted' }}">
                                 {% if row.instances %}
                                     <span class="d-inline-flex flex-wrap gap-1">
                                         {% for instance in row.instances %}

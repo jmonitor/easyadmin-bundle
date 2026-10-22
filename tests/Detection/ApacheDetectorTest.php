@@ -45,14 +45,14 @@ final class ApacheDetectorTest extends TestCase
         $detection = (new ApacheDetector('http://localhost/server-status', self::requests('nginx/1.27.2'), 'fpm-fcgi'))->detect();
 
         self::assertFalse($detection->isFound());
-        self::assertSame('Apache is not serving this page (PHP SAPI "fpm-fcgi", server software "nginx/1.27.2").', $detection->error);
+        self::assertSame('Apache is not serving this page.', $detection->error);
     }
 
     public function testNoRequestIsUnavailable(): void
     {
         $detection = (new ApacheDetector('http://localhost/server-status', new RequestStack(), 'cli'))->detect();
 
-        self::assertSame('Apache is not serving this page (PHP SAPI "cli", server software "unknown").', $detection->error);
+        self::assertSame('Apache is not serving this page.', $detection->error);
     }
 
     public function testTheCollectorReadsTheConfiguredEndpoint(): void

@@ -76,7 +76,7 @@ final class NginxDetectorTest extends TestCase
         $detection = self::detector(self::requests('Apache/2.4.62 (Debian)'))->detect();
 
         self::assertFalse($detection->isFound());
-        self::assertSame('Nginx is not serving this page (server software "Apache/2.4.62 (Debian)").', $detection->error);
+        self::assertSame('Nginx is not serving this page.', $detection->error);
     }
 
     public function testAServerNamedAfterNginxIsNotNginx(): void
@@ -88,7 +88,7 @@ final class NginxDetectorTest extends TestCase
     {
         $detection = self::detector(new RequestStack())->detect();
 
-        self::assertSame('Nginx is not serving this page (server software "unknown").', $detection->error);
+        self::assertSame('Nginx is not serving this page.', $detection->error);
     }
 
     private static function detector(RequestStack $requests, ?FixtureUrlFetcher $fetcher = null, ?FixtureShellExecutor $shell = null, string $endpoint = 'http://localhost/nginx_status', ?RecordingLogger $logger = null): NginxDetector

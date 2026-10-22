@@ -88,7 +88,7 @@ final class NginxTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/nginx');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.alert-warning', 'Nginx is not serving this page (server software "unknown").');
+        self::assertSelectorTextContains('.alert-warning', 'Nginx is not serving this page.');
     }
 
     public function testAnUnreachableStatusPageShowsTheGuidance(): void
