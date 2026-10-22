@@ -6,7 +6,7 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Components', fill: false} %}
                 {% block body %}
                     {% for row in overview.components %}
-                        <div class="jm-overview-row">
+                        <div class="jm-overview-row{{ row.available ? '' : ' opacity-75' }}">
                             <div class="text-nowrap">
                                 <span class="jm-overview-dot jm-overview-dot-{{ row.style.value }}" aria-hidden="true"></span>
                                 {% if row.available %}

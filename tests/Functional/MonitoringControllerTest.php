@@ -51,6 +51,8 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorTextContains('.jm-overview', 'jmonitor/easyadmin-bundle');
         self::assertSelectorTextContains('.jm-overview', 'jmonitor/collector');
         self::assertSelectorTextContains('.jm-overview', 'Disabled in the configuration.');
+        self::assertAnySelectorTextContains('.jm-overview-row.opacity-75', 'MySQL');
+        self::assertSelectorNotExists('.jm-overview-row.opacity-75 a[href="/admin/jmonitor/php"]');
         self::assertSelectorTextContains('.jm-overview', 'Polling');
         self::assertSelectorNotExists('[data-live]');
         self::assertSelectorNotExists('form[action$="/refresh"]');
