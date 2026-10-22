@@ -103,6 +103,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['static_ttl'],
             $shownConnections,
         ])
+        ->tag('kernel.reset', ['method' => 'reset'])
     ;
 
     $services->set(DoctrineConnections::class)
