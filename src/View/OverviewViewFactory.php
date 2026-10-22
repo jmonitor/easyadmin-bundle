@@ -45,7 +45,6 @@ final readonly class OverviewViewFactory
 
     public function create(): OverviewView
     {
-        // The database detections report the connections they skip: they run first.
         $components = array_map($this->component(...), array_map($this->registry->status(...), Component::cases()));
         $versions = array_map(fn(string $package): PackageVersion => PackageVersion::of($package, ($this->installedVersion)($package), $this->releases->latest($package)), self::PACKAGES);
 
@@ -82,7 +81,7 @@ final readonly class OverviewViewFactory
     private function detail(Component $component, ?Instance $instance): ?string
     {
         return match ($component) {
-            Component::System => php_uname('s') . ' ' . php_uname('r'),
+            Component::System => function_exists('php_uname') ? php_uname('s') . ' ' . php_uname('r') : PHP_OS_FAMILY,
             Component::Php => PHP_VERSION . ' · ' . PHP_SAPI,
             Component::Apache, Component::Nginx => $this->serverSoftware(),
             Component::Symfony => Kernel::VERSION,

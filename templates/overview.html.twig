@@ -6,11 +6,10 @@
             {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Components', fill: false} %}
                 {% block body %}
                     {% for row in overview.components %}
-                        {% set available = row.availability.value == 'available' %}
                         <div class="jm-overview-row">
                             <div class="text-nowrap">
-                                <span class="jm-overview-dot jm-overview-dot-{{ row.failing ? 'danger' : (available ? 'success' : 'secondary') }}" aria-hidden="true"></span>
-                                {% if available %}
+                                <span class="jm-overview-dot jm-overview-dot-{{ row.style.value }}" aria-hidden="true"></span>
+                                {% if row.available %}
                                     <a href="{{ path(routes.component, {component: row.component.value}) }}">{{ row.component.label }}</a>
                                 {% else %}
                                     <span class="text-muted">{{ row.component.label }}</span>

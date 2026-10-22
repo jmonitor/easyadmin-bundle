@@ -50,6 +50,26 @@ final class ReleasesTest extends TestCase
         self::assertSame(1, $source->calls);
     }
 
+    public function testAnUnreachableGithubIsNotAskedForTheOtherPackages(): void
+    {
+        $source = new FixtureReleaseSource(null);
+        $releases = new Releases(new ArrayAdapter(), source: $source);
+
+        self::assertNull($releases->latest('jmonitor/easyadmin-bundle'));
+        self::assertNull($releases->latest('jmonitor/collector'));
+        self::assertSame(1, $source->calls);
+    }
+
+    public function testACachedUrlOutsideGithubIsFetchedAgain(): void
+    {
+        $cache = new ArrayAdapter();
+        $cache->save($cache->getItem(self::KEY)->set(['release' => ['version' => '1.4.0', 'url' => 'javascript:alert(1)']]));
+        $source = new FixtureReleaseSource(new LatestRelease('1.4.0', 'https://github.com/jmonitor/easyadmin-bundle/releases/tag/v1.4.0'));
+
+        self::assertSame('https://github.com/jmonitor/easyadmin-bundle/releases/tag/v1.4.0', (new Releases($cache, source: $source))->latest('jmonitor/easyadmin-bundle')?->url);
+        self::assertSame(1, $source->calls);
+    }
+
     public function testAFetchInProgressGivesNothing(): void
     {
         $cache = new ArrayAdapter();

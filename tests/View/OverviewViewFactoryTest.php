@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
+use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Release\LatestRelease;
 use Jmonitor\EasyAdminBundle\Release\Releases;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
@@ -71,6 +72,21 @@ final class OverviewViewFactoryTest extends TestCase
         self::assertTrue($redis->failing);
         self::assertSame('No Redis DSN found.', $redis->detail);
         self::assertSame([], $redis->instances);
+    }
+
+    public function testTheStyleOfARowFollowsItsState(): void
+    {
+        $view = $this->overview(
+            ['php' => $this->found(Component::Php), 'redis' => new StaticDetector(Component::Redis, Detection::unavailable('No Redis DSN found.'))],
+            ['redis' => ['enabled' => true], 'postgresql' => ['enabled' => false]],
+        );
+
+        self::assertTrue($this->component($view, Component::Php)->isAvailable());
+        self::assertSame(BadgeStyle::Success, $this->component($view, Component::Php)->style());
+        self::assertTrue($this->component($view, Component::Redis)->isAvailable());
+        self::assertSame(BadgeStyle::Danger, $this->component($view, Component::Redis)->style());
+        self::assertFalse($this->component($view, Component::Postgresql)->isAvailable());
+        self::assertSame(BadgeStyle::Neutral, $this->component($view, Component::Postgresql)->style());
     }
 
     public function testThePhpRowShowsItsVersionAndSapi(): void

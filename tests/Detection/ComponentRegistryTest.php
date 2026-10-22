@@ -141,6 +141,16 @@ final class ComponentRegistryTest extends TestCase
         self::assertNull($status->reason);
     }
 
+    public function testAComponentWithoutDetectorIsNotDetected(): void
+    {
+        $registry = new ComponentRegistry([], $this->config());
+
+        $status = $registry->status(Component::Redis);
+
+        self::assertSame(Availability::NotDetected, $status->availability);
+        self::assertSame(Instance::UNAVAILABLE, $status->reason);
+    }
+
     public function testTheStatusOfAnUndetectedComponentKeepsTheReason(): void
     {
         $registry = new ComponentRegistry(['nginx' => new StaticDetector(Component::Nginx, Detection::unavailable('Nginx is not serving this page.'))], $this->config());

@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Availability;
+use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 
 final readonly class OverviewComponent
 {
@@ -22,4 +23,18 @@ final readonly class OverviewComponent
         public array $instances = [],
         public int $more = 0,
     ) {}
+
+    public function isAvailable(): bool
+    {
+        return $this->availability === Availability::Available;
+    }
+
+    public function style(): BadgeStyle
+    {
+        return match (true) {
+            $this->failing => BadgeStyle::Danger,
+            $this->isAvailable() => BadgeStyle::Success,
+            default => BadgeStyle::Neutral,
+        };
+    }
 }

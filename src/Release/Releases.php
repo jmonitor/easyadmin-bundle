@@ -15,6 +15,7 @@ use Psr\Log\NullLogger;
 final readonly class Releases
 {
     private const FETCHING = 60;
+    private const UNREACHABLE = 'jmonitor_easyadmin.release_unreachable';
 
     public function __construct(
         private CacheItemPoolInterface $cache,
@@ -39,9 +40,16 @@ final readonly class Releases
                 return null;
             }
 
-            if (is_array($release) && is_string($release['version'] ?? null) && is_string($release['url'] ?? null)) {
+            if (is_array($release) && is_string($release['version'] ?? null) && is_string($release['url'] ?? null) && str_starts_with($release['url'], GithubReleaseSource::RELEASE_URL)) {
                 return new LatestRelease($release['version'], $release['url']);
             }
+        }
+
+        // An unreachable or rate-limited GitHub fails for every repository: the others are not tried.
+        $unreachable = $this->cache->getItem(self::UNREACHABLE);
+
+        if ($unreachable->isHit()) {
+            return null;
         }
 
         // The requests opened during the fetch get nothing instead of fetching too.
@@ -57,6 +65,7 @@ final readonly class Releases
             $this->logger->notice('Cannot read the latest release of "{repository}" from GitHub: {reason}', ['repository' => $repository, 'reason' => $e->getMessage(), 'exception' => $e]);
             $release = null;
             $item->expiresAfter($this->errorLifetime);
+            $this->cache->save($unreachable->set(true)->expiresAfter($this->errorLifetime));
         }
 
         $this->cache->save($item);

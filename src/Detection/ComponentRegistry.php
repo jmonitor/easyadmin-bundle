@@ -86,8 +86,12 @@ final class ComponentRegistry implements ResetInterface
         $enabled = $this->components[$component->value]['enabled'] ?? 'auto';
         $detector = $this->detectors()[$component->value] ?? null;
 
-        if ($enabled === false || $detector === null) {
+        if ($enabled === false) {
             return new ComponentStatus($component, Availability::Disabled, []);
+        }
+
+        if ($detector === null) {
+            return new ComponentStatus($component, Availability::NotDetected, [], Instance::UNAVAILABLE);
         }
 
         try {

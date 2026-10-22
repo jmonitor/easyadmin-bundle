@@ -9,6 +9,7 @@ namespace Jmonitor\EasyAdminBundle\Release;
  */
 final readonly class GithubReleaseSource implements ReleaseSourceInterface
 {
+    public const RELEASE_URL = 'https://github.com/';
     private const URL = 'https://api.github.com/repos/%s/releases/latest';
 
     public function __construct(
@@ -47,7 +48,7 @@ final readonly class GithubReleaseSource implements ReleaseSourceInterface
         $tag = $response['tag_name'] ?? null;
         $url = $response['html_url'] ?? null;
 
-        if (!is_string($tag) || $tag === '' || !is_string($url) || $url === '') {
+        if (!is_string($tag) || $tag === '' || !is_string($url) || !str_starts_with($url, self::RELEASE_URL)) {
             throw new \RuntimeException('No release in the response.');
         }
 
