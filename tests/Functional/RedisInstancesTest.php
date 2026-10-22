@@ -60,6 +60,19 @@ final class RedisInstancesTest extends WebTestCase
         self::assertFalse($cache->hasItem('jmonitor_easyadmin.collect.redis'));
     }
 
+    public function testASharedTabDoesNotNameTheWebServer(): void
+    {
+        $client = $this->adminClient(self::TWO);
+
+        $client->request('GET', '/admin/jmonitor/redis?connection=queue');
+
+        self::assertSelectorExists('.jm-status [data-live-node][hidden]');
+
+        $client->request('GET', '/admin/jmonitor/redis/fragment?connection=queue');
+
+        self::assertSelectorNotExists('[data-live-node-source]');
+    }
+
     public function testAnUnknownConnectionIsNotFound(): void
     {
         $client = $this->adminClient(self::TWO);

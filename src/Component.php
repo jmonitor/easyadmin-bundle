@@ -30,4 +30,15 @@ enum Component: string
             self::Redis => 'Redis',
         };
     }
+
+    /**
+     * Read on the web server answering the request: behind a load balancer, each one has its own values.
+     */
+    public function isNodeLocal(): bool
+    {
+        return match ($this) {
+            self::System, self::Php, self::FrankenPhp, self::Apache, self::Nginx, self::Symfony => true,
+            self::Mysql, self::Postgresql, self::Redis => false,
+        };
+    }
 }

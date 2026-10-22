@@ -279,8 +279,45 @@
     color: var(--bs-secondary-color, #6c757d);
 }
 
-.jm-live {
-    white-space: nowrap;
+.jm-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    padding-top: .5rem;
+}
+
+.jm-status-state,
+.jm-status-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .25rem .75rem;
+}
+
+.jm-status-controls {
+    margin-left: auto;
+    gap: .5rem 1rem;
+}
+
+.jm-node {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .1rem .5rem;
+    border-radius: var(--bs-border-radius-pill, 50rem);
+    background: var(--bs-secondary-bg, #e9ecef);
+    color: var(--bs-body-color, #212529);
+}
+
+.jm-node[hidden] {
+    display: none;
+}
+
+.jm-node svg {
+    width: .9em;
+    height: .9em;
 }
 
 .jm-live-switch {
@@ -288,7 +325,24 @@
     align-items: center;
     gap: .5rem;
     margin: 0;
+    white-space: nowrap;
     cursor: pointer;
+}
+
+.jm-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.jm-refresh svg {
+    width: 1em;
+    height: 1em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .jm-live-ago {

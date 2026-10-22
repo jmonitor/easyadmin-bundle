@@ -29,33 +29,43 @@
             data-live-interval="{{ polling_interval }}"
         {% endif %}
     >
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-            <ul class="nav nav-tabs flex-grow-1">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link{{ current is null ? ' active' }}"{% if current is null %} aria-current="page"{% endif %} href="{{ path(routes.index) }}">Overview</a>
+            </li>
+            {% for component in components %}
                 <li class="nav-item">
-                    <a class="nav-link{{ current is null ? ' active' }}"{% if current is null %} aria-current="page"{% endif %} href="{{ path(routes.index) }}">Overview</a>
+                    <a class="nav-link{{ component is same as(current) ? ' active' }}"{% if component is same as(current) %} aria-current="page"{% endif %} href="{{ path(routes.component, {component: component.value}) }}">{{ component.label }}</a>
                 </li>
-                {% for component in components %}
-                    <li class="nav-item">
-                        <a class="nav-link{{ component is same as(current) ? ' active' }}"{% if component is same as(current) %} aria-current="page"{% endif %} href="{{ path(routes.component, {component: component.value}) }}">{{ component.label }}</a>
-                    </li>
-                {% endfor %}
-            </ul>
+            {% endfor %}
+        </ul>
+
+        <div class="jm-status mb-3">
+            <div class="jm-status-state small text-muted" data-live-status>
+                <span class="jm-node" title="Web server that answered" data-live-node{% if not node %} hidden{% endif %}>
+                    <twig:ea:Icon name="internal:desktop" />
+                    <span data-live-node-name>{{ node }}</span>
+                </span>
+                {% if current and polling_interval > 0 %}
+                    <span>Updated <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span><span data-live-failed hidden> · refresh failed</span></span>
+                {% endif %}
+            </div>
             {% if current %}
-                <div class="d-flex align-items-center gap-3">
+                <div class="jm-status-controls">
                     {% if polling_interval > 0 %}
-                        <div class="jm-live">
-                            <label class="jm-live-switch" for="jm-live-toggle">
-                                <twig:ea:Switch id="jm-live-toggle" checked data-live-toggle />
-                                Live <span class="text-muted">· every {{ polling_interval }} s</span>
-                            </label>
-                            <div class="small text-muted" data-live-status>Last update: <span class="jm-live-ago"><time data-live-updated>just now</time><span class="jm-live-ago-widest" aria-hidden="true">59 min ago</span></span><span data-live-failed hidden> · refresh failed</span></div>
-                        </div>
+                        <label class="jm-live-switch" for="jm-live-toggle">
+                            <twig:ea:Switch id="jm-live-toggle" checked data-live-toggle />
+                            Live <span class="text-muted">· every {{ polling_interval }} s</span>
+                        </label>
                     {% endif %}
                     <form method="post" action="{{ path(routes.refresh, {component: current.value, connection: instance.id}) }}">
                         {% guard function csrf_token %}
                             <input type="hidden" name="_token" value="{{ csrf_token('jmonitor_refresh') }}">
                         {% endguard %}
-                        <button type="submit" class="btn btn-secondary btn-sm" title="Collect the metrics again now">Refresh</button>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary jm-refresh" title="Collect the metrics again now">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89"/><path d="M13.5 2v3.5H10"/></svg>
+                            Refresh
+                        </button>
                     </form>
                 </div>
             {% endif %}

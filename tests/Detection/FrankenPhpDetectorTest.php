@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Tests\Collector\FrankenPhpEndpointCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
+use Jmonitor\EasyAdminBundle\WebNode;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -51,13 +52,13 @@ final class FrankenPhpDetectorTest extends TestCase
     {
         $fetcher = new FixtureUrlFetcher(FrankenPhpEndpointCollectorTest::export('worker'));
         $cache = new ArrayAdapter();
-        $detection = (new FrankenPhpDetector('http://caddy:2019/metrics', $cache, 3600, new NullLogger(), 'frankenphp', $fetcher, new FixtureShellExecutor("FrankenPHP v1.4.0 PHP 8.4.1 Caddy v2.9.0\n")))->detect();
+        $detection = (new FrankenPhpDetector('http://caddy:2019/metrics', $cache, 3600, new NullLogger(), 'frankenphp', $fetcher, new FixtureShellExecutor("FrankenPHP v1.4.0 PHP 8.4.1 Caddy v2.9.0\n"), new WebNode('web-1')))->detect();
 
         $payload = $detection->instances[0]->collectors?->get('frankenphp')?->collector->collect();
 
         self::assertSame('worker', $payload['mode'] ?? null);
         self::assertSame('1.4.0', $payload['version'] ?? null);
         self::assertSame(1, $fetcher->calls);
-        self::assertTrue($cache->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'the version is cached for static_ttl');
+        self::assertTrue($cache->hasItem('jmonitor_easyadmin.shell.%node.web-1.frankenphp'), 'the version of this web server is cached for static_ttl');
     }
 }

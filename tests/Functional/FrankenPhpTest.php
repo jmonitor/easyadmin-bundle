@@ -6,6 +6,7 @@ namespace Jmonitor\EasyAdminBundle\Tests\Functional;
 
 use Jmonitor\EasyAdminBundle\Tests\Collector\FrankenPhpEndpointCollectorTest;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\ConfigurableAdminKernel;
+use Jmonitor\EasyAdminBundle\WebNode;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -112,12 +113,17 @@ final class FrankenPhpTest extends WebTestCase
 
         $crawler = $client->request('GET', '/admin/jmonitor/frankenphp');
         self::assertResponseIsSuccessful();
-        self::assertTrue($this->appCache()->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'the empty version is cached');
+        self::assertTrue($this->appCache()->hasItem(self::versionKey()), 'the empty version is cached');
 
         $client->submit($crawler->filter('form[action="/admin/jmonitor/frankenphp/refresh"]')->form());
 
         self::assertResponseRedirects('/admin/jmonitor/frankenphp');
-        self::assertFalse($this->appCache()->hasItem('jmonitor_easyadmin.shell.frankenphp'), 'Refresh drops the version too');
+        self::assertFalse($this->appCache()->hasItem(self::versionKey()), 'Refresh drops the version too');
+    }
+
+    private static function versionKey(): string
+    {
+        return 'jmonitor_easyadmin.shell.' . (new WebNode())->keyPrefix() . 'frankenphp';
     }
 
     private function appCache(): CacheItemPoolInterface

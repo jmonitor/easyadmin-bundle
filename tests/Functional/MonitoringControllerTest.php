@@ -58,6 +58,39 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSelectorNotExists('form[action$="/refresh"]');
     }
 
+    public function testANodeLocalTabTellsWhichWebServerAnswered(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertSelectorExists('.jm-status [data-live-node]:not([hidden])');
+        self::assertSelectorTextSame('[data-live-node-name]', (string) gethostname());
+
+        $client->request('GET', '/admin/jmonitor/php/fragment');
+
+        self::assertSelectorTextSame('[data-live-node-source]', (string) gethostname());
+    }
+
+    public function testTheSymfonyTabNamesTheWebServerWhosePhpItRecommendsFor(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/symfony');
+
+        self::assertSelectorTextSame('.jm-status [data-live-node]:not([hidden]) [data-live-node-name]', (string) gethostname());
+    }
+
+    public function testTheOverviewTellsWhichWebServerAnswered(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor');
+
+        self::assertSelectorExists('.jm-status [data-live-node]:not([hidden])');
+        self::assertSelectorTextSame('[data-live-node-name]', (string) gethostname());
+    }
+
     public function testTheComponentTabsLinkBackToTheOverview(): void
     {
         $client = $this->adminClient();

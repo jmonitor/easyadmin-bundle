@@ -18,6 +18,8 @@
     var indexUrl = root.getAttribute('data-live-index-url');
     var status = root.querySelector('[data-live-status]');
     var failedLabel = root.querySelector('[data-live-failed]');
+    var node = root.querySelector('[data-live-node]');
+    var nodeName = root.querySelector('[data-live-node-name]');
     var enabled = readPreference();
     var timer = null;
     var inFlight = false;
@@ -99,6 +101,18 @@
         if (failedLabel) {
             failedLabel.hidden = !failed;
         }
+    }
+
+    // behind a load balancer, each refresh may come from another web server
+    function renderNode() {
+        var source = content.querySelector('[data-live-node-source]');
+
+        if (!node || !nodeName) {
+            return;
+        }
+
+        node.hidden = !source;
+        nodeName.textContent = source ? source.textContent : '';
     }
 
     function hasSelectionInside(element) {
@@ -232,6 +246,7 @@
                 }
 
                 replaceContent(html);
+                renderNode();
                 markUpdated();
             })
             .catch(function () {
