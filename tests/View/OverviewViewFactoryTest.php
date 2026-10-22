@@ -36,11 +36,22 @@ final class OverviewViewFactoryTest extends TestCase
         $this->reporter = new SkippedConnectionReporter(new ArrayAdapter(), new RecordingLogger(), 3600);
     }
 
-    public function testEveryComponentIsListedInTheOrderOfTheTabs(): void
+    public function testTheAvailableComponentsComeFirstEachGroupInTheOrderOfTheTabs(): void
     {
-        $view = $this->overview(['redis' => new StaticDetector(Component::Redis, Detection::unavailable('No Redis DSN found.'))]);
+        $view = $this->overview(
+            [
+                'php' => $this->found(Component::Php),
+                'nginx' => new StaticDetector(Component::Nginx, Detection::unavailable('Nginx is not serving this page.')),
+                'mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('Connection refused')),
+                'redis' => $this->found(Component::Redis),
+            ],
+            ['mysql' => ['enabled' => true], 'symfony' => ['enabled' => false]],
+        );
 
-        self::assertSame(Component::cases(), array_map(static fn(OverviewComponent $component): Component => $component->component, $view->components));
+        self::assertSame(
+            [Component::Php, Component::Mysql, Component::Redis, Component::System, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony, Component::Postgresql],
+            array_map(static fn(OverviewComponent $component): Component => $component->component, $view->components),
+        );
     }
 
     public function testAComponentNotMonitoredGivesItsReason(): void

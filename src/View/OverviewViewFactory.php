@@ -46,6 +46,7 @@ final readonly class OverviewViewFactory
     public function create(): OverviewView
     {
         $components = array_map($this->component(...), array_map($this->registry->status(...), Component::cases()));
+        usort($components, static fn(OverviewComponent $a, OverviewComponent $b): int => $b->isAvailable() <=> $a->isAvailable());
         $versions = array_map(fn(string $package): PackageVersion => PackageVersion::of($package, ($this->installedVersion)($package), $this->releases->latest($package)), self::PACKAGES);
 
         return new OverviewView($components, $versions, $this->pollingInterval, $this->staticTtl, $this->cachePool, $this->permission, $this->skipped->skipped());

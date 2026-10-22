@@ -7,7 +7,7 @@ namespace Jmonitor\EasyAdminBundle\View;
 final readonly class OverviewView
 {
     /**
-     * @param list<OverviewComponent> $components         every component, in the order of the tabs
+     * @param list<OverviewComponent> $components         every component, the available ones first, each group in the order of the tabs
      * @param list<PackageVersion>    $versions
      * @param array<string, string>   $skippedConnections Doctrine connection name => error
      */
