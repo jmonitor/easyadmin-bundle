@@ -47,4 +47,16 @@ final class PollingDisabledTest extends WebTestCase
         self::assertSelectorExists('form[action="/admin/jmonitor/php/refresh"]', 'the manual refresh stays');
         self::assertSelectorTextContains('body', PHP_VERSION);
     }
+
+    public function testTheOverviewSaysThePollingIsDisabled(): void
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('admin', 'admin', ['ROLE_ADMIN']));
+
+        $client->request('GET', '/admin/jmonitor');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.jm-overview-config', 'disabled');
+        self::assertSelectorNotExists('[data-live]');
+    }
 }

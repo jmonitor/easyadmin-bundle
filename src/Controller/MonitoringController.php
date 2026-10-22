@@ -12,6 +12,7 @@ use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
+use Jmonitor\EasyAdminBundle\View\OverviewViewFactory;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,6 +39,7 @@ final class MonitoringController
         private readonly ComponentRegistry $registry,
         private readonly SnapshotProvider $snapshots,
         private readonly ViewFactory $views,
+        private readonly OverviewViewFactory $overview,
         private readonly Environment $twig,
         private readonly AdminContextProviderInterface $adminContextProvider,
         private readonly UrlGeneratorInterface $urlGenerator,
@@ -52,13 +54,10 @@ final class MonitoringController
     public function index(): Response
     {
         $this->denyAccessUnlessGranted();
-        $available = $this->registry->available();
 
-        if ($available === []) {
-            return new Response($this->twig->render('@JmonitorEasyAdmin/no_component.html.twig', $this->context(null)));
-        }
-
-        return new RedirectResponse($this->componentUrl($available[0]));
+        return new Response($this->twig->render('@JmonitorEasyAdmin/overview.html.twig', $this->context(null) + [
+            'overview' => $this->overview->create(),
+        ]));
     }
 
     #[AdminRoute(path: '/{component}', name: 'component', options: self::COMPONENT_OPTIONS)]

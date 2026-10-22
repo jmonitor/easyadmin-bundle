@@ -270,6 +270,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(ComponentRegistry::class),
             service(SnapshotProvider::class),
             service(ViewFactory::class),
+            service(OverviewViewFactory::class),
             service('twig'),
             service(AdminContextProviderInterface::class),
             service('router'),

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Overview tab as the monitoring home page: components, versions and configuration.
+
 ### Fixed
 
 - Minor style corrections.
