@@ -24,6 +24,7 @@ use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
+use Jmonitor\EasyAdminBundle\Release\Releases;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
@@ -212,6 +213,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->args([
             '$cache' => service($config['cache_pool']),
             '$clock' => service('clock'),
+            '$logger' => service('logger'),
+        ])
+        ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
+    ;
+
+    $services->set(Releases::class)
+        ->args([
+            '$cache' => service($config['cache_pool']),
             '$logger' => service('logger'),
         ])
         ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
