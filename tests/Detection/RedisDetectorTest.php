@@ -128,7 +128,7 @@ final class RedisDetectorTest extends TestCase
         $instance = (new RedisDetector(new ServiceLocator([]), [], null, 'redis://127.0.0.1:1'))->detect()->instances[0];
 
         self::assertNull($instance->id);
-        self::assertNull($instance->detail);
+        self::assertSame('127.0.0.1:1', $instance->detail, 'the overview shows the server');
         self::assertSame('', $instance->keyPrefix());
     }
 

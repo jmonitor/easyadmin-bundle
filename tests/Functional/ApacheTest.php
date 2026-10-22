@@ -85,7 +85,7 @@ final class ApacheTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/apache');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.alert-warning', 'Apache is not serving this page (PHP SAPI "cli", server software "unknown").');
+        self::assertSelectorTextContains('.alert-warning', 'Apache is not serving this page.');
     }
 
     public function testAnUnreachableStatusPageShowsTheGuidance(): void

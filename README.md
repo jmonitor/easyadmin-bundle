@@ -87,6 +87,8 @@ public function configureMenuItems(): iterable
 
 The pages live under the path of your dashboard (`/admin/jmonitor` for a dashboard at `/admin`), so the `access_control` rule protecting your backend covers them.
 
+The link opens the **Overview** tab: every component with the reason when it is not monitored, the installed versions of the bundle and of `jmonitor/collector`, and the configuration in force. It collects no metrics.
+
 ## Configuration
 
 Everything is optional. Components are detected from your application: the Doctrine connections for MySQL and PostgreSQL (every connection of their driver; MySQL connections are grouped by server), the Redis provider of the Symfony cache or the `REDIS_URL` env var for Redis, the PHP process for PHP, its SAPI for FrankenPHP, its SAPI or the server software of the request for Apache, the server software of the request for Nginx, `/proc` for the system.
@@ -168,7 +170,9 @@ The MySQL and PostgreSQL tabs read the parameters of the Doctrine connections (d
 
 The version cards of PHP, Symfony, Apache, Nginx, MySQL, MariaDB, PostgreSQL and Redis show whether their version is still supported: active support, security fixes only or end of life. The web server reads the release cycles from [endoflife.date](https://endoflife.date), `https://endoflife.date/api/<product>.json`, once a day per product, and keeps them in the cache pool; the request names the product only, never its version or anything about your application. When endoflife.date cannot be reached (a silent network gives up after 3 seconds), the card has no badge and the next try comes an hour later. The compatible servers whose versions follow other release cycles (Percona Server, TiDB, Valkey, CockroachDB, YugabyteDB) get no badge.
 
-A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL tabs and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds; a connection listed in `connections` is shown in its tab with the error instead.
+The Overview tab tells whether the bundle and `jmonitor/collector` are up to date. The web server reads their latest release from GitHub, `https://api.github.com/repos/jmonitor/<package>/releases/latest`, once a day per package, and keeps it in the cache pool; the request names the package only, never anything about your application. When GitHub cannot be reached (a silent network gives up after 3 seconds per package), the version has no badge and the next try comes an hour later. A development version, such as `1.x-dev`, gets no badge.
+
+A Doctrine connection whose service cannot be built is left out of the MySQL and PostgreSQL tabs and logged as a warning on the `jmonitor_easyadmin` channel, at most once per `static_ttl` seconds, and listed on the Overview tab; a connection listed in `connections` is shown in its tab with the error instead.
 
 Several web servers behind a load balancer are not well handled yet: the System and PHP values depend on the server that answered, and may change from one refresh to the next.
 

@@ -34,7 +34,8 @@ final class RobustnessTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.alert-info', 'No component to monitor');
+        self::assertSelectorTextContains('.jm-overview', 'Disabled in the configuration.');
+        self::assertSelectorNotExists('.jm-overview a[href="/admin/jmonitor/php"]');
         self::assertSelectorNotExists('[data-live]');
         self::assertSelectorNotExists('form[action$="/refresh"]');
 
@@ -69,6 +70,17 @@ final class RobustnessTest extends WebTestCase
         $client->request('GET', '/admin/jmonitor/mysql');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.alert-warning', 'Malformed DSN');
+    }
+
+    public function testTheOverviewSurvivesAThrowingDetector(): void
+    {
+        ConfigurableAdminKernel::$mysqlDetectorFailure = 'Malformed DSN';
+        $client = $this->adminClient(['components' => ['redis' => false, 'symfony' => ConfigurableAdminKernel::QUIET_SYMFONY]]);
+
+        $client->request('GET', '/admin/jmonitor');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.jm-overview', 'Malformed DSN');
     }
 
     public function testAFailingCollectorShowsItsErrorInsideTheTab(): void

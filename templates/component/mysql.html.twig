@@ -215,7 +215,7 @@
         {% endif %}
         <div class="row g-3">
             <div class="col-md-6 col-xl-4">
-                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight'} %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight', fill: false} %}
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
                             'Data': view.dataLength|jm_bytes,

@@ -509,7 +509,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('frankenphp', $snapshot, new FrankenPhpView($snapshot, $this->gauges()));
 
         self::assertStringContainsString('global option of the Caddyfile', $html);
-        self::assertStringContainsString('class="alert alert-warning mb-3"', $this->render('frankenphp', new ComponentSnapshot(Component::FrankenPhp, [], 'FrankenPHP is not serving this page (PHP SAPI "cli").'), new FrankenPhpView(new ComponentSnapshot(Component::FrankenPhp, []), $this->gauges())), 'the detection error keeps a margin too');
+        self::assertStringContainsString('class="alert alert-warning mb-3"', $this->render('frankenphp', new ComponentSnapshot(Component::FrankenPhp, [], 'FrankenPHP is not serving this page.'), new FrankenPhpView(new ComponentSnapshot(Component::FrankenPhp, []), $this->gauges())), 'the detection error keeps a margin too');
         self::assertStringContainsString('n/a', $html);
         self::assertStringNotContainsString('Workers', $html);
     }

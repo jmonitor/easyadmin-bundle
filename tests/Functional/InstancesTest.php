@@ -186,14 +186,16 @@ final class InstancesTest extends WebTestCase
         self::assertResponseRedirects('/admin/jmonitor/mysql?connection=reports');
     }
 
-    public function testTheIndexRedirectsToTheComponentWithoutParameter(): void
+    public function testTheOverviewListsTheInstances(): void
     {
         $client = $this->adminClient(self::TWO_INSTANCES, ['system' => false, 'php' => false, 'symfony' => false]);
 
         $client->request('GET', '/admin/jmonitor');
 
-        self::assertResponseRedirects();
-        self::assertStringEndsWith('/admin/jmonitor/mysql', (string) $client->getResponse()->headers->get('Location'));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.jm-overview a[href="/admin/jmonitor/mysql"]');
+        self::assertSelectorExists('.jm-overview-instance[title="shop"]');
+        self::assertSelectorTextContains('.jm-overview-instance[title="erp"]', 'legacy');
     }
 
     /**

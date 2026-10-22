@@ -24,10 +24,12 @@ use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Metric\GaugeFactory;
 use Jmonitor\EasyAdminBundle\Metric\Ranges;
+use Jmonitor\EasyAdminBundle\Release\Releases;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
+use Jmonitor\EasyAdminBundle\View\OverviewViewFactory;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
@@ -103,6 +105,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['static_ttl'],
             $shownConnections,
         ])
+        ->tag('kernel.reset', ['method' => 'reset'])
     ;
 
     $services->set(DoctrineConnections::class)
@@ -216,6 +219,14 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
     ;
 
+    $services->set(Releases::class)
+        ->args([
+            '$cache' => service($config['cache_pool']),
+            '$logger' => service('logger'),
+        ])
+        ->tag('monolog.logger', ['channel' => 'jmonitor_easyadmin'])
+    ;
+
     $services->set(ViewFactory::class)
         ->args([
             service(GaugeFactory::class),
@@ -226,6 +237,18 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['components']['symfony']['messenger'],
             $config['components']['symfony']['scheduler'],
             $config['components']['symfony']['flex'],
+        ])
+    ;
+    $services->set(OverviewViewFactory::class)
+        ->args([
+            service(ComponentRegistry::class),
+            service(SkippedConnectionReporter::class),
+            service(Releases::class),
+            service('request_stack'),
+            $config['polling_interval'],
+            $config['static_ttl'],
+            $config['cache_pool'],
+            $config['permission'],
         ])
     ;
     $services->set(MonitoringExtension::class)
@@ -247,6 +270,7 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             service(ComponentRegistry::class),
             service(SnapshotProvider::class),
             service(ViewFactory::class),
+            service(OverviewViewFactory::class),
             service('twig'),
             service(AdminContextProviderInterface::class),
             service('router'),

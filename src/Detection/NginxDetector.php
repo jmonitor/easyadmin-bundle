@@ -41,7 +41,7 @@ final readonly class NginxDetector implements ComponentDetectorInterface
         $software = is_string($software) && $software !== '' ? $software : null;
 
         if (preg_match('~^nginx(?:/(\S+)|\s|$)~i', $software ?? '', $m) !== 1) {
-            return Detection::unavailable(sprintf('Nginx is not serving this page (server software "%s").', $software ?? 'unknown'));
+            return Detection::unavailable('Nginx is not serving this page.');
         }
 
         $shell = new LoggingShellExecutor($this->logger, $this->shellExecutor);

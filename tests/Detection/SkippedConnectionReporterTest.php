@@ -114,6 +114,60 @@ final class SkippedConnectionReporterTest extends TestCase
         }
     }
 
+    public function testTheSkippedConnectionsOfTheRequestAreKept(): void
+    {
+        $reporter = new SkippedConnectionReporter(new ArrayAdapter(), new RecordingLogger(), 3600);
+
+        $reporter->report('legacy', 'refused');
+        $reporter->report('old', 'gone');
+        $reporter->report('legacy', 'refused');
+
+        self::assertSame(['legacy' => 'refused', 'old' => 'gone'], $reporter->skipped());
+    }
+
+    public function testAShownConnectionIsNotKept(): void
+    {
+        $reporter = new SkippedConnectionReporter(new ArrayAdapter(), new RecordingLogger(), 3600, ['main']);
+
+        $reporter->report('main', 'refused');
+
+        self::assertSame([], $reporter->skipped());
+    }
+
+    public function testAConnectionIsKeptEvenWhenAlreadyWarned(): void
+    {
+        $cache = new ArrayAdapter();
+        (new SkippedConnectionReporter($cache, new RecordingLogger(), 3600))->report('legacy', 'refused');
+        $logger = new RecordingLogger();
+        $reporter = new SkippedConnectionReporter($cache, $logger, 3600);
+
+        $reporter->report('legacy', 'refused');
+
+        self::assertSame([], $logger->records);
+        self::assertSame(['legacy' => 'refused'], $reporter->skipped());
+    }
+
+    public function testAConnectionIsKeptEvenWhenTheCacheFails(): void
+    {
+        $cache = $this->createStub(CacheItemPoolInterface::class);
+        $cache->method('getItem')->willThrowException(new \RuntimeException('Cache down'));
+        $reporter = new SkippedConnectionReporter($cache, new RecordingLogger(), 3600);
+
+        $reporter->report('legacy', 'refused');
+
+        self::assertSame(['legacy' => 'refused'], $reporter->skipped());
+    }
+
+    public function testResetForgetsTheSkippedConnections(): void
+    {
+        $reporter = new SkippedConnectionReporter(new ArrayAdapter(), new RecordingLogger(), 3600);
+        $reporter->report('legacy', 'refused');
+
+        $reporter->reset();
+
+        self::assertSame([], $reporter->skipped());
+    }
+
     public function testAConfiguredConnectionInErrorIsShownNotLogged(): void
     {
         $logger = new RecordingLogger();

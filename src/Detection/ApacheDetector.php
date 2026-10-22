@@ -37,7 +37,7 @@ final readonly class ApacheDetector implements ComponentDetectorInterface
         $software = is_string($software) && $software !== '' ? $software : null;
 
         if ($this->sapi !== 'apache2handler' && !str_starts_with($software ?? '', 'Apache')) {
-            return Detection::unavailable(sprintf('Apache is not serving this page (PHP SAPI "%s", server software "%s").', $this->sapi, $software ?? 'unknown'));
+            return Detection::unavailable('Apache is not serving this page.');
         }
 
         return Detection::found(new CollectorSet(Component::Apache, [

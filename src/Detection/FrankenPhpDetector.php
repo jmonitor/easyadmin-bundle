@@ -41,7 +41,7 @@ final readonly class FrankenPhpDetector implements ComponentDetectorInterface
     public function detect(): Detection
     {
         if ($this->sapi !== 'frankenphp') {
-            return Detection::unavailable(sprintf('FrankenPHP is not serving this page (PHP SAPI "%s").', $this->sapi));
+            return Detection::unavailable('FrankenPHP is not serving this page.');
         }
 
         $shell = new CachedShellExecutor($this->cache, $this->staticTtl, Component::FrankenPhp->value, $this->logger, $this->shellExecutor);

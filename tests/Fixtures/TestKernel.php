@@ -9,7 +9,9 @@ use EasyCorp\Bundle\EasyAdminBundle\EasyAdminBundle;
 use Jmonitor\EasyAdminBundle\JmonitorEasyAdminBundle;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\App\DashboardController;
+use Jmonitor\EasyAdminBundle\Release\Releases;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Release\FixtureReleaseSource;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -26,7 +28,7 @@ use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 /**
  * The bundle's controller needs Twig, Security and EasyAdmin, so even the unit-level kernel
- * boots the full admin stack, on a SQLite in-memory database. endoflife.date is never reached.
+ * boots the full admin stack, on a SQLite in-memory database. endoflife.date and GitHub are never reached.
  */
 class TestKernel extends Kernel
 {
@@ -117,6 +119,7 @@ class TestKernel extends Kernel
             public function process(ContainerBuilder $container): void
             {
                 $container->getDefinition(EndOfLife::class)->setArgument('$fetcher', new Definition(FixtureUrlFetcher::class, [null]));
+                $container->getDefinition(Releases::class)->setArgument('$source', new Definition(FixtureReleaseSource::class, [null]));
             }
         });
     }

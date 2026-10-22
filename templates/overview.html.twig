@@ -1,0 +1,77 @@
+{% extends '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    <div class="jm-overview">
+        <div class="jm-overview-components">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Components', fill: false} %}
+                {% block body %}
+                    {% for row in overview.components %}
+                        <div class="jm-overview-row{{ row.available ? '' : ' opacity-75' }}">
+                            <div class="text-nowrap">
+                                <span class="jm-overview-dot jm-overview-dot-{{ row.style.value }}" aria-hidden="true"></span>
+                                {% if row.available %}
+                                    <a href="{{ path(routes.component, {component: row.component.value}) }}">{{ row.component.label }}</a>
+                                {% else %}
+                                    <span class="text-muted">{{ row.component.label }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="small text-end{{ row.failing ? ' text-danger' : ' text-muted' }}">
+                                {% if row.instances %}
+                                    <span class="d-inline-flex flex-wrap gap-1">
+                                        {% for instance in row.instances %}
+                                            <span class="badge jm-overview-instance {{ instance.error ? 'bg-danger-subtle text-danger-emphasis' : 'bg-secondary-subtle text-secondary-emphasis' }}"{% if instance.title %} title="{{ instance.title }}"{% endif %}>{{ instance.label }}</span>
+                                        {% endfor %}
+                                        {% if row.more > 0 %}<span class="badge bg-secondary-subtle text-secondary-emphasis">+{{ row.more }}</span>{% endif %}
+                                    </span>
+                                {% endif %}
+                                {{ row.detail }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endblock %}
+            {% endembed %}
+        </div>
+
+        <div class="jm-overview-side">
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Versions', fill: false} %}
+                {% block body %}
+                    {% for version in overview.versions %}
+                        <div class="d-flex flex-wrap align-items-center column-gap-2 py-1">
+                            <span>{{ version.package }} <strong>{{ version.installed ?? 'unknown' }}</strong></span>
+                            {% if version.badge %}
+                                {% if version.url %}
+                                    <a href="{{ version.url }}" target="_blank" rel="noopener noreferrer">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: version.badge}) }}</a>
+                                {% else %}
+                                    {{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: version.badge}) }}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endblock %}
+            {% endembed %}
+
+            {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Configuration', fill: false} %}
+                {% block body %}
+                    <div class="jm-overview-config">
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Polling': overview.pollingInterval > 0 ? 'every ' ~ overview.pollingInterval ~ ' s' : 'disabled',
+                            'Static TTL': overview.staticTtl ~ ' s',
+                            'Cache pool': overview.cachePool,
+                            'Permission': overview.permission ?? 'access_control only',
+                        }}) }}
+                    </div>
+                {% endblock %}
+            {% endembed %}
+
+            {% if overview.skippedConnections %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Skipped connections', fill: false} %}
+                    {% block body %}
+                        {% for connection, error in overview.skippedConnections %}
+                            <div class="small py-1"><strong>{{ connection }}</strong> <span class="text-muted">· {{ error }}</span></div>
+                        {% endfor %}
+                    {% endblock %}
+                {% endembed %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

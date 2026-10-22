@@ -104,6 +104,17 @@ final class RedisInstancesTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    public function testTheOverviewNeverShowsTheDsnPassword(): void
+    {
+        $client = $this->adminClient(['cache' => 'redis://user:s3cret@redis.example:6379', 'queue' => ['service' => 'app.redis_queue']]);
+
+        $client->request('GET', '/admin/jmonitor');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.jm-overview-instance[title="redis.example:6379"]');
+        self::assertStringNotContainsString('s3cret', (string) $client->getResponse()->getContent());
+    }
+
     /**
      * @param array<string, mixed> $connections
      */

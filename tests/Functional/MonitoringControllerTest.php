@@ -39,14 +39,33 @@ final class MonitoringControllerTest extends WebTestCase
         self::assertSame('system|php|frankenphp|apache|nginx|symfony|mysql|postgresql|redis', $routes->get('admin_jmonitor_component')->getRequirement('component'));
     }
 
-    public function testIndexRedirectsToTheFirstAvailableComponent(): void
+    public function testTheIndexShowsTheOverview(): void
     {
         $client = $this->adminClient();
 
         $client->request('GET', '/admin/jmonitor');
 
-        self::assertResponseRedirects();
-        self::assertStringEndsWith('/admin/jmonitor/' . (PHP_OS_FAMILY === 'Linux' ? 'system' : 'php'), (string) $client->getResponse()->headers->get('Location'));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.nav-tabs .nav-link.active', 'Overview');
+        self::assertSelectorExists('.jm-overview a[href="/admin/jmonitor/php"]');
+        self::assertSelectorTextContains('.jm-overview', 'jmonitor/easyadmin-bundle');
+        self::assertSelectorTextContains('.jm-overview', 'jmonitor/collector');
+        self::assertSelectorTextContains('.jm-overview', 'Disabled in the configuration.');
+        self::assertAnySelectorTextContains('.jm-overview-row.opacity-75', 'MySQL');
+        self::assertSelectorNotExists('.jm-overview-row.opacity-75 a[href="/admin/jmonitor/php"]');
+        self::assertSelectorTextContains('.jm-overview', 'Polling');
+        self::assertSelectorNotExists('[data-live]');
+        self::assertSelectorNotExists('form[action$="/refresh"]');
+    }
+
+    public function testTheComponentTabsLinkBackToTheOverview(): void
+    {
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertSelectorExists('.nav-tabs a[href="/admin/jmonitor"]');
+        self::assertSelectorNotExists('.nav-tabs a.active[href="/admin/jmonitor"]');
     }
 
     public function testTheSystemTabRendersInsideTheAdminLayout(): void

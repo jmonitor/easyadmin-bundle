@@ -8,6 +8,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Detection\Availability;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
@@ -126,6 +127,96 @@ final class ComponentRegistryTest extends TestCase
         $forced = new ComponentRegistry(['mysql' => $throwing], $this->config(['mysql' => ['enabled' => true]]));
         self::assertSame([Component::Mysql], $forced->available());
         self::assertSame('Malformed DSN', $forced->instance(Component::Mysql, null)?->error);
+    }
+
+    public function testTheStatusOfADisabledComponentIsDisabled(): void
+    {
+        $registry = new ComponentRegistry(['redis' => new StaticDetector(Component::Redis, $this->found(Component::Redis))], $this->config(['redis' => ['enabled' => false]]));
+
+        $status = $registry->status(Component::Redis);
+
+        self::assertSame(Component::Redis, $status->component);
+        self::assertSame(Availability::Disabled, $status->availability);
+        self::assertSame([], $status->instances);
+        self::assertNull($status->reason);
+    }
+
+    public function testAComponentWithoutDetectorIsNotDetected(): void
+    {
+        $registry = new ComponentRegistry([], $this->config());
+
+        $status = $registry->status(Component::Redis);
+
+        self::assertSame(Availability::NotDetected, $status->availability);
+        self::assertSame(Instance::UNAVAILABLE, $status->reason);
+    }
+
+    public function testTheStatusOfAnUndetectedComponentKeepsTheReason(): void
+    {
+        $registry = new ComponentRegistry(['nginx' => new StaticDetector(Component::Nginx, Detection::unavailable('Nginx is not serving this page.'))], $this->config());
+
+        $status = $registry->status(Component::Nginx);
+
+        self::assertSame(Availability::NotDetected, $status->availability);
+        self::assertSame([], $status->instances);
+        self::assertSame('Nginx is not serving this page.', $status->reason);
+    }
+
+    public function testTheStatusOfAThrowingDetectorKeepsItsMessage(): void
+    {
+        $throwing = new class implements \Jmonitor\EasyAdminBundle\Detection\ComponentDetectorInterface {
+            public function component(): Component
+            {
+                return Component::Mysql;
+            }
+
+            public function detect(): Detection
+            {
+                throw new \RuntimeException('boom');
+            }
+        };
+        $registry = new ComponentRegistry(['mysql' => $throwing], $this->config());
+
+        $status = $registry->status(Component::Mysql);
+
+        self::assertSame(Availability::NotDetected, $status->availability);
+        self::assertSame('boom', $status->reason);
+    }
+
+    public function testTheStatusOfAForcedComponentHoldsAnInstanceInError(): void
+    {
+        $registry = new ComponentRegistry(['mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('nope'))], $this->config(['mysql' => ['enabled' => true]]));
+
+        $status = $registry->status(Component::Mysql);
+
+        self::assertSame(Availability::Available, $status->availability);
+        self::assertCount(1, $status->instances);
+        self::assertSame('nope', $status->instances[0]->error);
+    }
+
+    public function testTheStatusOfAFoundComponentHoldsItsInstances(): void
+    {
+        $registry = new ComponentRegistry(['php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
+
+        $status = $registry->status(Component::Php);
+
+        self::assertSame(Availability::Available, $status->availability);
+        self::assertSame($registry->instancesFor(Component::Php), $status->instances);
+        self::assertNull($status->reason);
+    }
+
+    public function testTheStatusIsDetectedOnce(): void
+    {
+        $detector = new StaticDetector(Component::Php, $this->found(Component::Php));
+        $registry = new ComponentRegistry(['php' => $detector], $this->config());
+
+        $registry->status(Component::Php);
+        $registry->status(Component::Php);
+        self::assertSame(1, $detector->calls);
+
+        $registry->reset();
+        $registry->status(Component::Php);
+        self::assertSame(2, $detector->calls);
     }
 
     private function found(Component $component): Detection

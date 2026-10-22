@@ -31,6 +31,9 @@
     >
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <ul class="nav nav-tabs flex-grow-1">
+                <li class="nav-item">
+                    <a class="nav-link{{ current is null ? ' active' }}"{% if current is null %} aria-current="page"{% endif %} href="{{ path(routes.index) }}">Overview</a>
+                </li>
                 {% for component in components %}
                     <li class="nav-item">
                         <a class="nav-link{{ component is same as(current) ? ' active' }}"{% if component is same as(current) %} aria-current="page"{% endif %} href="{{ path(routes.component, {component: component.value}) }}">{{ component.label }}</a>
