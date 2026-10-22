@@ -145,7 +145,7 @@ final readonly class RedisDetector implements ComponentDetectorInterface
             return Detection::unavailable(sprintf('Invalid Redis DSN: %s', $e->getMessage()));
         }
 
-        return Detection::found(self::collectors($collector));
+        return Detection::instances([Instance::found(Component::Redis, self::collectors($collector), detail: self::detail($dsn))]);
     }
 
     private static function collectors(RedisCollector $collector): CollectorSet
