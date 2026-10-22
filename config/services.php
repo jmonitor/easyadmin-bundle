@@ -29,6 +29,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Twig\AssetExtension;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
+use Jmonitor\EasyAdminBundle\View\OverviewViewFactory;
 use Jmonitor\EasyAdminBundle\View\ViewFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Parameter;
@@ -236,6 +237,18 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             $config['components']['symfony']['messenger'],
             $config['components']['symfony']['scheduler'],
             $config['components']['symfony']['flex'],
+        ])
+    ;
+    $services->set(OverviewViewFactory::class)
+        ->args([
+            service(ComponentRegistry::class),
+            service(SkippedConnectionReporter::class),
+            service(Releases::class),
+            service('request_stack'),
+            $config['polling_interval'],
+            $config['static_ttl'],
+            $config['cache_pool'],
+            $config['permission'],
         ])
     ;
     $services->set(MonitoringExtension::class)
