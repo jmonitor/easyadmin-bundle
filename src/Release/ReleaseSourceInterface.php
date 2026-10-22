@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Release;
 
-interface ReleaseSource
+interface ReleaseSourceInterface
 {
     /**
      * @param string $repository "owner/name"

@@ -19,7 +19,7 @@ final readonly class Releases
     public function __construct(
         private CacheItemPoolInterface $cache,
         private LoggerInterface $logger = new NullLogger(),
-        private ReleaseSource $source = new GithubReleaseSource(),
+        private ReleaseSourceInterface $source = new GithubReleaseSource(),
         private int $lifetime = 86_400,
         private int $errorLifetime = 3_600,
     ) {}

@@ -7,7 +7,7 @@ namespace Jmonitor\EasyAdminBundle\Release;
 /**
  * GitHub refuses the requests without a User-Agent.
  */
-final readonly class GithubReleaseSource implements ReleaseSource
+final readonly class GithubReleaseSource implements ReleaseSourceInterface
 {
     private const URL = 'https://api.github.com/repos/%s/releases/latest';
 
