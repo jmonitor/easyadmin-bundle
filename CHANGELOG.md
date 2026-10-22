@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The Redis max memory policy card shows the policy as plain text instead of a badge.
+- The section names of the PHP config card are shown at the text size.
 
 ## [1.4.0] - 2026-10-21
 
