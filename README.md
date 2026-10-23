@@ -33,8 +33,8 @@ No worker to run, nothing to store.
 </table>
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png" alt="Symfony tab of the monitoring page in EasyAdmin" width="48%"></a>
-  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png" alt="PHP tab of the monitoring page in EasyAdmin" width="48%"></a>
+  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png?v=1414bd6b"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-symfony.png?v=1414bd6b" alt="Symfony tab of the monitoring page in EasyAdmin" width="48%"></a>
+  <a href="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png?v=470d424f"><img src="https://raw.githubusercontent.com/jmonitor/easyadmin-bundle/1.x/.github/assets/screenshot-php.png?v=470d424f" alt="PHP tab of the monitoring page in EasyAdmin" width="48%"></a>
 </p>
 
 ## Supported components
