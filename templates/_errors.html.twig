@@ -1,9 +1,10 @@
+{# live.js redraws these messages at every poll: role="alert" would announce them each time #}
 {% if snapshot.error %}
-    <div class="alert alert-warning mb-3">{{ snapshot.error }}</div>
+    <twig:ea:Alert variant="warning" class="mb-3" :role="false">{{ snapshot.error }}</twig:ea:Alert>
 {% endif %}
 {% if snapshot.inProgress %}
-    <div class="alert alert-info py-2 small mb-3">{{ constant('Jmonitor\\EasyAdminBundle\\Snapshot\\SnapshotProvider::IN_PROGRESS') }}</div>
+    <twig:ea:Alert variant="info" class="py-2 small mb-3" :role="false">{{ constant('Jmonitor\\EasyAdminBundle\\Snapshot\\SnapshotProvider::IN_PROGRESS') }}</twig:ea:Alert>
 {% endif %}
 {% for error in snapshot.errors %}
-    <div class="alert alert-warning py-2 small mb-3">{{ error }}</div>
+    <twig:ea:Alert variant="warning" class="py-2 small mb-3" :role="false">{{ error }}</twig:ea:Alert>
 {% endfor %}

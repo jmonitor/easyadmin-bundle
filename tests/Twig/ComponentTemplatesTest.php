@@ -134,7 +134,7 @@ final class ComponentTemplatesTest extends TestCase
         self::assertSame(1, preg_match('#<select[^>]*name="connection"[^>]*data-jm-navigate[^>]*>(.*?)</select>#s', $section, $select));
         self::assertSame(3, substr_count($select[1], '<option'));
         self::assertStringContainsString('<option value="b" selected>b · two</option>', $select[1]);
-        self::assertStringContainsString('<button type="submit" class="btn btn-secondary btn-sm jm-navigate-submit">Show</button>', $section);
+        self::assertStringContainsString('<button class="btn btn-secondary btn-sm jm-navigate-submit" type="submit"><span class="btn-label">Show</span></button>', $section);
         self::assertStringNotContainsString('<noscript>', $section, 'the button must work when the script fails to load');
         self::assertStringNotContainsString('nav-pills', $section);
     }
@@ -149,7 +149,8 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('mysql', $snapshot, new MysqlView($snapshot, $this->gauges(), 1_000));
 
         self::assertStringContainsString('Slow queries data are not available.', $html);
-        self::assertStringContainsString('<div class="alert alert-warning py-2 small mb-3">mysql.slow_queries: performance_schema table is not readable</div>', $html, 'EasyAdmin removes the bottom margin of alerts');
+        self::assertMatchesRegularExpression('#<div\s+class="alert alert-warning py-2 small mb-3">\s*mysql\.slow_queries: performance_schema table is not readable\s*</div>#', $html, 'EasyAdmin removes the bottom margin of alerts');
+        self::assertStringNotContainsString('role="alert"', $html, 'the poll redraws the alerts');
         self::assertStringNotContainsString('RAM ratio', $html, 'MySQL is not on this host');
         self::assertStringContainsString('aria-label="Help: Total"', $html, 'the server slow queries total stays when the slow queries of the database are unavailable');
     }
@@ -372,7 +373,7 @@ final class ComponentTemplatesTest extends TestCase
         $mysql = new ComponentSnapshot(Component::Mysql, ['mysql.variables' => new CollectorResult('mysql.variables', Payloads::mysqlVariables(), null, 1_000)]);
         $postgresql = new ComponentSnapshot(Component::Postgresql, ['postgresql.settings' => new CollectorResult('postgresql.settings', ['server_version' => '16.4 (Debian 16.4-1)'], null, 1_000)]);
         $redis = new ComponentSnapshot(Component::Redis, ['redis' => new CollectorResult('redis', ['server' => ['version' => '7.4.1']], null, 1_000)]);
-        $pattern = '#Version</span>.*?<span class="ms-auto"><span class="badge text-bg-success">Active support</span>\s*</span>#si';
+        $pattern = '#Version</span>.*?<span class="ms-auto"><span class="badge badge-success">Active support</span>\s*</span>#si';
 
         self::assertMatchesRegularExpression($pattern, $this->render('php', $php, new PhpView($php, $this->gauges(), $endOfLife)));
         self::assertMatchesRegularExpression($pattern, $this->render('symfony', $symfony, new SymfonyView($symfony, $php, endOfLife: $endOfLife)));

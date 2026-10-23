@@ -11,9 +11,4 @@ enum BadgeStyle: string
     case Warning = 'warning';
     case Danger = 'danger';
     case Neutral = 'secondary';
-
-    public function cssClass(): string
-    {
-        return 'text-bg-' . $this->value;
-    }
 }

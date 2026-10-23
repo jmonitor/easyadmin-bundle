@@ -62,10 +62,10 @@
                         {% guard function csrf_token %}
                             <input type="hidden" name="_token" value="{{ csrf_token('jmonitor_refresh') }}">
                         {% endguard %}
-                        <button type="submit" class="btn btn-sm btn-outline-secondary jm-refresh" title="Collect the metrics again now">
+                        <twig:ea:Button size="sm" class="jm-refresh" title="Collect the metrics again now">
                             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89"/><path d="M13.5 2v3.5H10"/></svg>
                             Refresh
-                        </button>
+                        </twig:ea:Button>
                     </form>
                 </div>
             {% endif %}

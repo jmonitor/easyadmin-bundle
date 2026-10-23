@@ -19,9 +19,9 @@
                                 {% if row.instances %}
                                     <span class="d-inline-flex flex-wrap gap-1">
                                         {% for instance in row.instances %}
-                                            <span class="badge jm-overview-instance {{ instance.error ? 'bg-danger-subtle text-danger-emphasis' : 'bg-secondary-subtle text-secondary-emphasis' }}"{% if instance.title %} title="{{ instance.title }}"{% endif %}>{{ instance.label }}</span>
+                                            <twig:ea:Badge :variant="instance.error ? 'danger' : 'secondary'" class="jm-overview-instance" :title="instance.title ?: false">{{ instance.label }}</twig:ea:Badge>
                                         {% endfor %}
-                                        {% if row.more > 0 %}<span class="badge bg-secondary-subtle text-secondary-emphasis">+{{ row.more }}</span>{% endif %}
+                                        {% if row.more > 0 %}<twig:ea:Badge variant="secondary">+{{ row.more }}</twig:ea:Badge>{% endif %}
                                     </span>
                                 {% endif %}
                                 {{ row.detail }}
