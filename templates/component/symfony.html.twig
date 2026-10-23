@@ -18,7 +18,7 @@
                             <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-symfony-recommendations" aria-controls="jm-symfony-recommendations" aria-selected="true">Recommendations</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-symfony-bundles" aria-controls="jm-symfony-bundles" aria-selected="false">Bundles <span class="badge text-bg-secondary">{{ view.bundles|length }}</span></button>
+                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-symfony-bundles" aria-controls="jm-symfony-bundles" aria-selected="false">Bundles <twig:ea:Badge variant="secondary">{{ view.bundles|length }}</twig:ea:Badge></button>
                         </li>
                     </ul>
                 </div>
@@ -36,7 +36,7 @@
                                     <dt>realpath_cache_size</dt>
                                     <dd>
                                         {%- if view.realpathCacheSizeStyle -%}
-                                            <span class="badge {{ view.realpathCacheSizeStyle.cssClass }}">{{ view.realpathCacheSize|jm_bytes }}</span>
+                                            <twig:ea:Badge :variant="view.realpathCacheSizeStyle.value">{{ view.realpathCacheSize|jm_bytes }}</twig:ea:Badge>
                                         {%- else -%}
                                             {{ include('@JmonitorEasyAdmin/_value.html.twig', {value: null}) }}
                                         {%- endif -%}
@@ -59,7 +59,7 @@
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Flex recipes', metric: 'symfony.flex', badge: view.flex} %}
                     {% block body %}
                         {% if view.flexError %}
-                            <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.flexError }}</div>
+                            {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.flexError}) }}
                             <p class="small text-muted mb-0">The check runs <code>composer recipes -o</code> in the project directory, as the user running PHP, and stops after 5 seconds: <code>composer</code> must be in the <code>PATH</code> of that user and reach the Symfony recipes server. Click Refresh once fixed, or set <code>flex: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                         {% elseif not view.flexAvailable %}
                             <p class="text-muted mb-0">Flex recipes are not collected.</p>
@@ -88,7 +88,7 @@
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Messenger', metric: 'symfony.messenger'} %}
                         {% block body %}
                             {% if view.messengerError %}
-                                <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.messengerError }}</div>
+                                {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.messengerError}) }}
                                 <p class="small text-muted mb-0">The stats come from <code>bin/console messenger:stats --format=json</code> (Symfony 7.2 or later), run in a PHP CLI process from the project directory and stopped after 3 seconds. Click Refresh once fixed, or set <code>messenger: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                             {% elseif not view.messengerAvailable %}
                                 <p class="text-muted mb-0">Messenger stats are not collected.</p>
@@ -122,7 +122,7 @@
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scheduler - Next task', metric: 'symfony.scheduler_next_task'} %}
                         {% block body %}
                             {% if view.schedulerError %}
-                                <div class="alert alert-warning py-2 small mb-2 text-break">{{ view.schedulerError }}</div>
+                                {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.schedulerError}) }}
                                 <p class="small text-muted mb-0">The tasks come from the <code>debug:scheduler</code> command, run in the web process. Click Refresh once fixed, or set <code>scheduler: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                             {% elseif not view.nextTask %}
                                 <p class="text-muted mb-0">No tasks</p>
@@ -132,7 +132,7 @@
                                         <div class="fs-5"><code>{{ view.nextTask.command }}</code></div>
                                         {% if view.nextTask.description %}<div class="text-muted">{{ view.nextTask.description }}</div>{% endif %}
                                         <div class="mt-2">
-                                            {% if view.nextTask.trigger %}<span class="badge text-bg-info">{{ view.nextTask.trigger }}</span>{% endif %}
+                                            {% if view.nextTask.trigger %}<twig:ea:Badge variant="info">{{ view.nextTask.trigger }}</twig:ea:Badge>{% endif %}
                                             {% if view.nextTask.jitter %}<span class="small text-muted ms-1">{{ view.nextTask.jitter }} jitters</span>{% endif %}
                                         </div>
                                     </div>

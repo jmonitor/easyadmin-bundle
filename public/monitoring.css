@@ -329,9 +329,7 @@
     cursor: pointer;
 }
 
-.jm-refresh {
-    display: inline-flex;
-    align-items: center;
+.jm-refresh .btn-label {
     gap: .35rem;
 }
 
@@ -374,5 +372,5 @@
 }
 
 .jm-navigate-js .jm-navigate-pending .jm-navigate-submit {
-    display: inline-block;
+    display: inline-flex;
 }

@@ -204,7 +204,7 @@
                         <option value="{{ database.id }}"{{ database is same as(instance) ? ' selected' }}>{{ database.id }}{% if database.detail %} · {{ database.detail }}{% endif %}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-secondary btn-sm jm-navigate-submit">Show</button>
+                <twig:ea:Button size="sm" class="jm-navigate-submit">Show</twig:ea:Button>
             </form>
         {% else %}
             <h2 class="h5 mb-2">Database{% if (instance.detail ?? instance.id) is not null %} · {{ instance.detail ?? instance.id }}{% endif %}</h2>

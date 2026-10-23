@@ -46,10 +46,10 @@
                 <div class="card-header">
                     <ul class="nav nav-tabs card-header-tabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-ini-files" aria-controls="jm-php-ini-files" aria-selected="true">INI files <span class="badge text-bg-secondary">{{ view.iniFiles|length }}</span></button>
+                            <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-ini-files" aria-controls="jm-php-ini-files" aria-selected="true">INI files <twig:ea:Badge variant="secondary">{{ view.iniFiles|length }}</twig:ea:Badge></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-extensions" aria-controls="jm-php-extensions" aria-selected="false">Extensions <span class="badge text-bg-secondary">{{ view.extensions|length }}</span></button>
+                            <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#jm-php-extensions" aria-controls="jm-php-extensions" aria-selected="false">Extensions <twig:ea:Badge variant="secondary">{{ view.extensions|length }}</twig:ea:Badge></button>
                         </li>
                     </ul>
                 </div>
