@@ -59,7 +59,7 @@
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Flex recipes', metric: 'symfony.flex', badge: view.flex} %}
                     {% block body %}
                         {% if view.flexError %}
-                            <twig:ea:Alert variant="warning" class="py-2 small mb-2 text-break" :role="false">{{ view.flexError }}</twig:ea:Alert>
+                            {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.flexError}) }}
                             <p class="small text-muted mb-0">The check runs <code>composer recipes -o</code> in the project directory, as the user running PHP, and stops after 5 seconds: <code>composer</code> must be in the <code>PATH</code> of that user and reach the Symfony recipes server. Click Refresh once fixed, or set <code>flex: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                         {% elseif not view.flexAvailable %}
                             <p class="text-muted mb-0">Flex recipes are not collected.</p>
@@ -88,7 +88,7 @@
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Messenger', metric: 'symfony.messenger'} %}
                         {% block body %}
                             {% if view.messengerError %}
-                                <twig:ea:Alert variant="warning" class="py-2 small mb-2 text-break" :role="false">{{ view.messengerError }}</twig:ea:Alert>
+                                {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.messengerError}) }}
                                 <p class="small text-muted mb-0">The stats come from <code>bin/console messenger:stats --format=json</code> (Symfony 7.2 or later), run in a PHP CLI process from the project directory and stopped after 3 seconds. Click Refresh once fixed, or set <code>messenger: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                             {% elseif not view.messengerAvailable %}
                                 <p class="text-muted mb-0">Messenger stats are not collected.</p>
@@ -122,7 +122,7 @@
                     {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Scheduler - Next task', metric: 'symfony.scheduler_next_task'} %}
                         {% block body %}
                             {% if view.schedulerError %}
-                                <twig:ea:Alert variant="warning" class="py-2 small mb-2 text-break" :role="false">{{ view.schedulerError }}</twig:ea:Alert>
+                                {{ include('@JmonitorEasyAdmin/_alert.html.twig', {variant: 'warning', class: 'py-2 small mb-2 text-break', message: view.schedulerError}) }}
                                 <p class="small text-muted mb-0">The tasks come from the <code>debug:scheduler</code> command, run in the web process. Click Refresh once fixed, or set <code>scheduler: false</code> under <code>jmonitor_easyadmin.components.symfony</code> to hide this card.</p>
                             {% elseif not view.nextTask %}
                                 <p class="text-muted mb-0">No tasks</p>

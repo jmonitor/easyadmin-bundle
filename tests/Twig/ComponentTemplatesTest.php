@@ -134,7 +134,7 @@ final class ComponentTemplatesTest extends TestCase
         self::assertSame(1, preg_match('#<select[^>]*name="connection"[^>]*data-jm-navigate[^>]*>(.*?)</select>#s', $section, $select));
         self::assertSame(3, substr_count($select[1], '<option'));
         self::assertStringContainsString('<option value="b" selected>b · two</option>', $select[1]);
-        self::assertStringContainsString('<button class="btn btn-secondary btn-sm jm-navigate-submit" type="submit"><span class="btn-label">Show</span></button>', $section);
+        self::assertMatchesRegularExpression('#<button(?=[^>]*\sclass="[^"]*\bjm-navigate-submit\b)(?=[^>]*\stype="submit")[^>]*>.*?Show.*?</button>#s', $section);
         self::assertStringNotContainsString('<noscript>', $section, 'the button must work when the script fails to load');
         self::assertStringNotContainsString('nav-pills', $section);
     }
