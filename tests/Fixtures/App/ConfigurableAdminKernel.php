@@ -6,10 +6,12 @@ namespace Jmonitor\EasyAdminBundle\Tests\Fixtures\App;
 
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\ApacheDetector;
+use Jmonitor\EasyAdminBundle\Detection\CloudflareDetector;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
 use Jmonitor\EasyAdminBundle\Detection\MysqlDetector;
 use Jmonitor\EasyAdminBundle\Detection\NginxDetector;
 use Jmonitor\EasyAdminBundle\Logging\MinimumLevelLogger;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cloudflare\FixtureCloudflareClient;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\InstancesDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\ThrowingDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureShellExecutor;
@@ -44,6 +46,8 @@ final class ConfigurableAdminKernel extends TestKernel
     public static ?array $apache = null;
     /** @var array{status: ?string, commands: array<string, ?string>}|null the stub_status page and the outputs of the commands */
     public static ?array $nginx = null;
+    /** @var array{statuses?: array<string, int>, empty?: list<string>, down?: bool}|null what FixtureCloudflareClient answers for the zone example.com */
+    public static ?array $cloudflare = null;
 
     private readonly ?string $detectorFailure;
     /** @var list<string> */
@@ -56,6 +60,8 @@ final class ConfigurableAdminKernel extends TestKernel
     private readonly ?array $apacheFixtures;
     /** @var array{status: ?string, commands: array<string, ?string>}|null */
     private readonly ?array $nginxFixtures;
+    /** @var array{statuses?: array<string, int>, empty?: list<string>, down?: bool}|null */
+    private readonly ?array $cloudflareFixtures;
 
     public function __construct(string $environment = 'test', bool $debug = true)
     {
@@ -66,6 +72,7 @@ final class ConfigurableAdminKernel extends TestKernel
         $this->frankenphpFixtures = self::$frankenphp;
         $this->apacheFixtures = self::$apache;
         $this->nginxFixtures = self::$nginx;
+        $this->cloudflareFixtures = self::$cloudflare;
     }
 
     public static function reset(): void
@@ -77,17 +84,18 @@ final class ConfigurableAdminKernel extends TestKernel
         self::$frankenphp = null;
         self::$apache = null;
         self::$nginx = null;
+        self::$cloudflare = null;
     }
 
     public function getCacheDir(): string
     {
         $replacement = $this->mysqlDetector();
 
-        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null && $this->apacheFixtures === null && $this->nginxFixtures === null) {
+        if ($replacement === null && $this->fakeRedisServices === [] && $this->frankenphpFixtures === null && $this->apacheFixtures === null && $this->nginxFixtures === null && $this->cloudflareFixtures === null) {
             return parent::getCacheDir();
         }
 
-        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures, $this->apacheFixtures, $this->nginxFixtures]));
+        return parent::getCacheDir() . '-' . md5(serialize([$replacement?->getArguments(), $this->fakeRedisServices, $this->frankenphpFixtures, $this->apacheFixtures, $this->nginxFixtures, $this->cloudflareFixtures]));
     }
 
     protected function build(ContainerBuilder $container): void
@@ -163,6 +171,27 @@ final class ConfigurableAdminKernel extends TestKernel
                         new Definition(FixtureShellExecutor::class, [$this->fixtures['commands']]),
                     ]);
                     $container->setDefinition(NginxDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::Nginx->value]));
+                }
+            }, PassConfig::TYPE_BEFORE_REMOVING);
+        }
+
+        if ($this->cloudflareFixtures !== null) {
+            $container->addCompilerPass(new class ($this->cloudflareFixtures) implements CompilerPassInterface {
+                /** @param array{statuses?: array<string, int>, empty?: list<string>, down?: bool} $fixtures */
+                public function __construct(private readonly array $fixtures) {}
+
+                public function process(ContainerBuilder $container): void
+                {
+                    $definition = new Definition(CloudflareDetector::class, [
+                        'token',
+                        FixtureCloudflareClient::ZONE,
+                        new Reference('cache.app'),
+                        3600,
+                        new Reference('clock'),
+                        new Reference(MinimumLevelLogger::class),
+                        new Definition(FixtureCloudflareClient::class, [$this->fixtures['statuses'] ?? [], $this->fixtures['empty'] ?? [], $this->fixtures['down'] ?? false]),
+                    ]);
+                    $container->setDefinition(CloudflareDetector::class, $definition->addTag('jmonitor_easyadmin.detector', ['index' => Component::Cloudflare->value]));
                 }
             }, PassConfig::TYPE_BEFORE_REMOVING);
         }

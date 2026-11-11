@@ -151,9 +151,14 @@ final readonly class SnapshotProvider
         return 'jmonitor_easyadmin.collect.' . $prefix . $name;
     }
 
+    /**
+     * Named after the component: the implicit instances of two components have the same, empty, prefix.
+     */
     private function buildKey(Instance $instance): string
     {
-        return self::cacheKey('%build', $this->keyPrefix($instance));
+        $prefix = $instance->id === null ? $instance->component->value . '.' : $instance->keyPrefix();
+
+        return self::cacheKey('%build', $this->nodePrefix($instance) . $prefix);
     }
 
     private function nodePrefix(Instance $instance): string

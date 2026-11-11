@@ -15,6 +15,7 @@ enum Component: string
     case Mysql = 'mysql';
     case Postgresql = 'postgresql';
     case Redis = 'redis';
+    case Cloudflare = 'cloudflare';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum Component: string
             self::Mysql => 'MySQL',
             self::Postgresql => 'PostgreSQL',
             self::Redis => 'Redis',
+            self::Cloudflare => 'Cloudflare',
         };
     }
 
@@ -38,7 +40,7 @@ enum Component: string
     {
         return match ($this) {
             self::System, self::Php, self::FrankenPhp, self::Apache, self::Nginx, self::Symfony => true,
-            self::Mysql, self::Postgresql, self::Redis => false,
+            self::Mysql, self::Postgresql, self::Redis, self::Cloudflare => false,
         };
     }
 }

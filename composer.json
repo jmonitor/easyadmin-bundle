@@ -1,6 +1,6 @@
 {
     "name": "jmonitor/easyadmin-bundle",
-    "description": "Live monitoring pages inside EasyAdmin: system, PHP, FrankenPHP, Apache, Nginx, MySQL, PostgreSQL, Redis and Symfony metrics collected when you open the page, no worker required.",
+    "description": "Live monitoring pages inside EasyAdmin: system, PHP, FrankenPHP, Apache, Nginx, MySQL, PostgreSQL, Redis, Symfony and Cloudflare metrics collected when you open the page, no worker required.",
     "keywords": [
         "monitoring",
         "metrics",
@@ -13,6 +13,7 @@
         "frankenphp",
         "apache",
         "nginx",
+        "cloudflare",
         "system",
         "opcache"
     ],
@@ -31,7 +32,7 @@
         "php": "^8.2",
         "composer-runtime-api": "^2.0",
         "easycorp/easyadmin-bundle": "^5.2",
-        "jmonitor/collector": "^2.4.0",
+        "jmonitor/collector": "^2.5.1",
         "psr/cache": "^1.0|^2.0|^3.0",
         "psr/container": "^1.1|^2.0",
         "psr/log": "^2.0|^3.0",
@@ -44,6 +45,7 @@
         "symfony/framework-bundle": "^6.4|^7.0|^8.0",
         "symfony/http-foundation": "^6.4|^7.0|^8.0",
         "symfony/http-kernel": "^6.4|^7.0|^8.0",
+        "symfony/intl": "^6.4|^7.0|^8.0",
         "symfony/process": "^6.4|^7.0|^8.0",
         "symfony/routing": "^6.4|^7.0|^8.0",
         "symfony/security-csrf": "^6.4|^7.0|^8.0",
@@ -54,14 +56,20 @@
     "require-dev": {
         "doctrine/doctrine-bundle": "^2.13|^3.0",
         "friendsofphp/php-cs-fixer": "^3.86",
+        "nyholm/psr7": "^1.8",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
         "predis/predis": "^2.0|^3.0",
         "symfony/browser-kit": "^6.4|^7.0|^8.0",
         "symfony/css-selector": "^6.4|^7.0|^8.0",
+        "symfony/http-client": "^6.4|^7.0|^8.0",
         "symfony/ux-twig-component": "^2.20|^3.0",
         "symfony/yaml": "^6.4|^7.0|^8.0",
         "twig/extra-bundle": "^3.15"
+    },
+    "suggest": {
+        "nyholm/psr7": "With symfony/http-client, to show the Cloudflare tab.",
+        "symfony/http-client": "With nyholm/psr7, to show the Cloudflare tab."
     },
     "autoload": {
         "psr-4": {

@@ -1,0 +1,8 @@
+{# @var quota \Jmonitor\EasyAdminBundle\Metric\Quota #}
+<div>
+    <div class="d-flex justify-content-between gap-3">
+        <span>{{ quota.label }}</span>
+        <span class="text-nowrap">{{ quota.inBytes ? quota.used|jm_bytes : quota.used|jm_number }} <span class="text-muted">/ {{ quota.inBytes ? quota.allowed|jm_bytes : quota.allowed|jm_number }}</span></span>
+    </div>
+    {{ include('@JmonitorEasyAdmin/_bar.html.twig', {percent: quota.percent, style: quota.style}) }}
+</div>

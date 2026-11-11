@@ -89,7 +89,7 @@ final readonly class OverviewViewFactory
             Component::Apache, Component::Nginx => $this->serverSoftware(),
             Component::Symfony => Kernel::VERSION,
             Component::FrankenPhp => null,
-            Component::Mysql, Component::Postgresql, Component::Redis => $instance?->detail,
+            Component::Mysql, Component::Postgresql, Component::Redis, Component::Cloudflare => $instance?->detail,
         };
     }
 

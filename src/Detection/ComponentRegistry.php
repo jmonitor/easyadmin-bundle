@@ -5,28 +5,28 @@ declare(strict_types=1);
 namespace Jmonitor\EasyAdminBundle\Detection;
 
 use Jmonitor\EasyAdminBundle\Component;
+use Psr\Container\ContainerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Applies the "enabled" setting of each component to its detector:
  * false never detects, auto keeps only what is found, true keeps the component even when
  * detection failed so the page can explain why. A component is detected when first asked for:
- * the polling of a tab leaves the detectors of the other components alone.
+ * the polling of a tab leaves the detectors of the other components alone. A detector is built
+ * when its component is detected: one that cannot be, an option reading an undefined environment
+ * variable for instance, is a component that is not found.
  */
 final class ComponentRegistry implements ResetInterface
 {
-    /** @var ?array<string, ComponentDetectorInterface> keyed by component value */
-    private ?array $byComponent = null;
-
     /** @var array<string, ComponentStatus> keyed by component value */
     private array $statuses = [];
 
     /**
-     * @param iterable<string, ComponentDetectorInterface>      $detectors  keyed by component value
-     * @param array<string, array{enabled: 'auto'|bool}> $components the "components" configuration
+     * @param ContainerInterface                         $detectors  ComponentDetectorInterface services keyed by component value
+     * @param array<string, array{enabled: 'auto'|bool}> $components the "enabled" setting of each component
      */
     public function __construct(
-        private readonly iterable $detectors,
+        private readonly ContainerInterface $detectors,
         private readonly array $components,
     ) {}
 
@@ -84,17 +84,18 @@ final class ComponentRegistry implements ResetInterface
     private function detect(Component $component): ComponentStatus
     {
         $enabled = $this->components[$component->value]['enabled'] ?? 'auto';
-        $detector = $this->detectors()[$component->value] ?? null;
 
         if ($enabled === false) {
             return new ComponentStatus($component, Availability::Disabled, []);
         }
 
-        if ($detector === null) {
+        if (!$this->detectors->has($component->value)) {
             return new ComponentStatus($component, Availability::NotDetected, [], Instance::UNAVAILABLE);
         }
 
         try {
+            $detector = $this->detectors->get($component->value);
+            assert($detector instanceof ComponentDetectorInterface);
             $detection = $detector->detect();
         } catch (\Throwable $e) {
             $detection = Detection::unavailable($e->getMessage());
@@ -109,21 +110,5 @@ final class ComponentRegistry implements ResetInterface
         return $enabled === true
             ? new ComponentStatus($component, Availability::Available, [Instance::unavailable($component, $reason)])
             : new ComponentStatus($component, Availability::NotDetected, [], $reason);
-    }
-
-    /**
-     * @return array<string, ComponentDetectorInterface>
-     */
-    private function detectors(): array
-    {
-        if ($this->byComponent === null) {
-            $this->byComponent = [];
-
-            foreach ($this->detectors as $detector) {
-                $this->byComponent[$detector->component()->value] = $detector;
-            }
-        }
-
-        return $this->byComponent;
     }
 }

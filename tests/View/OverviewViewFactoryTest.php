@@ -8,13 +8,13 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Availability;
 use Jmonitor\EasyAdminBundle\Detection\ComponentDetectorInterface;
-use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Detection\SkippedConnectionReporter;
 use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
 use Jmonitor\EasyAdminBundle\Release\LatestRelease;
 use Jmonitor\EasyAdminBundle\Release\Releases;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\Detectors;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Logging\RecordingLogger;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Release\FixtureReleaseSource;
@@ -50,7 +50,7 @@ final class OverviewViewFactoryTest extends TestCase
         );
 
         self::assertSame(
-            [Component::Php, Component::Mysql, Component::Redis, Component::System, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony, Component::Postgresql],
+            [Component::Php, Component::Mysql, Component::Redis, Component::System, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony, Component::Postgresql, Component::Cloudflare],
             array_map(static fn(OverviewComponent $component): Component => $component->component, $view->components),
         );
     }
@@ -220,7 +220,7 @@ final class OverviewViewFactoryTest extends TestCase
         $requestStack->push($request ?? new Request());
 
         $factory = new OverviewViewFactory(
-            new ComponentRegistry($detectors, array_replace($config, $overrides)),
+            Detectors::registry($detectors, array_replace($config, $overrides)),
             $this->reporter,
             new Releases(new ArrayAdapter(), source: new FixtureReleaseSource($latest)),
             $requestStack,

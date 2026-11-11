@@ -658,6 +658,23 @@ final class SnapshotProviderTest extends TestCase
         self::assertSame(2, $builds);
     }
 
+    public function testASetThatCannotBeBuiltLeavesTheImplicitInstancesOfTheOtherComponentsAlone(): void
+    {
+        $provider = $this->bareProvider();
+        $build = static fn(): CollectorSet => throw new \RuntimeException('Token refused');
+        $cloudflare = Instance::found(Component::Cloudflare, CollectorSet::lazy(Component::Cloudflare, $build));
+        $redis = Instance::found(Component::Redis, new CollectorSet(Component::Redis, [new CollectorSpec(new FakeCollector('redis', ['version' => '7.4.0']), Lifetime::Dynamic)]));
+        $php = Instance::found(Component::Php, CollectorSet::lazy(Component::Php, $build));
+        $system = Instance::found(Component::System, new CollectorSet(Component::System, [new CollectorSpec(new FakeCollector('system', ['load' => 1]), Lifetime::Dynamic)]));
+
+        self::assertSame('Token refused', $provider->get($cloudflare)->error);
+        self::assertNull($provider->get($redis)->error);
+        self::assertSame(['version' => '7.4.0'], $provider->get($redis)->data('redis'));
+
+        self::assertSame('Token refused', $provider->get($php)->error);
+        self::assertNull($provider->get($system)->error, 'on one web server too');
+    }
+
     /**
      * @param list<CollectorSpec> $specs
      */

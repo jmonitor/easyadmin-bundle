@@ -1,6 +1,6 @@
 # Jmonitor EasyAdmin Bundle
 
-This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, FrankenPHP, Apache, Nginx, MySQL, PostgreSQL, Redis and Symfony metrics, collected when you open the page and refreshed while it stays open.  
+This bundle adds **live monitoring pages** to your **[EasyAdmin](https://github.com/EasyCorp/EasyAdminBundle)** backend: system, PHP, FrankenPHP, Apache, Nginx, MySQL, PostgreSQL, Redis, Symfony and Cloudflare metrics, collected when you open the page and refreshed while it stays open.  
 No worker to run, nothing to store.
 
 [![Packagist Version](https://img.shields.io/packagist/v/jmonitor/easyadmin-bundle?style=flat-square)](https://packagist.org/packages/jmonitor/easyadmin-bundle)
@@ -45,6 +45,7 @@ No worker to run, nothing to store.
 | Web server        | ![Apache](https://img.shields.io/badge/Apache-D22128?style=flat-square&logo=apache&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white) |
 | Framework         | ![Symfony](https://img.shields.io/badge/Symfony-000000?style=flat-square&logo=symfony&logoColor=white)                                                                                        |
 | Databases & cache | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white) |
+| CDN               | ![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=flat-square&logo=cloudflare&logoColor=white)                                                                              |
 | System            | ![Linux](https://img.shields.io/badge/CPU%20·%20RAM%20·%20Disk-FCC624?style=flat-square&logo=linux&logoColor=black)                                                                           |
 
 ## Requirements
@@ -126,6 +127,10 @@ jmonitor_easyadmin:
         redis:
             enabled: auto
             connections: []    # id => DSN, {dsn} or {service}; empty = the Symfony cache provider or REDIS_URL
+        cloudflare:
+            enabled: auto
+            api_token: ~       # e.g. '%env(CLOUDFLARE_API_TOKEN)%'
+            zone: ~            # zone name (example.com) or zone id
 ```
 
 `auto` shows the component when it is detected. `true` always shows it, with the detection error when it fails. `false` removes it.
@@ -137,6 +142,8 @@ jmonitor_easyadmin:
 `exclude_connections` leaves out of the MySQL and PostgreSQL tabs the Doctrine connections whose name matches one of its patterns, with the `*` and `?` wildcards: the connections your application declares but does not serve, for instance `exclude_connections: ['*_backup']`. A connection listed in `connections` cannot match it.
 
 For Redis, `connections` maps an id to a DSN, `{ dsn: ... }` or `{ service: ... }` (a `\Redis`, `\Predis\Client` or `\Relay\Relay` service), each one becoming a pill: `connections: { cache: 'redis://localhost', sessions: { dsn: 'redis://sessions:6379/1' }, queue: { service: app.redis_queue } }`.
+
+The Cloudflare tab shows when `api_token` and `zone` are set, and needs an HTTP client: `composer require symfony/http-client nyholm/psr7`. Create the token in the Cloudflare dashboard (My Profile → API Tokens) with the [permissions the collector lists](https://github.com/jmonitor/collector#cloudflare): only *Zone › Zone › Read* is required, a card whose permission is missing says which one.
 
 ## Compared to jmonitor.io
 
@@ -152,11 +159,12 @@ Both use the same collectors and run side by side: install [jmonitor/jmonitor-bu
 - **FrankenPHP**: needs the `metrics` global option in the Caddyfile (`{ metrics }`), and `frankenphp` in the `PATH` of the web process for the version.
 - **Apache**: needs a `mod_status` page at `/server-status` (`SetHandler server-status`, `Require local`), left out of the rewrite to `index.php`. When Apache runs in another container than PHP, point `components.apache.endpoint` at it.
 - **Nginx**: needs `location = /nginx_status { stub_status; allow 127.0.0.1; deny all; }` in the server block answering `localhost`. When Nginx runs in another container than PHP, point `components.nginx.endpoint` at it.
+- **Cloudflare**: the analytics are about three minutes behind and are read again every minute (traffic), 5 minutes (today, Web Analytics), 15 minutes (R2, Images) or `static_ttl` (zone, certificate, settings); Refresh reads them all again. Web Analytics must be enabled on the zone.
 - **MySQL**: the slow queries need read access to the `performance_schema`.
 - **PostgreSQL**: the slow queries need the `pg_stat_statements` extension and `GRANT pg_monitor TO <your role>`.
 - **Symfony**: the Messenger stats need Symfony 7.2+, the Flex recipes `composer` in the `PATH` of the web process.
 - **Load balancer**: the System, PHP, web server and Symfony tabs show the server that answered; in containers, give each one its own `hostname`.
-- **Outbound requests**: the version badges come from [endoflife.date](https://endoflife.date) and the update badges of the Overview from GitHub, once a day; the requests carry no data about your application.
+- **Outbound requests**: the version badges come from [endoflife.date](https://endoflife.date) and the update badges of the Overview from GitHub, once a day; the requests carry no data about your application. The Cloudflare tab calls the Cloudflare API with your token.
 
 ## Security
 

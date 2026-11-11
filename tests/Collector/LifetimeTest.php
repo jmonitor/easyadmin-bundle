@@ -25,6 +25,12 @@ final class LifetimeTest extends TestCase
         self::assertSame(60, Lifetime::Minute->ttl(10, 3600));
     }
 
+    public function testTheLongerFixedLifetimes(): void
+    {
+        self::assertSame(300, Lifetime::FiveMinutes->ttl(10, 3600));
+        self::assertSame(900, Lifetime::QuarterHour->ttl(10, 3600));
+    }
+
     public function testStaticFollowsTheConfiguredTtl(): void
     {
         self::assertSame(3600, Lifetime::Static->ttl(10, 3600));

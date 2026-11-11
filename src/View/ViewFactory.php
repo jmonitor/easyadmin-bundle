@@ -37,6 +37,7 @@ final readonly class ViewFactory
             Component::Mysql => new MysqlView($snapshot, $this->gauges, $this->clock->now()->getTimestamp(), $this->endOfLife),
             Component::Postgresql => new PostgresqlView($snapshot, $this->gauges, $this->endOfLife),
             Component::Redis => new RedisView($snapshot, $this->gauges, $this->endOfLife),
+            Component::Cloudflare => new CloudflareView($snapshot, $this->gauges, $this->clock->now()->getTimestamp()),
             Component::Symfony => new SymfonyView($snapshot, $this->php(), $this->messenger, $this->scheduler, $this->flex, $this->endOfLife),
         };
     }

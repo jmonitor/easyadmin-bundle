@@ -9,10 +9,10 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Detection\Availability;
-use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\Detectors;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
 use PHPUnit\Framework\TestCase;
 
@@ -20,7 +20,7 @@ final class ComponentRegistryTest extends TestCase
 {
     public function testAutoKeepsFoundComponentsInEnumOrder(): void
     {
-        $registry = new ComponentRegistry([
+        $registry = Detectors::registry([
             'redis' => new StaticDetector(Component::Redis, $this->found(Component::Redis)),
             'system' => new StaticDetector(Component::System, $this->found(Component::System)),
             'mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('No MySQL connection')),
@@ -35,7 +35,7 @@ final class ComponentRegistryTest extends TestCase
 
     public function testForcedComponentStaysListedWithItsError(): void
     {
-        $registry = new ComponentRegistry([
+        $registry = Detectors::registry([
             'mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('Connection refused')),
         ], $this->config(['mysql' => ['enabled' => true]]));
 
@@ -51,7 +51,7 @@ final class ComponentRegistryTest extends TestCase
     public function testDisabledComponentIsNeverDetected(): void
     {
         $detector = new StaticDetector(Component::Redis, $this->found(Component::Redis));
-        $registry = new ComponentRegistry(['redis' => $detector], $this->config(['redis' => ['enabled' => false]]));
+        $registry = Detectors::registry(['redis' => $detector], $this->config(['redis' => ['enabled' => false]]));
 
         self::assertSame([], $registry->available());
         self::assertSame(0, $detector->calls);
@@ -60,7 +60,7 @@ final class ComponentRegistryTest extends TestCase
     public function testDetectionRunsOnceUntilReset(): void
     {
         $detector = new StaticDetector(Component::Php, $this->found(Component::Php));
-        $registry = new ComponentRegistry(['php' => $detector], $this->config());
+        $registry = Detectors::registry(['php' => $detector], $this->config());
 
         $registry->available();
         $registry->instancesFor(Component::Php);
@@ -75,7 +75,7 @@ final class ComponentRegistryTest extends TestCase
     {
         $mysql = new StaticDetector(Component::Mysql, $this->found(Component::Mysql));
         $redis = new StaticDetector(Component::Redis, $this->found(Component::Redis));
-        $registry = new ComponentRegistry(['mysql' => $mysql, 'redis' => $redis], $this->config());
+        $registry = Detectors::registry(['mysql' => $mysql, 'redis' => $redis], $this->config());
 
         self::assertNotNull($registry->instance(Component::Redis, null));
         self::assertTrue($registry->isAvailable(Component::Redis));
@@ -89,7 +89,7 @@ final class ComponentRegistryTest extends TestCase
     public function testTheImplicitInstanceCarriesTheDetectedSet(): void
     {
         $set = new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php'), Lifetime::Dynamic)]);
-        $registry = new ComponentRegistry(['php' => new StaticDetector(Component::Php, Detection::found($set))], $this->config());
+        $registry = Detectors::registry(['php' => new StaticDetector(Component::Php, Detection::found($set))], $this->config());
 
         self::assertSame($set, $registry->instance(Component::Php, null)?->collectors);
         self::assertNull($registry->instance(Component::Php, 'anything'), 'an implicit instance has no id');
@@ -99,7 +99,7 @@ final class ComponentRegistryTest extends TestCase
     {
         $default = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'default', 'shop');
         $legacy = Instance::found(Component::Mysql, new CollectorSet(Component::Mysql, []), 'legacy', 'erp');
-        $registry = new ComponentRegistry(['mysql' => new StaticDetector(Component::Mysql, Detection::instances([$default, $legacy]))], $this->config());
+        $registry = Detectors::registry(['mysql' => new StaticDetector(Component::Mysql, Detection::instances([$default, $legacy]))], $this->config());
 
         self::assertSame([$default, $legacy], $registry->instancesFor(Component::Mysql));
         self::assertSame($default, $registry->instance(Component::Mysql, null));
@@ -121,17 +121,49 @@ final class ComponentRegistryTest extends TestCase
             }
         };
 
-        $auto = new ComponentRegistry(['mysql' => $throwing, 'php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
+        $auto = Detectors::registry(['mysql' => $throwing, 'php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
         self::assertSame([Component::Php], $auto->available(), 'auto: the component is simply absent, the other tabs still render');
 
-        $forced = new ComponentRegistry(['mysql' => $throwing], $this->config(['mysql' => ['enabled' => true]]));
+        $forced = Detectors::registry(['mysql' => $throwing], $this->config(['mysql' => ['enabled' => true]]));
         self::assertSame([Component::Mysql], $forced->available());
         self::assertSame('Malformed DSN', $forced->instance(Component::Mysql, null)?->error);
     }
 
+    public function testADetectorThatCannotBeBuiltIsAComponentThatIsNotFound(): void
+    {
+        $unbuildable = static fn(): never => throw new \RuntimeException('Environment variable not found: "CLOUDFLARE_API_TOKEN".');
+        $detectors = ['cloudflare' => $unbuildable, 'php' => new StaticDetector(Component::Php, $this->found(Component::Php))];
+
+        $auto = Detectors::registry($detectors, $this->config());
+        self::assertSame([Component::Php], $auto->available());
+        self::assertSame('Environment variable not found: "CLOUDFLARE_API_TOKEN".', $auto->status(Component::Cloudflare)->reason);
+
+        $forced = Detectors::registry($detectors, $this->config(['cloudflare' => ['enabled' => true]]));
+        self::assertSame('Environment variable not found: "CLOUDFLARE_API_TOKEN".', $forced->instance(Component::Cloudflare, null)?->error);
+
+        $disabled = Detectors::registry($detectors, $this->config(['cloudflare' => ['enabled' => false]]));
+        self::assertSame(Availability::Disabled, $disabled->status(Component::Cloudflare)->availability);
+    }
+
+    public function testADetectorIsBuiltWhenItsComponentIsDetected(): void
+    {
+        $built = [];
+        $detector = function (Component $component) use (&$built): \Closure {
+            return function () use ($component, &$built): StaticDetector {
+                $built[] = $component->value;
+
+                return new StaticDetector($component, $this->found($component));
+            };
+        };
+        $registry = Detectors::registry(['php' => $detector(Component::Php), 'redis' => $detector(Component::Redis)], $this->config());
+
+        self::assertTrue($registry->isAvailable(Component::Php));
+        self::assertSame(['php'], $built);
+    }
+
     public function testTheStatusOfADisabledComponentIsDisabled(): void
     {
-        $registry = new ComponentRegistry(['redis' => new StaticDetector(Component::Redis, $this->found(Component::Redis))], $this->config(['redis' => ['enabled' => false]]));
+        $registry = Detectors::registry(['redis' => new StaticDetector(Component::Redis, $this->found(Component::Redis))], $this->config(['redis' => ['enabled' => false]]));
 
         $status = $registry->status(Component::Redis);
 
@@ -143,7 +175,7 @@ final class ComponentRegistryTest extends TestCase
 
     public function testAComponentWithoutDetectorIsNotDetected(): void
     {
-        $registry = new ComponentRegistry([], $this->config());
+        $registry = Detectors::registry([], $this->config());
 
         $status = $registry->status(Component::Redis);
 
@@ -153,7 +185,7 @@ final class ComponentRegistryTest extends TestCase
 
     public function testTheStatusOfAnUndetectedComponentKeepsTheReason(): void
     {
-        $registry = new ComponentRegistry(['nginx' => new StaticDetector(Component::Nginx, Detection::unavailable('Nginx is not serving this page.'))], $this->config());
+        $registry = Detectors::registry(['nginx' => new StaticDetector(Component::Nginx, Detection::unavailable('Nginx is not serving this page.'))], $this->config());
 
         $status = $registry->status(Component::Nginx);
 
@@ -175,7 +207,7 @@ final class ComponentRegistryTest extends TestCase
                 throw new \RuntimeException('boom');
             }
         };
-        $registry = new ComponentRegistry(['mysql' => $throwing], $this->config());
+        $registry = Detectors::registry(['mysql' => $throwing], $this->config());
 
         $status = $registry->status(Component::Mysql);
 
@@ -185,7 +217,7 @@ final class ComponentRegistryTest extends TestCase
 
     public function testTheStatusOfAForcedComponentHoldsAnInstanceInError(): void
     {
-        $registry = new ComponentRegistry(['mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('nope'))], $this->config(['mysql' => ['enabled' => true]]));
+        $registry = Detectors::registry(['mysql' => new StaticDetector(Component::Mysql, Detection::unavailable('nope'))], $this->config(['mysql' => ['enabled' => true]]));
 
         $status = $registry->status(Component::Mysql);
 
@@ -196,7 +228,7 @@ final class ComponentRegistryTest extends TestCase
 
     public function testTheStatusOfAFoundComponentHoldsItsInstances(): void
     {
-        $registry = new ComponentRegistry(['php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
+        $registry = Detectors::registry(['php' => new StaticDetector(Component::Php, $this->found(Component::Php))], $this->config());
 
         $status = $registry->status(Component::Php);
 
@@ -208,7 +240,7 @@ final class ComponentRegistryTest extends TestCase
     public function testTheStatusIsDetectedOnce(): void
     {
         $detector = new StaticDetector(Component::Php, $this->found(Component::Php));
-        $registry = new ComponentRegistry(['php' => $detector], $this->config());
+        $registry = Detectors::registry(['php' => $detector], $this->config());
 
         $registry->status(Component::Php);
         $registry->status(Component::Php);

@@ -1,0 +1,16 @@
+{# @var breakdown \Jmonitor\EasyAdminBundle\Metric\Breakdown #}
+{% if breakdown.rows is empty %}
+    <span class="text-muted">{{ empty|default('No requests over the window.') }}</span>
+{% else %}
+    <div class="jm-bars">
+        {% for row in breakdown.rows %}
+            <div>
+                <div class="d-flex justify-content-between gap-3">
+                    <span class="text-truncate" title="{{ row.label }}">{{ row.label }}</span>
+                    <span class="text-nowrap">{{ row.count|jm_number }} <span class="text-muted">· {{ row.percent|jm_number(1) }} %</span></span>
+                </div>
+                {{ include('@JmonitorEasyAdmin/_bar.html.twig', {percent: row.percent, style: row.style}) }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
