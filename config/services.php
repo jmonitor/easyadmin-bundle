@@ -9,6 +9,7 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorRunner;
 use Jmonitor\EasyAdminBundle\Component;
 use Jmonitor\EasyAdminBundle\Controller\MonitoringController;
 use Jmonitor\EasyAdminBundle\Detection\ApacheDetector;
+use Jmonitor\EasyAdminBundle\Detection\CloudflareDetector;
 use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\DoctrineConnections;
 use Jmonitor\EasyAdminBundle\Detection\FrankenPhpDetector;
@@ -168,6 +169,18 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
             env('default::REDIS_URL'),
         ])
         ->tag('jmonitor_easyadmin.detector', ['index' => Component::Redis->value])
+    ;
+
+    $services->set(CloudflareDetector::class)
+        ->args([
+            $config['components']['cloudflare']['api_token'],
+            $config['components']['cloudflare']['zone'],
+            service($config['cache_pool']),
+            $config['static_ttl'],
+            service('clock'),
+            service(MinimumLevelLogger::class),
+        ])
+        ->tag('jmonitor_easyadmin.detector', ['index' => Component::Cloudflare->value])
     ;
 
     $services->set(ComponentRegistry::class)

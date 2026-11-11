@@ -50,7 +50,7 @@ final class OverviewViewFactoryTest extends TestCase
         );
 
         self::assertSame(
-            [Component::Php, Component::Mysql, Component::Redis, Component::System, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony, Component::Postgresql],
+            [Component::Php, Component::Mysql, Component::Redis, Component::System, Component::FrankenPhp, Component::Apache, Component::Nginx, Component::Symfony, Component::Postgresql, Component::Cloudflare],
             array_map(static fn(OverviewComponent $component): Component => $component->component, $view->components),
         );
     }

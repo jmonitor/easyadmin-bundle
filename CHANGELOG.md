@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cloudflare tab: zone, traffic, security, Web Analytics, R2 and Images.
+
 ### Changed
 
 - Badges, alerts and buttons use the EasyAdmin components.

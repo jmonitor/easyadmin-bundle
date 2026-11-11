@@ -15,10 +15,12 @@ use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
 use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\Delta;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Cloudflare\FixtureCloudflareClient;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Payloads;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\TestKernel;
 use Jmonitor\EasyAdminBundle\View\ApacheView;
+use Jmonitor\EasyAdminBundle\View\CloudflareView;
 use Jmonitor\EasyAdminBundle\View\FrankenPhpView;
 use Jmonitor\EasyAdminBundle\View\InstanceNavigation;
 use Jmonitor\EasyAdminBundle\View\MysqlView;
@@ -641,6 +643,146 @@ final class ComponentTemplatesTest extends TestCase
 
         self::assertStringNotContainsString('nginx -T', $html, 'a collect in progress or failed is not a failed command');
         self::assertStringContainsString('<dt>worker_connections</dt>', $html);
+    }
+
+    public function testTheCloudflareFragmentRendersEverySection(): void
+    {
+        $html = $this->renderCloudflare();
+
+        self::assertStringContainsString('example.com', $html);
+        self::assertStringContainsString('aria-label="Help: Zone"', $html);
+        self::assertStringContainsString('<dt>DNS records</dt>', $html);
+        self::assertStringNotContainsString('Development mode ends', $html);
+        self::assertStringContainsString('days left', $html);
+        self::assertStringContainsString('2027-01-10', $html);
+        self::assertStringContainsString('example.com, *.example.com', $html);
+        self::assertStringContainsString('<dt>SSL mode</dt>', $html);
+        self::assertStringContainsString('4h 0m', $html, 'browser TTL');
+        self::assertStringContainsString('last 15 minutes at the edge', $html);
+        self::assertStringContainsString('2 000', $html, 'requests of the window');
+        self::assertStringContainsString('133.3', $html, 'requests per minute');
+        self::assertStringNotContainsString('sampled by Cloudflare', $html);
+        self::assertStringContainsString('aria-label="Cache hit ratio: 55.0%"', $html);
+        self::assertStringContainsString('120 ms', $html, 'origin P50');
+        self::assertStringContainsString('480 ms', $html, 'origin P95');
+        self::assertStringContainsString('40 blocked', $html);
+        self::assertStringContainsString('15 challenged', $html);
+        self::assertStringNotContainsString('nothing to mitigate', $html);
+        self::assertStringContainsString('2.8 %', $html, 'share of mitigated requests');
+        self::assertStringContainsString('aria-label="Help: Cache status"', $html);
+        self::assertStringContainsString('jm-bar jm-bar-success', $html);
+        self::assertStringContainsString('🇫🇷 France', $html);
+        self::assertStringContainsString('Managed challenge', $html);
+        self::assertStringContainsString('Custom rules', $html);
+        self::assertStringContainsString('since 00:00 UTC', $html);
+        self::assertStringContainsString('86 000', $html);
+        self::assertStringContainsString('50.0 % cached', $html);
+        self::assertStringContainsString('5 GB', $html);
+        self::assertStringContainsString('3 GB from cache', $html);
+        self::assertStringContainsString('0.10 % of requests', $html);
+        self::assertStringContainsString('LCP P75', $html);
+        self::assertStringContainsString('1.8s', $html);
+        self::assertStringContainsString('0.31', $html, 'CLS is a score');
+        self::assertStringContainsString('Needs improvement', $html);
+        self::assertStringContainsString('9 500', $html, 'page loads');
+        self::assertStringContainsString('<dt>Page render</dt>', $html);
+        self::assertStringContainsString('account level, against the free tier', $html);
+        self::assertStringContainsString('8.5 GB <span class="text-muted">/ 10 GB</span>', $html);
+        self::assertStringContainsString('jm-bar jm-bar-warning', $html, 'R2 storage above 80 % of the free tier');
+        self::assertStringContainsString('<dt>assets</dt>', $html);
+        self::assertStringContainsString('5 400 objects', $html);
+        self::assertStringContainsString('4 200 <span class="text-muted">/ 5 000</span>', $html);
+        self::assertStringContainsString('2026-12-01', $html);
+        self::assertStringContainsString('https://dash.jmonitor.io/help/metric/cloudflare.web_vitals', $html);
+        self::assertStringNotContainsString('<html', $html);
+    }
+
+    public function testTheCloudflareFragmentShowsDevelopmentModeAndASampledWindow(): void
+    {
+        $traffic = Payloads::cloudflareTraffic();
+        $traffic['window']['sampled'] = true;
+        $traffic['window']['security'] = ['by_action' => ['unknown' => 2000], 'by_source' => ['unknown' => 2000]];
+
+        $html = $this->renderCloudflare(['zone' => ['development_mode' => 3600] + Payloads::cloudflareZone(), 'traffic' => $traffic]);
+
+        self::assertStringContainsString('<dt>Development mode ends</dt>', $html);
+        self::assertStringContainsString('sampled by Cloudflare', $html);
+        self::assertStringContainsString('nothing to mitigate', $html);
+        self::assertStringContainsString('No security events over the window.', $html);
+    }
+
+    public function testTheCloudflareFragmentSaysWhyABlockIsMissing(): void
+    {
+        $zone = Payloads::cloudflareZone();
+        unset($zone['settings'], $zone['certificate']);
+
+        $html = $this->renderCloudflare([
+            'zone' => $zone,
+            'traffic' => ['unavailable' => 'forbidden'],
+            'web_analytics' => ['unavailable' => 'not_configured'],
+            'r2' => ['unavailable' => 'not_configured'],
+            'images' => ['unavailable' => 'not_configured'],
+        ]);
+
+        self::assertStringContainsString('Zone › SSL and Certificates › Read', $html);
+        self::assertStringContainsString('Zone › Zone Settings › Read', $html);
+        self::assertStringContainsString('The API token lacks a permission for this data: Zone › Analytics › Read.', $html);
+        self::assertStringNotContainsString('Quick view', $html);
+        self::assertStringContainsString('Web Analytics is not enabled on this zone.', $html);
+        self::assertStringNotContainsString('Web Vitals', $html);
+        self::assertStringContainsString('Daily totals', $html, 'the other blocks keep showing');
+        self::assertStringNotContainsString('against the free tier', $html, 'neither R2 nor Images: no storage section');
+    }
+
+    public function testTheCloudflareStorageShowsTheProductInUseAlone(): void
+    {
+        $html = $this->renderCloudflare(['r2' => ['unavailable' => 'not_configured']]);
+
+        self::assertStringContainsString('No R2 bucket on this account.', $html);
+        self::assertStringContainsString('Unique transformations', $html);
+    }
+
+    public function testAFailedCloudflareBlockLeavesItsSectionOut(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Cloudflare, [
+            'cloudflare.zone' => new CollectorResult('cloudflare.zone', Payloads::cloudflareZone(), null, 1_000),
+            'cloudflare.traffic' => new CollectorResult('cloudflare.traffic', [], 'Cannot read the Cloudflare "traffic" data. (GraphQL Traffic: HTTP 502: unknown error)', 1_000),
+            'cloudflare.today' => new CollectorResult('cloudflare.today', [], SnapshotProvider::IN_PROGRESS, 1_000),
+        ]);
+
+        $html = $this->render('cloudflare', $snapshot, new CloudflareView($snapshot, $this->gauges(), 1_000));
+
+        self::assertStringContainsString('cloudflare.traffic: Cannot read the Cloudflare &quot;traffic&quot; data. (GraphQL Traffic: HTTP 502: unknown error)', $html);
+        self::assertStringContainsString(SnapshotProvider::IN_PROGRESS, $html);
+        self::assertStringContainsString('aria-label="Help: Zone"', $html);
+        self::assertStringNotContainsString('Quick view', $html);
+        self::assertStringNotContainsString('Daily totals', $html);
+        self::assertStringNotContainsString('against the free tier', $html);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $blocks the payloads replacing those of Payloads
+     */
+    private function renderCloudflare(array $blocks = []): string
+    {
+        $now = (int) strtotime(FixtureCloudflareClient::NOW);
+        $payloads = $blocks + [
+            'zone' => Payloads::cloudflareZone(),
+            'traffic' => Payloads::cloudflareTraffic(),
+            'today' => Payloads::cloudflareToday(),
+            'web_analytics' => Payloads::cloudflareWebAnalytics(),
+            'r2' => Payloads::cloudflareR2(),
+            'images' => Payloads::cloudflareImages(),
+        ];
+        $results = [];
+
+        foreach ($payloads as $block => $payload) {
+            $results['cloudflare.' . $block] = new CollectorResult('cloudflare.' . $block, $payload, null, $now);
+        }
+
+        $snapshot = new ComponentSnapshot(Component::Cloudflare, $results);
+
+        return $this->render('cloudflare', $snapshot, new CloudflareView($snapshot, $this->gauges(), $now));
     }
 
     /**

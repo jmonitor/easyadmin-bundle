@@ -21,6 +21,7 @@ final class ComponentTest extends TestCase
         self::assertSame('MySQL', Component::Mysql->label());
         self::assertSame('PostgreSQL', Component::Postgresql->label());
         self::assertSame('Redis', Component::Redis->label());
+        self::assertSame('Cloudflare', Component::Cloudflare->label());
     }
 
     public function testTheComponentsReadOnTheWebServerAreNodeLocal(): void
@@ -49,6 +50,13 @@ final class ComponentTest extends TestCase
         $cases = Component::cases();
 
         self::assertSame(array_search(Component::Apache, $cases, true) + 1, array_search(Component::Nginx, $cases, true), 'the enum order is the tab order');
+    }
+
+    public function testCloudflareIsTheLastTab(): void
+    {
+        $cases = Component::cases();
+
+        self::assertSame(Component::Cloudflare, end($cases), 'the enum order is the tab order');
     }
 
     public function testTheControllerRouteRequirementListsEveryComponent(): void

@@ -1,0 +1,317 @@
+{% extends fragment ? '@JmonitorEasyAdmin/fragment.html.twig' : '@JmonitorEasyAdmin/layout.html.twig' %}
+
+{% block jm_content %}
+    {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+
+    {% if view.notice('zone') %}
+        <p class="text-muted">{{ view.notice('zone') }}</p>
+    {% elseif view.has('zone') %}
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Zone', metric: 'cloudflare.zone'} %}
+                    {% block body %}
+                        <div class="jm-stat text-break mb-2">{{ include('@JmonitorEasyAdmin/_value.html.twig', {value: view.zoneName}) }}</div>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Status': view.zoneStatus,
+                            'Plan': view.plan,
+                            'Development mode': view.developmentMode,
+                        }|merge(view.developmentModeEndsAt ? {'Development mode ends': view.developmentModeEndsAt|jm_ago} : {})|merge(view.dnsRecords ? {'DNS records': view.dnsRecords} : {})}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Certificate', metric: 'cloudflare.certificate', badge: view.certificateStatus} %}
+                    {% block body %}
+                        {% if view.certificateNotice %}
+                            <p class="text-muted small mb-0">{{ view.certificateNotice }}</p>
+                        {% else %}
+                            {% if view.certificateDaysLeft is not null %}
+                                <div class="jm-stat mb-2">
+                                    {{ view.certificateDaysLeft|abs|jm_number }}
+                                    <small class="text-muted d-block jm-rate-hint">{{ view.certificateDaysLeft < 0 ? 'days ago' : 'days left' }}</small>
+                                </div>
+                            {% endif %}
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'Issuer': view.certificateIssuer,
+                                'Expires': view.certificateExpiresOn,
+                                'Hosts': view.certificateHosts|join(', '),
+                            }}) }}
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Settings', metric: 'cloudflare.settings'} %}
+                    {% block body %}
+                        {% if view.settingsNotice %}
+                            <p class="text-muted small mb-0">{{ view.settingsNotice }}</p>
+                        {% else %}
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'SSL mode': view.sslMode,
+                                'Always use HTTPS': view.alwaysUseHttps,
+                                'Minimum TLS': view.minTlsVersion,
+                                'Security level': view.securityLevel,
+                                'Cache level': view.cacheLevel,
+                                'Browser TTL': view.browserCacheTtl is null ? null : (view.browserCacheTtl == 0 ? 'Respect origin headers' : view.browserCacheTtl|jm_duration),
+                            }}) }}
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if view.notice('traffic') %}
+        <h2 class="h5 mt-4 mb-2">Traffic</h2>
+        <p class="text-muted">{{ view.notice('traffic') }}</p>
+    {% elseif view.has('traffic') %}
+        {% set window = view.windowMinutes %}
+
+        <h2 class="h5 mt-4 mb-2">Quick view <small class="text-muted fw-normal fs-6">last {{ window }} minutes at the edge</small></h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xxl-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Requests', metric: 'cloudflare.requests'} %}
+                    {% block body %}
+                        <div class="jm-stat mb-2">
+                            {{ view.requests|jm_number }}
+                            <small class="text-muted d-block jm-rate-hint">over {{ window }} min</small>
+                        </div>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Per minute': view.requestsPerMinute is null ? null : view.requestsPerMinute|jm_number(1),
+                        }}) }}
+                        {% if view.sampled %}
+                            <div class="mt-2"><twig:ea:Badge variant="secondary">sampled by Cloudflare</twig:ea:Badge></div>
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xxl-3">
+                {{ include('@JmonitorEasyAdmin/_gauge.html.twig', {gauge: view.cacheHitRatio}) }}
+            </div>
+            <div class="col-md-6 col-xxl-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Origin response time', metric: 'cloudflare.origin_response_time'} %}
+                    {% block body %}
+                        {% if view.originP50 is null %}
+                            <span class="text-muted">No recent request reached the origin.</span>
+                        {% else %}
+                            <div class="jm-stat mb-2">
+                                {{ view.originP50|jm_duration }}
+                                <small class="text-muted d-block jm-rate-hint">P50 of the latest minute that reached the origin</small>
+                            </div>
+                            {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                'P95': view.originP95 is null ? null : view.originP95|jm_duration,
+                            }}) }}
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xxl-3">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Security', metric: 'cloudflare.security'} %}
+                    {% block body %}
+                        <div class="jm-stat mb-2">
+                            {{ view.mitigated|jm_number }}
+                            <small class="text-muted d-block jm-rate-hint">mitigated over {{ window }} min</small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            {% if view.blocked > 0 %}<twig:ea:Badge variant="danger">{{ view.blocked|jm_number }} blocked</twig:ea:Badge>{% endif %}
+                            {% if view.challenged > 0 %}<twig:ea:Badge variant="warning">{{ view.challenged|jm_number }} challenged</twig:ea:Badge>{% endif %}
+                            {% if view.mitigated == 0 %}<twig:ea:Badge variant="success">nothing to mitigate</twig:ea:Badge>{% endif %}
+                        </div>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Share of requests': view.mitigatedShare is null ? null : view.mitigatedShare|jm_number(1) ~ ' %',
+                        }}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+
+        <h2 class="h5 mt-4 mb-2">Breakdown <small class="text-muted fw-normal fs-6">last {{ window }} minutes</small></h2>
+        <div class="row g-3">
+            {% for title, card in {
+                'Cache status': {metric: 'cloudflare.by_cache_status', breakdown: view.byCacheStatus},
+                'Status codes': {metric: 'cloudflare.by_status', breakdown: view.byStatus},
+                'Hosts': {metric: 'cloudflare.by_host', breakdown: view.byHost},
+                'Top countries': {metric: 'cloudflare.by_country', breakdown: view.byCountry},
+            } %}
+                <div class="col-md-6 col-xxl-3">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: title, metric: card.metric, breakdown: card.breakdown} %}
+                        {% block body %}
+                            {{ include('@JmonitorEasyAdmin/_breakdown.html.twig', {breakdown: breakdown}) }}
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <h2 class="h5 mt-4 mb-2">Security <small class="text-muted fw-normal fs-6">last {{ window }} minutes</small></h2>
+        <div class="row g-3">
+            {% for title, card in {
+                'By action': {metric: 'cloudflare.security_by_action', breakdown: view.securityByAction},
+                'By source': {metric: 'cloudflare.security_by_source', breakdown: view.securityBySource},
+            } %}
+                <div class="col-md-6 col-xxl-4">
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: title, metric: card.metric, breakdown: card.breakdown} %}
+                        {% block body %}
+                            {{ include('@JmonitorEasyAdmin/_breakdown.html.twig', {breakdown: breakdown, empty: 'No security events over the window.'}) }}
+                        {% endblock %}
+                    {% endembed %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if view.notice('today') %}
+        <h2 class="h5 mt-4 mb-2">Today</h2>
+        <p class="text-muted">{{ view.notice('today') }}</p>
+    {% elseif view.has('today') %}
+        <h2 class="h5 mt-4 mb-2">Today <small class="text-muted fw-normal fs-6">since 00:00 UTC</small></h2>
+        <div class="row g-3">
+            <div class="col-12">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Daily totals', metric: 'cloudflare.today'} %}
+                    {% block body %}
+                        <div class="row g-2 text-center">
+                            {% for label, tile in {
+                                'Requests': {value: view.todayRequests|jm_number, sub: view.todayCachedPercent is null ? null : view.todayCachedPercent|jm_number(1) ~ ' % cached'},
+                                'Page views': {value: view.todayPageViews|jm_number, sub: null},
+                                'Unique visitors': {value: view.todayUniques|jm_number, sub: null},
+                                'Bandwidth': {value: view.todayBytes|jm_bytes, sub: view.todayCachedBytes is null ? null : view.todayCachedBytes|jm_bytes ~ ' from cache'},
+                                'Threats': {value: view.todayThreats|jm_number, sub: view.todayThreatsPercent is null ? null : view.todayThreatsPercent|jm_number(2) ~ ' % of requests'},
+                            } %}
+                                <div class="col-6 col-md-4 col-xl">
+                                    <div class="jm-tile h-100">
+                                        <div class="jm-tile-value">{{ tile.value }}</div>
+                                        <div class="jm-tile-label">{{ label }}</div>
+                                        {% if tile.sub %}<div class="jm-tile-sub">{{ tile.sub }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if view.notice('web_analytics') %}
+        <h2 class="h5 mt-4 mb-2">Web Analytics</h2>
+        <p class="text-muted">{{ view.notice('web_analytics') }}</p>
+    {% elseif view.has('web_analytics') %}
+        <h2 class="h5 mt-4 mb-2">Web Analytics <small class="text-muted fw-normal fs-6">real visitors, last 24 hours</small></h2>
+        <div class="row g-3">
+            <div class="col-12">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Web Vitals', metric: 'cloudflare.web_vitals'} %}
+                    {% block body %}
+                        <div class="row g-2 text-center">
+                            {% for vital in view.vitals %}
+                                <div class="col-6 col-md-4 col-xl">
+                                    <div class="jm-tile h-100">
+                                        <div class="jm-tile-value">
+                                            {%- if vital.value is null -%}
+                                                <span class="text-muted">—</span>
+                                            {%- elseif vital.isDuration -%}
+                                                {{ vital.value|jm_duration }}
+                                            {%- else -%}
+                                                {{ vital.value|jm_number(2) }}
+                                            {%- endif -%}
+                                        </div>
+                                        <div class="jm-tile-label">{{ vital.label }} P75</div>
+                                        {% if vital.rating %}<div class="mt-1">{{ include('@JmonitorEasyAdmin/_badge.html.twig', {badge: vital.rating}) }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Page loads', metric: 'cloudflare.page_loads'} %}
+                    {% block body %}
+                        <div class="jm-stat mb-2">
+                            {{ view.pageLoads|jm_number }}
+                            <small class="text-muted d-block jm-rate-hint">page loads over 24 h</small>
+                        </div>
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                            'Visits': view.visits is null ? null : view.visits|jm_number,
+                            'Page load P50': view.pageLoadP50 is null ? null : view.pageLoadP50|jm_duration,
+                            'Page load P75': view.pageLoadP75 is null ? null : view.pageLoadP75|jm_duration,
+                        }}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Page loads by host', metric: 'cloudflare.web_analytics_by_host'} %}
+                    {% block body %}
+                        {{ include('@JmonitorEasyAdmin/_breakdown.html.twig', {breakdown: view.pageLoadsByHost, empty: 'No page loads over the last 24 hours.'}) }}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Timings', metric: 'cloudflare.timings'} %}
+                    {% block body %}
+                        {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: view.timings|map(seconds => seconds is null ? null : seconds|jm_duration)}) }}
+                        <div class="text-muted small mt-2">P75 of real visitors, last 24 h</div>
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if view.showsStorage %}
+        <h2 class="h5 mt-4 mb-2">Storage <small class="text-muted fw-normal fs-6">account level, against the free tier</small></h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'R2', metric: 'cloudflare.r2'} %}
+                    {% block body %}
+                        {% if view.notice('r2') %}
+                            <p class="text-muted small mb-0">{{ view.notice('r2') }}</p>
+                        {% elseif view.has('r2') %}
+                            <div class="jm-bars">
+                                {% for quota in view.r2Quotas %}
+                                    {{ include('@JmonitorEasyAdmin/_quota.html.twig', {quota: quota}) }}
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">{{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {'Operations reset on': view.r2ResetsOn}}) }}</div>
+                            {% if view.buckets is not empty %}
+                                <hr>
+                                <h6 class="text-muted small">Buckets</h6>
+                                <dl class="jm-kv mb-0">
+                                    {% for bucket in view.buckets %}
+                                        <div class="jm-kv-row">
+                                            <dt>{{ bucket.name }}</dt>
+                                            <dd>{{ bucket.bytes|jm_bytes }} <span class="text-muted">· {{ bucket.objects|jm_number }} object{{ bucket.objects == 1 ? '' : 's' }}{% if bucket.storage_class %} · {{ bucket.storage_class }}{% endif %}</span></dd>
+                                        </div>
+                                    {% endfor %}
+                                </dl>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+            <div class="col-md-6 col-xl-4">
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Images', metric: 'cloudflare.images'} %}
+                    {% block body %}
+                        {% if view.notice('images') %}
+                            <p class="text-muted small mb-0">{{ view.notice('images') }}</p>
+                        {% elseif view.has('images') %}
+                            <div class="jm-bars">
+                                {% for quota in view.imagesQuotas %}
+                                    {{ include('@JmonitorEasyAdmin/_quota.html.twig', {quota: quota}) }}
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">
+                                {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
+                                    'Requests, last 24 h': view.imagesRequests is null ? null : view.imagesRequests|jm_number,
+                                    'Transformations reset on': view.imagesResetsOn,
+                                }}) }}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    {% endblock %}
+                {% endembed %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -302,4 +302,147 @@ final class Payloads
             'cpu_count' => 4,
         ];
     }
+
+    /**
+     * What the Cloudflare blocks read from FixtureCloudflareClient at FixtureCloudflareClient::NOW.
+     *
+     * @return array<string, mixed>
+     */
+    public static function cloudflareZone(): array
+    {
+        return [
+            'id' => '0123456789abcdef0123456789abcdef',
+            'name' => 'example.com',
+            'account_id' => 'fedcba9876543210fedcba9876543210',
+            'plan' => 'free',
+            'status' => 'active',
+            'paused' => false,
+            'development_mode' => 0,
+            'settings' => [
+                'security_level' => 'medium',
+                'ssl' => 'strict',
+                'min_tls_version' => '1.2',
+                'cache_level' => 'aggressive',
+                'browser_cache_ttl' => 14400,
+                'always_use_https' => 'on',
+            ],
+            'certificate' => [
+                'status' => 'active',
+                'issuer' => 'GoogleTrustServices',
+                'expires_at' => 1_799_539_200,
+                'hosts' => ['example.com', '*.example.com'],
+            ],
+            'dns_records' => ['used' => 12, 'quota' => 200],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cloudflareTraffic(): array
+    {
+        $empty = ['requests' => 0, 'cached_requests' => 0, 'bytes' => 0, 'cached_bytes' => 0, 'page_views' => 0, 'visits' => 0, 'status_4xx_ratio' => 0.0, 'status_5xx_ratio' => 0.0, 'origin_requests' => null, 'origin_response_ms_avg' => null, 'origin_response_ms_p50' => null, 'origin_response_ms_p95' => null];
+
+        return [
+            'from' => 1_794_397_920,
+            'to' => 1_794_398_220,
+            'minutes' => [
+                ['time' => 1_794_397_920] + $empty,
+                ['time' => 1_794_397_980] + $empty,
+                ['time' => 1_794_398_040] + $empty,
+                ['time' => 1_794_398_100, 'requests' => 120, 'cached_requests' => 60, 'bytes' => 2_400_000, 'cached_bytes' => 1_200_000, 'page_views' => 30, 'visits' => 12, 'status_4xx_ratio' => 0.05, 'status_5xx_ratio' => 0.0, 'origin_requests' => 60, 'origin_response_ms_avg' => 140.0, 'origin_response_ms_p50' => 120.0, 'origin_response_ms_p95' => 480.0],
+                ['time' => 1_794_398_160, 'requests' => 80, 'cached_requests' => 80, 'bytes' => 1_600_000, 'cached_bytes' => 1_600_000, 'page_views' => 20, 'visits' => 8] + $empty,
+            ],
+            'window' => [
+                'from' => 1_794_397_320,
+                'to' => 1_794_398_220,
+                'requests' => 2000,
+                'sampled' => false,
+                'by_cache_status' => ['hit' => 900, 'dynamic' => 600, 'miss' => 300, 'revalidated' => 200],
+                'by_status' => [200 => 1700, 304 => 150, 404 => 100, 403 => 40, 502 => 10],
+                'by_content_type' => ['html' => 2000],
+                'by_country' => ['FR' => 1500, 'US' => 400, 'T1' => 100],
+                'by_host' => ['www.example.com' => 1800, 'api.example.com' => 200],
+                'by_protocol' => ['HTTP/2' => 2000],
+                'security' => [
+                    'by_action' => ['unknown' => 1940, 'block' => 40, 'managed_challenge' => 15, 'skip' => 5],
+                    'by_source' => ['unknown' => 1940, 'firewallCustom' => 45, 'botFight' => 15],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cloudflareToday(): array
+    {
+        return [
+            'date' => '2026-11-11',
+            'requests' => 86_000,
+            'cached_requests' => 43_000,
+            'bytes' => 5_368_709_120,
+            'cached_bytes' => 3_221_225_472,
+            'page_views' => 12_000,
+            'uniques' => 3_400,
+            'threats' => 86,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cloudflareWebAnalytics(): array
+    {
+        return [
+            'site_tag' => 'site-1',
+            'from' => 1_794_311_820,
+            'to' => 1_794_398_220,
+            'page_views' => 9_500,
+            'visits' => 4_200,
+            'by_host' => ['www.example.com' => 9_000, 'docs.example.com' => 500],
+            'vitals' => ['lcp_p75_ms' => 1800, 'inp_p75_ms' => 240, 'cls_p75' => 0.31, 'ttfb_p75_ms' => 420, 'fcp_p75_ms' => 1100],
+            'timings' => ['page_load_p50_ms' => 1200, 'page_load_p75_ms' => 2100, 'dns_p75_ms' => 20, 'connection_p75_ms' => 45, 'request_p75_ms' => 180, 'response_p75_ms' => 30, 'page_render_p75_ms' => 900],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cloudflareR2(): array
+    {
+        return [
+            'month' => '2026-11',
+            'class_a_operations' => 12_000,
+            'class_b_operations' => 640_000,
+            'upload_bytes' => 1_000_000,
+            'download_bytes' => 50_000_000,
+            'buckets' => [[
+                'name' => 'assets',
+                'storage_class' => 'Standard',
+                'created_at' => 1_768_003_200,
+                'object_count' => 5_400,
+                'payload_bytes' => 9_126_805_504,
+                'metadata_bytes' => 1_048_576,
+                'class_a_operations' => 12_000,
+                'class_b_operations' => 640_000,
+                'upload_bytes' => 1_000_000,
+                'download_bytes' => 50_000_000,
+            ]],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function cloudflareImages(): array
+    {
+        return [
+            'stored' => 120,
+            'stored_quota' => 100_000,
+            'month' => '2026-11',
+            'unique_transformations' => 4_200,
+            'requests_last_24h' => 7_300,
+        ];
+    }
 }

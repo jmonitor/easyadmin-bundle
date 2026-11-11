@@ -150,6 +150,10 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
 
                             $children->append(self::redisConnectionsNode());
                         }, merge: static fn(array $v): array => self::mergeDeprecatedRedisOptions($v)))
+                        ->append($this->componentNode('cloudflare', 'Shown when "api_token" and "zone" are set when "auto".', static function (NodeBuilder $children): void {
+                            $children->scalarNode('api_token')->defaultNull()->info('Cloudflare API token, e.g. "%env(CLOUDFLARE_API_TOKEN)%". Its permissions: https://github.com/jmonitor/collector#cloudflare')->validate()->always(self::stringOrNull('api_token'));
+                            $children->scalarNode('zone')->defaultNull()->info('Zone name (example.com) or zone id.')->validate()->always(self::stringOrNull('zone'));
+                        }))
                     ->end()
                 ->end()
             ->end()
@@ -157,6 +161,14 @@ final class JmonitorEasyAdminBundle extends AbstractBundle
                 ->always(static fn(array $v): array => self::refuseExcludedConfiguredConnections($v))
             ->end()
         ;
+    }
+
+    /**
+     * @return \Closure(mixed): ?string
+     */
+    private static function stringOrNull(string $option): \Closure
+    {
+        return static fn(mixed $v): ?string => $v === null || is_string($v) ? $v : throw new InvalidConfigurationException(sprintf('The "%s" option of the cloudflare component must be a string, got %s: quote it.', $option, json_encode($v)));
     }
 
     /**

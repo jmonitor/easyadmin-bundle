@@ -23,7 +23,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame(3600, $config['static_ttl']);
         self::assertNull($config['permission']);
 
-        foreach (['system', 'php', 'frankenphp', 'apache', 'nginx', 'symfony', 'mysql', 'postgresql', 'redis'] as $component) {
+        foreach (['system', 'php', 'frankenphp', 'apache', 'nginx', 'symfony', 'mysql', 'postgresql', 'redis', 'cloudflare'] as $component) {
             self::assertSame('auto', $config['components'][$component]['enabled'], $component);
         }
 
@@ -39,6 +39,8 @@ final class ConfigurationTest extends TestCase
         self::assertSame('http://localhost:2019/metrics', $config['components']['frankenphp']['endpoint']);
         self::assertSame('http://localhost/server-status', $config['components']['apache']['endpoint']);
         self::assertSame('http://localhost/nginx_status', $config['components']['nginx']['endpoint']);
+        self::assertNull($config['components']['cloudflare']['api_token']);
+        self::assertNull($config['components']['cloudflare']['zone']);
     }
 
     public function testPermissionIsAnyAttributeOfIsGranted(): void
@@ -119,6 +121,23 @@ final class ConfigurationTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
 
         $this->process(['components' => ['frankenphp' => ['endpoint' => '']]]);
+    }
+
+    public function testTheCloudflareTokenAndZoneAreConfigurable(): void
+    {
+        $config = $this->process(['components' => ['cloudflare' => ['api_token' => '%env(CLOUDFLARE_API_TOKEN)%', 'zone' => 'example.com']]]);
+
+        self::assertSame('%env(CLOUDFLARE_API_TOKEN)%', $config['components']['cloudflare']['api_token']);
+        self::assertSame('example.com', $config['components']['cloudflare']['zone']);
+        self::assertSame('auto', $config['components']['cloudflare']['enabled']);
+    }
+
+    public function testACloudflareZoneIdReadAsANumberMustBeQuoted(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The "zone" option of the cloudflare component must be a string, got 1234: quote it.');
+
+        $this->process(['components' => ['cloudflare' => ['api_token' => 'token', 'zone' => 1234]]]);
     }
 
     #[DataProvider('provideComponentShorthands')]
