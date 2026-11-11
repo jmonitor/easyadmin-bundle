@@ -185,8 +185,9 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
 
     $services->set(ComponentRegistry::class)
         ->args([
-            tagged_iterator('jmonitor_easyadmin.detector', 'index'),
-            $config['components'],
+            tagged_locator('jmonitor_easyadmin.detector', 'index'),
+            // the "enabled" settings only: another option may read an environment variable, resolved with the service
+            array_map(static fn(array $component): array => ['enabled' => $component['enabled']], $config['components']),
         ])
         ->tag('kernel.reset', ['method' => 'reset'])
     ;

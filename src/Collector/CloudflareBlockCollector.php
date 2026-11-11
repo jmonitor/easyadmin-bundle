@@ -39,6 +39,7 @@ final readonly class CloudflareBlockCollector implements CollectorInterface, Ref
     public function collect(): array
     {
         $to = intdiv($this->clock->now()->getTimestamp() - self::LAG, 60) * 60;
+        $serverErrors = $this->client->serverErrors();
 
         try {
             $data = $this->block->fetch($this->api, $this->zone, $to, $this->logger);
@@ -50,8 +51,9 @@ final readonly class CloudflareBlockCollector implements CollectorInterface, Ref
             throw UnreachableServerException::withRootCause($this->failure(), $e);
         }
 
-        // A payload read through a failed request would miss keys for its whole lifetime.
-        if ($this->client->hasFailed()) {
+        // A block gives up the keys of a call that failed, as if the token could not read them:
+        // the payload would miss them for its whole lifetime.
+        if ($this->client->hasFailed() || $this->client->serverErrors() > $serverErrors) {
             throw new UnreachableServerException($this->failure());
         }
 

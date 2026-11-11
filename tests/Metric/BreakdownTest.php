@@ -55,4 +55,15 @@ final class BreakdownTest extends TestCase
     {
         self::assertSame(['b' => 2, 'a' => 1], Breakdown::top(['a' => 1, 'b' => 2]));
     }
+
+    public function testTopOfATruncatedListFoldsWhatIsMissingFromTheTotal(): void
+    {
+        self::assertSame(['a' => 40, 'b' => 20, 'other' => 40], Breakdown::top(['a' => 40, 'b' => 20, 'c' => 5], 2, 100));
+        self::assertSame(['a' => 40, 'b' => 20], Breakdown::top(['a' => 40, 'b' => 20], 2, 60));
+    }
+
+    public function testATotalBelowTheCountsIsIgnored(): void
+    {
+        self::assertSame(['a' => 40, 'other' => 25], Breakdown::top(['a' => 40, 'b' => 20, 'c' => 5], 1, 50));
+    }
 }

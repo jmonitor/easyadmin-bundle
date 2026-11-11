@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Badges, alerts and buttons use the EasyAdmin components.
 
+### Fixed
+
+- A component option reading an undefined environment variable no longer breaks the routes of the application.
+
 ## [1.6.0] - 2026-10-22
 
 ### Added

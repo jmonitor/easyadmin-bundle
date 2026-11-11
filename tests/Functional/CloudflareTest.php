@@ -140,6 +140,47 @@ final class CloudflareTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Daily totals');
     }
 
+    public function testAnOptionalCallCloudflareFailsToAnswerIsNotKeptAsAMissingPermission(): void
+    {
+        ConfigurableAdminKernel::$cloudflare = ['statuses' => ['GET /zones/{zone}/settings' => 500]];
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/cloudflare');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.alert-warning', 'Cannot read the Cloudflare "zone" data.');
+        self::assertSelectorTextNotContains('body', 'Zone Settings › Read');
+        self::assertSelectorTextContains('body', 'Daily totals');
+        self::assertSelectorTextContains('body', 'Class A operations');
+    }
+
+    public function testAnOptionalCallTheTokenCannotMakeKeepsTheRestOfTheZone(): void
+    {
+        ConfigurableAdminKernel::$cloudflare = ['statuses' => ['GET /zones/{zone}/settings' => 403]];
+        $client = $this->adminClient();
+
+        $client->request('GET', '/admin/jmonitor/cloudflare');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('.alert-warning');
+        self::assertSelectorTextContains('body', 'Zone Settings › Read');
+        self::assertSelectorTextContains('body', 'GoogleTrustServices');
+    }
+
+    public function testATokenFromAMissingEnvironmentVariableLeavesTheOtherTabsAlone(): void
+    {
+        $client = $this->adminClient(['cloudflare' => ['api_token' => '%env(JMONITOR_TEST_UNDEFINED_TOKEN)%', 'zone' => 'example.com']]);
+
+        $client->request('GET', '/admin/jmonitor/php');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('.nav-tabs a[href="/admin/jmonitor/cloudflare"]');
+
+        $client->request('GET', '/admin/jmonitor');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.jm-overview', 'Environment variable not found: "JMONITOR_TEST_UNDEFINED_TOKEN".');
+    }
+
     public function testRefreshForgetsTheZoneAndItsData(): void
     {
         ConfigurableAdminKernel::$cloudflare = [];

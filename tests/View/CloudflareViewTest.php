@@ -201,6 +201,23 @@ final class CloudflareViewTest extends TestCase
         self::assertSame(['🇫🇷 France', '🇺🇸 United States', 'T1'], array_column($view->byCountry->rows, 'label'));
     }
 
+    public function testTheSharesOfAListCloudflareTruncatesAreOverEveryRequest(): void
+    {
+        $traffic = Payloads::cloudflareTraffic();
+        $traffic['window']['by_country'] = ['FR' => 480, 'US' => 200, 'DE' => 120, 'ES' => 100, 'IT' => 80, 'BE' => 60, 'CH' => 50, 'GB' => 40, 'NL' => 40, 'PT' => 30];
+        $traffic['window']['by_host'] = ['www.example.com' => 1200];
+        $analytics = Payloads::cloudflareWebAnalytics();
+        $analytics['by_host'] = ['www.example.com' => 4_750];
+
+        $view = self::view(['traffic' => $traffic, 'web_analytics' => $analytics]);
+
+        self::assertSame(2000, $view->requests);
+        self::assertSame(24.0, $view->byCountry->rows[0]->percent);
+        self::assertEquals(new BreakdownRow('Other', 1020, 51.0), $view->byCountry->rows[5], 'the countries beyond the ten Cloudflare lists too');
+        self::assertEquals([new BreakdownRow('www.example.com', 1200, 60.0), new BreakdownRow('Other', 800, 40.0)], $view->byHost->rows);
+        self::assertEquals([new BreakdownRow('www.example.com', 4_750, 50.0), new BreakdownRow('Other', 4_750, 50.0)], $view->pageLoadsByHost->rows);
+    }
+
     public function testAStatusOutsideTheClassesIsOther(): void
     {
         $traffic = Payloads::cloudflareTraffic();
@@ -250,6 +267,21 @@ final class CloudflareViewTest extends TestCase
             new CloudflareVital('FCP', 1.1),
         ], $view->vitals);
         self::assertSame(['Good', 'Needs improvement', 'Poor', 'Good', null], array_map(static fn(CloudflareVital $vital): ?string => $vital->rating?->label, $view->vitals));
+    }
+
+    public function testAVitalOnAThresholdIsOnItsBetterSide(): void
+    {
+        $rating = static fn(string $label, float $value): ?string => (new CloudflareVital($label, $value))->rating?->label;
+
+        self::assertSame('Good', $rating('LCP', 2.5));
+        self::assertSame('Good', $rating('INP', 200 / 1000));
+        self::assertSame('Good', $rating('CLS', 0.1));
+        self::assertSame('Good', $rating('TTFB', 800 / 1000));
+        self::assertSame('Needs improvement', $rating('LCP', 2.501));
+        self::assertSame('Needs improvement', $rating('LCP', 4.0));
+        self::assertSame('Needs improvement', $rating('INP', 500 / 1000));
+        self::assertSame('Needs improvement', $rating('CLS', 0.25));
+        self::assertSame('Poor', $rating('LCP', 4.001));
     }
 
     public function testAVitalWithoutSamplesHasNoRating(): void

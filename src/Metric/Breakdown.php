@@ -46,14 +46,16 @@ final readonly class Breakdown
      * The largest counts, the rest folded into "other".
      *
      * @param array<array-key, int> $counts
+     * @param ?int                  $total  what a complete list adds up to: one that its source cut
+     *                                      short misses the difference
      *
      * @return array<array-key, int>
      */
-    public static function top(array $counts, int $limit = 5): array
+    public static function top(array $counts, int $limit = 5, ?int $total = null): array
     {
         arsort($counts);
         $top = array_slice($counts, 0, $limit, true);
-        $rest = array_sum($counts) - array_sum($top);
+        $rest = max($total ?? 0, array_sum($counts)) - array_sum($top);
 
         if ($rest > 0) {
             $top[self::OTHER] = ($top[self::OTHER] ?? 0) + $rest;

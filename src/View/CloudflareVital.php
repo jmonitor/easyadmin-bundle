@@ -12,7 +12,7 @@ use Jmonitor\EasyAdminBundle\Metric\BadgeStyle;
  */
 final readonly class CloudflareVital
 {
-    /** [good below, poor from], in seconds, or as a score for CLS */
+    /** [good up to, poor above], in seconds, or as a score for CLS */
     private const THRESHOLDS = [
         'LCP' => [2.5, 4.0],
         'INP' => [0.2, 0.5],
@@ -34,8 +34,8 @@ final readonly class CloudflareVital
 
         $this->rating = match (true) {
             $value === null || $good === null => null,
-            $value < $good => new Badge(BadgeStyle::Success, 'Good'),
-            $value < $poor => new Badge(BadgeStyle::Warning, 'Needs improvement'),
+            $value <= $good => new Badge(BadgeStyle::Success, 'Good'),
+            $value <= $poor => new Badge(BadgeStyle::Warning, 'Needs improvement'),
             default => new Badge(BadgeStyle::Danger, 'Poor'),
         };
     }

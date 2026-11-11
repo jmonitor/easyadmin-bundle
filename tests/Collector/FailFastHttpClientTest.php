@@ -31,6 +31,18 @@ final class FailFastHttpClientTest extends TestCase
         self::assertFalse($client->hasFailed());
     }
 
+    public function testTheAnswersToAskAgainLaterAreCounted(): void
+    {
+        $client = new FailFastHttpClient(new FixtureCloudflareClient(['GET /zones' => 500, 'GET /accounts' => 429, 'GET /user' => 403, 'GET /memberships' => 404]));
+        self::assertSame(0, $client->serverErrors());
+
+        foreach (['/zones', '/accounts', '/user', '/memberships'] as $path) {
+            $client->sendRequest(new Request('GET', 'https://api.cloudflare.com/client/v4' . $path));
+        }
+
+        self::assertSame(2, $client->serverErrors(), 'a refused or unknown route answers the same the next time');
+    }
+
     public function testARequestThatCouldNotBeSentFailsTheNextOnesWithoutAnAttempt(): void
     {
         $inner = new FixtureCloudflareClient(down: true);

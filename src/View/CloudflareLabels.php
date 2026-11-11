@@ -14,6 +14,7 @@ use Symfony\Component\Intl\Countries;
  */
 final class CloudflareLabels
 {
+    private const CACHED_STATUSES = ['hit', 'revalidated', 'stale', 'updating'];
     private const BLOCKS = ['block', 'connectionclose', 'forceconnectionclose'];
     private const CHALLENGES = ['challenge', 'jschallenge', 'managedchallenge', 'precursorinterstitialpageissued'];
 
@@ -85,12 +86,20 @@ final class CloudflareLabels
         return self::SOURCES[self::normalize($source)] ?? $source;
     }
 
+    /**
+     * Whether a cache status is the one of a response served from the cache.
+     */
+    public static function isCached(string $status): bool
+    {
+        return in_array($status, self::CACHED_STATUSES, true);
+    }
+
     public static function cacheStatusStyle(string $status): ?BadgeStyle
     {
-        return match ($status) {
-            'hit', 'revalidated', 'stale', 'updating' => BadgeStyle::Success,
-            'miss', 'expired' => BadgeStyle::Warning,
-            'dynamic' => BadgeStyle::Info,
+        return match (true) {
+            self::isCached($status) => BadgeStyle::Success,
+            in_array($status, ['miss', 'expired'], true) => BadgeStyle::Warning,
+            $status === 'dynamic' => BadgeStyle::Info,
             default => null,
         };
     }

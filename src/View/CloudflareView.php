@@ -36,7 +36,6 @@ final readonly class CloudflareView
         'images' => 'Cloudflare Images is not used on this account.',
     ];
 
-    private const CACHED_STATUSES = ['hit', 'revalidated', 'stale', 'updating'];
     private const CERTIFICATE_WARNING_DAYS = 14;
 
     private const R2_FREE_STORAGE_BYTES = 10 * 1024 ** 3;
@@ -206,7 +205,7 @@ final readonly class CloudflareView
         $this->sampled = Values::bool($window['sampled'] ?? null) ?? false;
 
         $byCacheStatus = self::counts($window['by_cache_status'] ?? null);
-        $cached = array_sum(array_intersect_key($byCacheStatus, array_flip(self::CACHED_STATUSES)));
+        $cached = array_sum(array_filter($byCacheStatus, static fn(int|string $status): bool => CloudflareLabels::isCached((string) $status), ARRAY_FILTER_USE_KEY));
         $this->cacheHitRatio = $gauges->create('cloudflare.cache_hit_ratio', 'Cache hit ratio', Values::percent($cached, $this->requests), 1, $this->requests === null ? null : $cached . ' / ' . $this->requests . ' requests');
 
         $latest = null;
@@ -248,8 +247,9 @@ final readonly class CloudflareView
 
         $this->byCacheStatus = Breakdown::of(Breakdown::top($byCacheStatus), ucfirst(...), CloudflareLabels::cacheStatusStyle(...));
         $this->byStatus = Breakdown::of(array_sum($statusClasses) > 0 ? $statusClasses : [], style: CloudflareLabels::statusClassStyle(...));
-        $this->byHost = Breakdown::of(Breakdown::top(self::counts($window['by_host'] ?? null)));
-        $this->byCountry = Breakdown::of(Breakdown::top(self::counts($window['by_country'] ?? null)), CloudflareLabels::country(...));
+        // Cloudflare lists the largest hosts and countries only: their shares are of every request.
+        $this->byHost = Breakdown::of(Breakdown::top(self::counts($window['by_host'] ?? null), total: $this->requests));
+        $this->byCountry = Breakdown::of(Breakdown::top(self::counts($window['by_country'] ?? null), total: $this->requests), CloudflareLabels::country(...));
         $this->securityByAction = Breakdown::of($mitigations + $passive, CloudflareLabels::action(...), CloudflareLabels::actionStyle(...));
         $this->securityBySource = Breakdown::of(Breakdown::top($bySource), CloudflareLabels::source(...));
 
@@ -278,7 +278,7 @@ final readonly class CloudflareView
         $this->visits = Values::int($analytics['visits'] ?? null);
         $this->pageLoadP50 = self::seconds($timings['page_load_p50_ms'] ?? null);
         $this->pageLoadP75 = self::seconds($timings['page_load_p75_ms'] ?? null);
-        $this->pageLoadsByHost = Breakdown::of(Breakdown::top(self::counts($analytics['by_host'] ?? null)));
+        $this->pageLoadsByHost = Breakdown::of(Breakdown::top(self::counts($analytics['by_host'] ?? null), total: $this->pageLoads));
         $this->timings = [
             'DNS' => self::seconds($timings['dns_p75_ms'] ?? null),
             'Connection' => self::seconds($timings['connection_p75_ms'] ?? null),

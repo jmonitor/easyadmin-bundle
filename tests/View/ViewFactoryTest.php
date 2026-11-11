@@ -9,7 +9,6 @@ use Jmonitor\EasyAdminBundle\Collector\CollectorSet;
 use Jmonitor\EasyAdminBundle\Collector\CollectorSpec;
 use Jmonitor\EasyAdminBundle\Collector\Lifetime;
 use Jmonitor\EasyAdminBundle\Component;
-use Jmonitor\EasyAdminBundle\Detection\ComponentRegistry;
 use Jmonitor\EasyAdminBundle\Detection\Detection;
 use Jmonitor\EasyAdminBundle\Detection\Instance;
 use Jmonitor\EasyAdminBundle\Metric\EndOfLife;
@@ -19,6 +18,7 @@ use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Snapshot\DeltaCalculator;
 use Jmonitor\EasyAdminBundle\Snapshot\SnapshotProvider;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Collector\FakeCollector;
+use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\Detectors;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\Detection\StaticDetector;
 use Jmonitor\EasyAdminBundle\Tests\Fixtures\FrankenPhp\FixtureUrlFetcher;
 use Jmonitor\EasyAdminBundle\View\ApacheView;
@@ -39,7 +39,7 @@ final class ViewFactoryTest extends TestCase
 {
     public function testEachComponentHasItsView(): void
     {
-        $registry = new ComponentRegistry([
+        $registry = Detectors::registry([
             'php' => new StaticDetector(Component::Php, Detection::found(new CollectorSet(Component::Php, [new CollectorSpec(new FakeCollector('php', ['version' => '8.4.0']), Lifetime::Dynamic)]))),
             'symfony' => new StaticDetector(Component::Symfony, Detection::found(new CollectorSet(Component::Symfony, [new CollectorSpec(new FakeCollector('symfony', ['env' => 'test']), Lifetime::Static)]))),
         ], ['php' => ['enabled' => 'auto'], 'symfony' => ['enabled' => 'auto']]);

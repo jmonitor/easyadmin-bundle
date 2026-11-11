@@ -11,11 +11,13 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * A request that could not be sent fails the next ones without a new attempt: each would wait
- * for the same timeout.
+ * for the same timeout. An answer with an error status is passed on, and counted when the same
+ * request may succeed later.
  */
 final class FailFastHttpClient implements ClientInterface
 {
     private ?ClientExceptionInterface $failure = null;
+    private int $serverErrors = 0;
 
     public function __construct(
         private readonly ClientInterface $inner,
@@ -28,16 +30,30 @@ final class FailFastHttpClient implements ClientInterface
         }
 
         try {
-            return $this->inner->sendRequest($request);
+            $response = $this->inner->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
             $this->failure = $e;
 
             throw $e;
         }
+
+        if ($response->getStatusCode() === 429 || $response->getStatusCode() >= 500) {
+            ++$this->serverErrors;
+        }
+
+        return $response;
     }
 
     public function hasFailed(): bool
     {
         return $this->failure !== null;
+    }
+
+    /**
+     * The answers received so far with a 429 or 5xx status.
+     */
+    public function serverErrors(): int
+    {
+        return $this->serverErrors;
     }
 }
