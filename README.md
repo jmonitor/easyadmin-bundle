@@ -129,7 +129,7 @@ jmonitor_easyadmin:
             connections: []    # id => DSN, {dsn} or {service}; empty = the Symfony cache provider or REDIS_URL
         cloudflare:
             enabled: auto
-            api_token: ~       # e.g. '%env(CLOUDFLARE_API_TOKEN)%'
+            api_token: ~       # e.g. '%env(JMONITOR_CLOUDFLARE_API_TOKEN)%'
             zone: ~            # zone name (example.com) or zone id
 ```
 
@@ -143,7 +143,7 @@ jmonitor_easyadmin:
 
 For Redis, `connections` maps an id to a DSN, `{ dsn: ... }` or `{ service: ... }` (a `\Redis`, `\Predis\Client` or `\Relay\Relay` service), each one becoming a pill: `connections: { cache: 'redis://localhost', sessions: { dsn: 'redis://sessions:6379/1' }, queue: { service: app.redis_queue } }`.
 
-The Cloudflare tab shows when `api_token` and `zone` are set, and needs an HTTP client: `composer require symfony/http-client nyholm/psr7`. Create the token in the Cloudflare dashboard (My Profile → API Tokens) with the [permissions the collector lists](https://github.com/jmonitor/collector#cloudflare): only *Zone › Zone › Read* is required, a card whose permission is missing says which one.
+The Cloudflare tab shows when `api_token` and `zone` are set, and needs an HTTP client: `composer require symfony/http-client nyholm/psr7`. The token is a read-only token of your Cloudflare account: [Cloudflare token](docs/cloudflare-token.md) gives a prompt that lets an AI coding agent create it through the Cloudflare MCP server, and a pre-filled form to create it by hand. Only *Zone › Zone › Read* is required, a card whose permission is missing says which one.
 
 ## Compared to jmonitor.io
 
