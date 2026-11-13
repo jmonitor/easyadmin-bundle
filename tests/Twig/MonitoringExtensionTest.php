@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Tests\Twig;
 
+use Jmonitor\EasyAdminBundle\Component;
+use Jmonitor\EasyAdminBundle\Snapshot\CollectorResult;
+use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
 use Jmonitor\EasyAdminBundle\Twig\MonitoringExtension;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class MonitoringExtensionTest extends TestCase
 {
@@ -81,6 +85,34 @@ final class MonitoringExtensionTest extends TestCase
         $functions = array_map(static fn($function): string => $function->getName(), $extension->getFunctions());
 
         self::assertSame(['jm_bytes', 'jm_duration', 'jm_number', 'jm_ago'], $filters);
-        self::assertSame(['jm_help_url'], $functions);
+        self::assertSame(['jm_help_url', 'jm_freshness'], $functions);
+    }
+
+    public function testFreshnessIsToldForDataKeptLongerThanThePolling(): void
+    {
+        $extension = new MonitoringExtension(new MockClock('@1240'), 10);
+        $snapshot = new ComponentSnapshot(Component::Cloudflare, [
+            'cloudflare.traffic' => new CollectorResult('cloudflare.traffic', [], null, 1_000, expiresAt: 1_060),
+            'cloudflare.r2' => new CollectorResult('cloudflare.r2', [], null, 1_000, expiresAt: 1_900),
+        ]);
+
+        $freshness = $extension->freshness($snapshot, 'cloudflare.r2');
+
+        self::assertNotNull($freshness);
+        self::assertSame(240, $freshness->age());
+        self::assertSame(660, $freshness->nextReadIn());
+        self::assertSame(0, $extension->freshness($snapshot, 'cloudflare.traffic')?->nextReadIn(), 'expired, read again by the next request');
+    }
+
+    public function testFreshnessIsNotToldForDataReadAgainAtEveryPoll(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Php, [
+            'php' => new CollectorResult('php', [], null, 1_000, expiresAt: 1_010),
+            'php.slow' => new CollectorResult('php.slow', [], null, 1_000, expiresAt: 1_060),
+        ]);
+
+        self::assertNull((new MonitoringExtension(new MockClock('@1005'), 10))->freshness($snapshot, 'php'));
+        self::assertNull((new MonitoringExtension(new MockClock('@1005'), 120))->freshness($snapshot, 'php.slow'));
+        self::assertNull((new MonitoringExtension(new MockClock('@1000'), 0))->freshness(new ComponentSnapshot(Component::Php, ['php' => new CollectorResult('php', [], null, 1_000, expiresAt: 1_001)]), 'php'));
     }
 }

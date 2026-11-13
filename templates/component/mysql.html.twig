@@ -2,6 +2,7 @@
 
 {% block jm_content %}
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Configuration', freshness: jm_freshness(snapshot, 'mysql.variables')}) }}
 
     <div class="row g-3">
         <div class="col-md-6 col-xxl-3">
@@ -215,7 +216,7 @@
         {% endif %}
         <div class="row g-3">
             <div class="col-md-6 col-xl-4">
-                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight', fill: false} %}
+                {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Data Length', metric: 'mysql.data_weight', fill: false, freshness: jm_freshness(snapshot, 'mysql.information_schema')} %}
                     {% block body %}
                         {{ include('@JmonitorEasyAdmin/_kv.html.twig', {rows: {
                             'Data': view.dataLength|jm_bytes,
@@ -229,7 +230,7 @@
                 {% if not view.slowQueriesAvailable %}
                     <p class="text-muted">Slow queries data are not available.</p>
                 {% else %}
-                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Top slowest queries', metric: 'mysql.slow_queries_top'} %}
+                    {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Top slowest queries', metric: 'mysql.slow_queries_top', freshness: jm_freshness(snapshot, 'mysql.slow_queries')} %}
                         {% block body %}
                             {% if view.slowQueries is empty %}
                                 <p class="text-muted mb-0">No slow queries found.</p>

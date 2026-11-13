@@ -1,0 +1,4 @@
+<div class="jm-heading{{ title|default(null) ? '' : ' jm-heading-bare' }}">
+    {% if title|default(null) %}<h2 class="h5 mb-0">{{ title }}{% if subtitle|default %} <small class="text-muted fw-normal fs-6">{{ subtitle }}</small>{% endif %}</h2>{% endif %}
+    {% if freshness|default %}{{ include('@JmonitorEasyAdmin/_freshness.html.twig', {freshness: freshness, label: label|default(null)}) }}{% endif %}
+</div>

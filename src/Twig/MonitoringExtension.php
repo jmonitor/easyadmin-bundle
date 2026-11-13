@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Jmonitor\EasyAdminBundle\Twig;
 
+use Jmonitor\EasyAdminBundle\Collector\Lifetime;
+use Jmonitor\EasyAdminBundle\Snapshot\ComponentSnapshot;
+use Jmonitor\EasyAdminBundle\Snapshot\Freshness;
+use Psr\Clock\ClockInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -12,6 +16,11 @@ final class MonitoringExtension extends AbstractExtension
 {
     private const EMPTY = '—';
     private const HELP_URL = 'https://dash.jmonitor.io/help/metric/';
+
+    public function __construct(
+        private readonly ?ClockInterface $clock = null,
+        private readonly int $pollingInterval = 0,
+    ) {}
 
     public function getFilters(): array
     {
@@ -27,6 +36,7 @@ final class MonitoringExtension extends AbstractExtension
     {
         return [
             new TwigFunction('jm_help_url', $this->helpUrl(...)),
+            new TwigFunction('jm_freshness', $this->freshness(...)),
         ];
     }
 
@@ -119,6 +129,16 @@ final class MonitoringExtension extends AbstractExtension
         };
 
         return $elapsed > 0 ? $distance . ' ago' : 'in ' . $distance;
+    }
+
+    /**
+     * Null for data read again at every poll: only what outlives it is worth telling.
+     */
+    public function freshness(ComponentSnapshot $snapshot, string ...$collectors): ?Freshness
+    {
+        $freshness = $snapshot->freshness($this->clock?->now()->getTimestamp() ?? time(), ...$collectors);
+
+        return $freshness !== null && $freshness->lifetime > Lifetime::Dynamic->ttl($this->pollingInterval, 0) ? $freshness : null;
     }
 
     public function helpUrl(string $metric): string

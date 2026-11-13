@@ -2,6 +2,7 @@
 
 {% block jm_content %}
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Configuration', freshness: jm_freshness(snapshot, 'postgresql.settings', 'system.ram_total')}) }}
 
     <div class="row g-3">
         <div class="col-md-6 col-xxl-3">
@@ -144,7 +145,7 @@
         </div>
     </div>
 
-    <h2 class="h5 mt-4 mb-2">Slow queries</h2>
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Slow queries', freshness: jm_freshness(snapshot, 'postgresql.slow_queries')}) }}
     {% if not view.slowQueriesAvailable %}
         <p class="text-muted">Slow queries data are not available.</p>
     {% else %}
@@ -265,7 +266,7 @@
         </div>
     </div>
 
-    <h2 class="h5 mt-4 mb-2">Storage</h2>
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Storage', freshness: jm_freshness(snapshot, 'postgresql.database')}) }}
     <div class="row g-3">
         <div class="col-md-6 col-xl-4">
             {{ include('@JmonitorEasyAdmin/_value_card.html.twig', {title: 'Database size', metric: 'postgres.database_size', value: view.dbSize is null ? null : view.dbSize|jm_bytes}) }}

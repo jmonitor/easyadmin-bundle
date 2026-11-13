@@ -56,6 +56,7 @@ final class SnapshotProviderTest extends TestCase
         self::assertNull($snapshot->delta('mysql.status'), 'first sample: no previous one');
         self::assertSame(10, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.status')], 'dynamic data lives for the polling interval');
         self::assertSame(3600, $this->cache->ttls[SnapshotProvider::cacheKey('mysql.variables')], 'static data lives for static_ttl');
+        self::assertSame($this->clock->now()->getTimestamp() + 3600, $snapshot->result('mysql.variables')?->expiresAt, 'the expiry is cached with the data');
     }
 
     public function testTheNextCollectionOfADynamicCollectorCarriesADelta(): void

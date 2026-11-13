@@ -374,6 +374,38 @@
     stroke-linejoin: round;
 }
 
+.jm-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .25rem 1rem;
+    margin: 1.5rem 0 .5rem;
+}
+
+.jm-heading:first-child,
+[hidden]:first-child + .jm-heading {
+    margin-top: 0;
+}
+
+.jm-heading-bare {
+    justify-content: flex-end;
+    margin-top: 0;
+}
+
+.jm-card-footer {
+    padding-top: .25rem;
+    padding-bottom: .25rem;
+    background: transparent;
+}
+
+.jm-freshness {
+    font-size: .8125rem;
+    color: var(--bs-secondary-color, #6c757d);
+    font-variant-numeric: tabular-nums;
+    cursor: help;
+}
+
 .jm-live-ago {
     display: inline-grid;
     font-variant-numeric: tabular-nums;

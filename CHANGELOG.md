@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Cloudflare tab: zone, traffic, security, Web Analytics, R2 and Images.
+- Data kept in cache longer than the polling tells when it is read again.
 
 ### Changed
 
 - Badges, alerts and buttons use the EasyAdmin components.
+- The status line says "Page updated", the time of the page, not of its data.
 
 ### Fixed
 

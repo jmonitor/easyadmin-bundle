@@ -272,6 +272,10 @@ return static function (ContainerConfigurator $container, ContainerBuilder $buil
         ])
     ;
     $services->set(MonitoringExtension::class)
+        ->args([
+            service('clock'),
+            $config['polling_interval'],
+        ])
         ->tag('twig.extension')
     ;
     $services->set(AssetExtension::class)

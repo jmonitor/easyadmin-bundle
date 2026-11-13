@@ -1,0 +1,4 @@
+<span class="jm-freshness" title="Kept in cache: reloading the page shows the same figures until the next read. Refresh reads them again now.">
+    {{ label|default(null) ? label ~ ' read' : 'read' }} <time data-live-since="{{ freshness.age }}">{{ freshness.readAt|jm_ago(freshness.now) }}</time>
+    · next read <time data-live-until="{{ freshness.nextReadIn }}">{{ freshness.nextReadIn < 5 ? 'due' : freshness.nextReadAt|jm_ago(freshness.now) }}</time>
+</span>

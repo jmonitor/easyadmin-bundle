@@ -15,6 +15,7 @@ final readonly class CollectorResult
         public ?string $error,
         public int $collectedAt,
         public ?Delta $delta = null,
+        public ?int $expiresAt = null,
     ) {}
 
     public function ok(): bool
@@ -23,7 +24,7 @@ final readonly class CollectorResult
     }
 
     /**
-     * @return array{data: array<string, mixed>, error: ?string, collected_at: int, delta: ?array{previous: array<string, mixed>, current: array<string, mixed>, elapsed: int}}
+     * @return array{data: array<string, mixed>, error: ?string, collected_at: int, delta: ?array{previous: array<string, mixed>, current: array<string, mixed>, elapsed: int}, expires_at: ?int}
      */
     public function toArray(): array
     {
@@ -32,6 +33,7 @@ final readonly class CollectorResult
             'error' => $this->error,
             'collected_at' => $this->collectedAt,
             'delta' => $this->delta?->toArray(),
+            'expires_at' => $this->expiresAt,
         ];
     }
 
@@ -48,13 +50,17 @@ final readonly class CollectorResult
             return false;
         }
 
+        if (($values['expires_at'] ?? null) !== null && !is_int($values['expires_at'])) {
+            return false;
+        }
+
         $delta = $values['delta'] ?? null;
 
         return $delta === null || (is_array($delta) && is_array($delta['previous'] ?? null) && is_array($delta['current'] ?? null) && is_int($delta['elapsed'] ?? null));
     }
 
     /**
-     * @param array{data: array<string, mixed>, error: ?string, collected_at: int, delta: ?array{previous: array<string, mixed>, current: array<string, mixed>, elapsed: int}} $values
+     * @param array{data: array<string, mixed>, error: ?string, collected_at: int, delta: ?array{previous: array<string, mixed>, current: array<string, mixed>, elapsed: int}, expires_at?: ?int} $values
      */
     public static function fromArray(string $name, array $values): self
     {
@@ -64,6 +70,7 @@ final readonly class CollectorResult
             $values['error'],
             $values['collected_at'],
             $values['delta'] === null ? null : Delta::fromArray($values['delta']),
+            $values['expires_at'] ?? null,
         );
     }
 }

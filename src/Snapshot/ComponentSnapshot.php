@@ -46,6 +46,27 @@ final readonly class ComponentSnapshot
     }
 
     /**
+     * The oldest read and the earliest next read of the given collectors, among those that succeeded.
+     */
+    public function freshness(int $now, string ...$names): ?Freshness
+    {
+        $results = array_filter(
+            array_map($this->result(...), $names),
+            static fn(?CollectorResult $result): bool => $result !== null && $result->ok() && $result->expiresAt !== null,
+        );
+
+        if ($results === []) {
+            return null;
+        }
+
+        $readAt = min(array_map(static fn(CollectorResult $result): int => $result->collectedAt, $results));
+        $expiresAt = min(array_map(static fn(CollectorResult $result): int => (int) $result->expiresAt, $results));
+        $lifetime = min(array_map(static fn(CollectorResult $result): int => (int) $result->expiresAt - $result->collectedAt, $results));
+
+        return new Freshness($readAt, $expiresAt, $lifetime, $now);
+    }
+
+    /**
      * Some collectors are left to another request collecting them: not an error, it shows once.
      */
     public function inProgress(): bool
