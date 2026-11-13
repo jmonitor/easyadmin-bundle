@@ -7,4 +7,5 @@
     <div class="card-body{{ scroll|default(false) ? ' jm-scroll' }}">
         {% block body %}{% endblock %}
     </div>
+    {% if freshness|default(null) %}<div class="card-footer jm-card-footer">{{ include('@JmonitorEasyAdmin/_freshness.html.twig', {freshness: freshness}) }}</div>{% endif %}
 </div>

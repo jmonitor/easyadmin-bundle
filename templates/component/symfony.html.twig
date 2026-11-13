@@ -2,6 +2,7 @@
 
 {% block jm_content %}
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Symfony metrics', freshness: jm_freshness(snapshot, 'symfony')}) }}
 
     <div class="row g-3">
         <div class="col-md-4 col-xl-3">

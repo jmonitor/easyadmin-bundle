@@ -33,6 +33,7 @@ use Jmonitor\EasyAdminBundle\View\SystemView;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Twig\Environment;
 
 /**
@@ -41,6 +42,8 @@ use Twig\Environment;
  */
 final class ComponentTemplatesTest extends TestCase
 {
+    use ClockSensitiveTrait;
+
     private TestKernel $kernel;
     private Environment $twig;
 
@@ -697,6 +700,68 @@ final class ComponentTemplatesTest extends TestCase
         self::assertStringNotContainsString('<html', $html);
     }
 
+    public function testTheCloudflareSectionsTellWhenTheirDataIsReadAgain(): void
+    {
+        $now = (int) strtotime(FixtureCloudflareClient::NOW);
+        self::mockTime('@' . $now);
+
+        $html = $this->renderCloudflare(readAt: $now - 240, lifetime: 900);
+
+        self::assertStringContainsString('last 15 minutes at the edge, until 11:57 UTC', $html);
+        self::assertStringContainsString('Zone read <time', $html);
+        self::assertStringContainsString('read <time data-live-since="240">4 min ago</time>', $html);
+        self::assertStringContainsString('next read <time data-live-until="660">in 11 min</time>', $html);
+        self::assertSame(5, substr_count($html, 'class="jm-freshness"'), 'zone, quick view, today, Web Analytics and storage');
+        self::assertStringNotContainsString('jm-freshness', $this->renderCloudflare(), 'no expiry, nothing to tell');
+    }
+
+    public function testTheDataKeptLongerThanThePollingTellsWhenItIsReadAgain(): void
+    {
+        self::mockTime('@1240');
+        $static = static fn(string $name, array $data): CollectorResult => new CollectorResult($name, $data, null, 1_000, expiresAt: 4_600);
+        $minute = static fn(string $name, array $data): CollectorResult => new CollectorResult($name, $data, null, 1_000, expiresAt: 1_060);
+        $dynamic = static fn(string $name, array $data): CollectorResult => new CollectorResult($name, $data, null, 1_230, expiresAt: 1_240);
+
+        $nginx = new ComponentSnapshot(Component::Nginx, [
+            'nginx.status' => $dynamic('nginx.status', Payloads::nginxStatus(18_450, 18_437)),
+            'nginx.config' => $static('nginx.config', Payloads::nginxConfig()),
+        ]);
+        $html = $this->render('nginx', $nginx, new NginxView($nginx, $this->gauges()));
+        self::assertSame(1, substr_count($html, 'class="jm-freshness"'));
+        self::assertStringContainsString('Version and configuration read <time data-live-since="240">4 min ago</time>', $html);
+        self::assertStringContainsString('next read <time data-live-until="3360">in 56 min</time>', $html);
+
+        $symfony = new ComponentSnapshot(Component::Symfony, ['symfony' => $static('symfony', Payloads::symfony())]);
+        $php = new ComponentSnapshot(Component::Php, ['php' => $dynamic('php', Payloads::php())]);
+        $html = $this->render('symfony', $symfony, new SymfonyView($symfony, $php));
+        self::assertSame(1, substr_count($html, 'class="jm-freshness"'));
+        self::assertStringContainsString('Symfony metrics read', $html);
+
+        $postgresql = new ComponentSnapshot(Component::Postgresql, [
+            'postgresql.activity' => $dynamic('postgresql.activity', Payloads::postgresqlActivity()),
+            'postgresql.settings' => $static('postgresql.settings', Payloads::postgresqlSettings()),
+            'postgresql.database' => $minute('postgresql.database', Payloads::postgresqlDatabase()),
+            'postgresql.slow_queries' => $minute('postgresql.slow_queries', Payloads::postgresqlSlowQueries()),
+            'system.ram_total' => $static('system.ram_total', ['total' => 1_073_741_824]),
+        ]);
+        $html = $this->render('postgresql', $postgresql, new PostgresqlView($postgresql, $this->gauges()));
+        self::assertSame(3, substr_count($html, 'class="jm-freshness"'), 'configuration, slow queries, storage');
+        self::assertStringContainsString('next read <time data-live-until="0">due</time>', $html);
+
+        $mysql = new ComponentSnapshot(Component::Mysql, [
+            'mysql.status' => $dynamic('mysql.status', Payloads::mysqlStatus()),
+            'mysql.variables' => $static('mysql.variables', Payloads::mysqlVariables()),
+            'mysql.information_schema' => $static('mysql.information_schema', ['schema_name' => 'app', 'data_weight' => ['data_length' => 500_000_000, 'index_length' => 120_000_000]]),
+            'mysql.slow_queries' => $minute('mysql.slow_queries', Payloads::mysqlSlowQueries()),
+        ]);
+        $html = $this->render('mysql', $mysql, new MysqlView($mysql, $this->gauges(), 1_240));
+        self::assertSame(3, substr_count($html, 'class="jm-freshness"'), 'configuration, data length, slowest queries');
+        self::assertSame(2, substr_count($html, 'card-footer jm-card-footer'));
+
+        $symfony = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', Payloads::symfony(), null, 1_000)]);
+        self::assertStringNotContainsString('jm-heading', $this->render('symfony', $symfony, new SymfonyView($symfony, $php)), 'no freshness, no empty line');
+    }
+
     public function testTheCloudflareFragmentShowsDevelopmentModeAndASampledWindow(): void
     {
         $traffic = Payloads::cloudflareTraffic();
@@ -763,7 +828,7 @@ final class ComponentTemplatesTest extends TestCase
     /**
      * @param array<string, array<string, mixed>> $blocks the payloads replacing those of Payloads
      */
-    private function renderCloudflare(array $blocks = []): string
+    private function renderCloudflare(array $blocks = [], ?int $readAt = null, int $lifetime = 0): string
     {
         $now = (int) strtotime(FixtureCloudflareClient::NOW);
         $payloads = $blocks + [
@@ -777,7 +842,7 @@ final class ComponentTemplatesTest extends TestCase
         $results = [];
 
         foreach ($payloads as $block => $payload) {
-            $results['cloudflare.' . $block] = new CollectorResult('cloudflare.' . $block, $payload, null, $now);
+            $results['cloudflare.' . $block] = new CollectorResult('cloudflare.' . $block, $payload, null, $readAt ?? $now, expiresAt: $readAt === null ? null : $readAt + $lifetime);
         }
 
         $snapshot = new ComponentSnapshot(Component::Cloudflare, $results);

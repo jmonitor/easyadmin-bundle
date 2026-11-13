@@ -58,5 +58,37 @@ final class ComponentSnapshotTest extends TestCase
         $failed = CollectorResult::fromArray('redis', (new CollectorResult('redis', [], 'boom', 5))->toArray());
         self::assertSame('boom', $failed->error);
         self::assertNull($failed->delta);
+        self::assertNull($failed->expiresAt);
+
+        self::assertSame(1_060, CollectorResult::fromArray('redis', (new CollectorResult('redis', [], null, 1_000, expiresAt: 1_060))->toArray())->expiresAt);
+    }
+
+    public function testAResultCachedWithoutItsExpiryIsStillRead(): void
+    {
+        $values = ['data' => ['a' => 1], 'error' => null, 'collected_at' => 1_000, 'delta' => null];
+
+        self::assertTrue(CollectorResult::isValidArray($values));
+        self::assertNull(CollectorResult::fromArray('redis', $values)->expiresAt);
+        self::assertFalse(CollectorResult::isValidArray(['expires_at' => '1060'] + $values));
+    }
+
+    public function testFreshnessTakesTheOldestReadAndTheEarliestNextRead(): void
+    {
+        $snapshot = new ComponentSnapshot(Component::Cloudflare, [
+            'cloudflare.r2' => new CollectorResult('cloudflare.r2', [], null, 1_000, expiresAt: 1_900),
+            'cloudflare.images' => new CollectorResult('cloudflare.images', [], null, 1_100, expiresAt: 1_400),
+            'cloudflare.today' => new CollectorResult('cloudflare.today', [], 'boom', 900, expiresAt: 910),
+            'cloudflare.zone' => new CollectorResult('cloudflare.zone', [], null, 800),
+        ]);
+
+        $freshness = $snapshot->freshness(1_200, 'cloudflare.r2', 'cloudflare.images', 'cloudflare.today', 'cloudflare.zone', 'cloudflare.traffic');
+
+        self::assertNotNull($freshness);
+        self::assertSame(200, $freshness->age());
+        self::assertSame(200, $freshness->nextReadIn());
+        self::assertSame(300, $freshness->lifetime);
+        self::assertNull($snapshot->freshness(1_200, 'cloudflare.today', 'cloudflare.zone'), 'a failure or a result without expiry tells nothing');
+        self::assertSame(0, $snapshot->freshness(1_050, 'cloudflare.images')?->age(), 'read by a web server whose clock is ahead');
+        self::assertSame(1_050, $snapshot->freshness(1_050, 'cloudflare.images')?->readAt);
     }
 }

@@ -300,7 +300,7 @@ final readonly class SnapshotProvider
         }
 
         $delta = $error === null && $spec->trackDelta ? $this->deltas->track($deltaPrefix . $spec->name, $data, $now) : null;
-        $result = new CollectorResult($spec->name, $data, $error, $now, $delta);
+        $result = new CollectorResult($spec->name, $data, $error, $now, $delta, $now + $ttl);
         $item = $error === null ? $successItem : $failureItem;
 
         $item->set($result->toArray());

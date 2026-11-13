@@ -52,32 +52,48 @@
         toggle.checked = enabled;
     }
 
-    function ago(milliseconds) {
-        var seconds = Math.floor(milliseconds / 1000);
-
-        if (seconds < 5) {
-            return 'just now';
-        }
-
+    function distance(seconds) {
         if (seconds < 60) {
-            return seconds + ' s ago';
+            return seconds + ' s';
         }
 
         if (seconds < 3600) {
-            return Math.floor(seconds / 60) + ' min ago';
+            return Math.floor(seconds / 60) + ' min';
         }
 
         if (seconds < 86400) {
-            return Math.floor(seconds / 3600) + ' h ago';
+            return Math.floor(seconds / 3600) + ' h';
         }
 
-        return Math.floor(seconds / 86400) + ' d ago';
+        return Math.floor(seconds / 86400) + ' d';
+    }
+
+    function ago(seconds) {
+        return seconds < 5 ? 'just now' : distance(seconds) + ' ago';
+    }
+
+    function until(seconds) {
+        return seconds < 5 ? 'due' : 'in ' + distance(seconds);
+    }
+
+    // the ages of the cached data are counted from the server's values, not from the browser's clock
+    function renderAges(elapsed) {
+        Array.prototype.forEach.call(content.querySelectorAll('[data-live-since]'), function (element) {
+            element.textContent = ago((parseInt(element.getAttribute('data-live-since'), 10) || 0) + elapsed);
+        });
+        Array.prototype.forEach.call(content.querySelectorAll('[data-live-until]'), function (element) {
+            element.textContent = until(Math.max(0, (parseInt(element.getAttribute('data-live-until'), 10) || 0) - elapsed));
+        });
     }
 
     function renderUpdated() {
+        var elapsed = Math.floor((Date.now() - updatedAt) / 1000);
+
         if (updated) {
-            updated.textContent = ago(Date.now() - updatedAt);
+            updated.textContent = ago(elapsed);
         }
+
+        renderAges(elapsed);
     }
 
     function markUpdated() {

@@ -6,6 +6,7 @@
     {% if view.notice('zone') %}
         <p class="text-muted">{{ view.notice('zone') }}</p>
     {% elseif view.has('zone') %}
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Zone', freshness: jm_freshness(snapshot, 'cloudflare.zone')}) }}
         <div class="row g-3">
             <div class="col-md-6 col-xl-4">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Zone', metric: 'cloudflare.zone'} %}
@@ -67,7 +68,11 @@
     {% elseif view.has('traffic') %}
         {% set window = view.windowMinutes %}
 
-        <h2 class="h5 mt-4 mb-2">Quick view <small class="text-muted fw-normal fs-6">last {{ window }} minutes at the edge</small></h2>
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {
+            title: 'Quick view',
+            subtitle: 'last ' ~ window ~ ' minutes at the edge' ~ (view.windowEnd is null ? '' : ', until ' ~ view.windowEnd|date('H:i', 'UTC') ~ ' UTC'),
+            freshness: jm_freshness(snapshot, 'cloudflare.traffic'),
+        }) }}
         <div class="row g-3">
             <div class="col-md-6 col-xxl-3">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Requests', metric: 'cloudflare.requests'} %}
@@ -164,7 +169,7 @@
         <h2 class="h5 mt-4 mb-2">Today</h2>
         <p class="text-muted">{{ view.notice('today') }}</p>
     {% elseif view.has('today') %}
-        <h2 class="h5 mt-4 mb-2">Today <small class="text-muted fw-normal fs-6">since 00:00 UTC</small></h2>
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Today', subtitle: 'since 00:00 UTC', freshness: jm_freshness(snapshot, 'cloudflare.today')}) }}
         <div class="row g-3">
             <div class="col-12">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Daily totals', metric: 'cloudflare.today'} %}
@@ -196,7 +201,7 @@
         <h2 class="h5 mt-4 mb-2">Web Analytics</h2>
         <p class="text-muted">{{ view.notice('web_analytics') }}</p>
     {% elseif view.has('web_analytics') %}
-        <h2 class="h5 mt-4 mb-2">Web Analytics <small class="text-muted fw-normal fs-6">real visitors, last 24 hours</small></h2>
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Web Analytics', subtitle: 'real visitors, last 24 hours', freshness: jm_freshness(snapshot, 'cloudflare.web_analytics')}) }}
         <div class="row g-3">
             <div class="col-12">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Web Vitals', metric: 'cloudflare.web_vitals'} %}
@@ -257,7 +262,7 @@
     {% endif %}
 
     {% if view.showsStorage %}
-        <h2 class="h5 mt-4 mb-2">Storage <small class="text-muted fw-normal fs-6">account level, against the free tier</small></h2>
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Storage', subtitle: 'account level, against the free tier', freshness: jm_freshness(snapshot, 'cloudflare.r2', 'cloudflare.images')}) }}
         <div class="row g-3">
             <div class="col-md-6 col-xl-4">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'R2', metric: 'cloudflare.r2'} %}

@@ -4,6 +4,8 @@
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
     {% set no_config %}<p class="text-muted small mb-0"><code>nginx -T</code> gave no configuration to the PHP user: the reason is logged on the <code>jmonitor_easyadmin</code> channel.</p>{% endset %}
 
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Version and configuration', freshness: jm_freshness(snapshot, 'nginx.config')}) }}
+
     <div class="row g-3">
         <div class="col-md-6 col-xxl-4">
             <div class="d-flex flex-column gap-3 h-100">

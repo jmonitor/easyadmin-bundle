@@ -73,6 +73,8 @@ final readonly class CloudflareView
     public ?int $browserCacheTtl;
 
     public int $windowMinutes;
+    /** Cloudflare publishes its analytics a few minutes late: the window ends before the collect. */
+    public ?int $windowEnd;
     public ?int $requests;
     public ?float $requestsPerMinute;
     public bool $sampled;
@@ -200,6 +202,7 @@ final readonly class CloudflareView
         $window = is_array($traffic['window'] ?? null) ? $traffic['window'] : [];
         $seconds = max(0, (Values::int($window['to'] ?? null) ?? 0) - (Values::int($window['from'] ?? null) ?? 0));
         $this->windowMinutes = intdiv($seconds, 60);
+        $this->windowEnd = Values::int($window['to'] ?? null);
         $this->requests = Values::int($window['requests'] ?? null);
         $this->requestsPerMinute = $this->requests === null || $seconds === 0 ? null : $this->requests / ($seconds / 60);
         $this->sampled = Values::bool($window['sampled'] ?? null) ?? false;
