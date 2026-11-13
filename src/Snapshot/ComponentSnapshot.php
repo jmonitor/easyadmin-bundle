@@ -63,7 +63,8 @@ final readonly class ComponentSnapshot
         $expiresAt = min(array_map(static fn(CollectorResult $result): int => (int) $result->expiresAt, $results));
         $lifetime = min(array_map(static fn(CollectorResult $result): int => (int) $result->expiresAt - $result->collectedAt, $results));
 
-        return new Freshness($readAt, $expiresAt, $lifetime, $now);
+        // another web server sharing the cache may have a clock ahead of this one
+        return new Freshness(min($readAt, $now), $expiresAt, $lifetime, $now);
     }
 
     /**

@@ -708,6 +708,7 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->renderCloudflare(readAt: $now - 240, lifetime: 900);
 
         self::assertStringContainsString('last 15 minutes at the edge, until 11:57 UTC', $html);
+        self::assertStringContainsString('Zone read <time', $html);
         self::assertStringContainsString('read <time data-live-since="240">4 min ago</time>', $html);
         self::assertStringContainsString('next read <time data-live-until="660">in 11 min</time>', $html);
         self::assertSame(5, substr_count($html, 'class="jm-freshness"'), 'zone, quick view, today, Web Analytics and storage');
@@ -727,14 +728,14 @@ final class ComponentTemplatesTest extends TestCase
         ]);
         $html = $this->render('nginx', $nginx, new NginxView($nginx, $this->gauges()));
         self::assertSame(1, substr_count($html, 'class="jm-freshness"'));
-        self::assertStringContainsString('Configuration read <time data-live-since="240">4 min ago</time>', $html);
+        self::assertStringContainsString('Version and configuration read <time data-live-since="240">4 min ago</time>', $html);
         self::assertStringContainsString('next read <time data-live-until="3360">in 56 min</time>', $html);
 
         $symfony = new ComponentSnapshot(Component::Symfony, ['symfony' => $static('symfony', Payloads::symfony())]);
         $php = new ComponentSnapshot(Component::Php, ['php' => $dynamic('php', Payloads::php())]);
         $html = $this->render('symfony', $symfony, new SymfonyView($symfony, $php));
         self::assertSame(1, substr_count($html, 'class="jm-freshness"'));
-        self::assertStringContainsString('jm-heading jm-heading-bare', $html);
+        self::assertStringContainsString('Symfony metrics read', $html);
 
         $postgresql = new ComponentSnapshot(Component::Postgresql, [
             'postgresql.activity' => $dynamic('postgresql.activity', Payloads::postgresqlActivity()),
@@ -756,6 +757,9 @@ final class ComponentTemplatesTest extends TestCase
         $html = $this->render('mysql', $mysql, new MysqlView($mysql, $this->gauges(), 1_240));
         self::assertSame(3, substr_count($html, 'class="jm-freshness"'), 'configuration, data length, slowest queries');
         self::assertSame(2, substr_count($html, 'card-footer jm-card-footer'));
+
+        $symfony = new ComponentSnapshot(Component::Symfony, ['symfony' => new CollectorResult('symfony', Payloads::symfony(), null, 1_000)]);
+        self::assertStringNotContainsString('jm-heading', $this->render('symfony', $symfony, new SymfonyView($symfony, $php)), 'no freshness, no empty line');
     }
 
     public function testTheCloudflareFragmentShowsDevelopmentModeAndASampledWindow(): void

@@ -2,7 +2,7 @@
 
 {% block jm_content %}
     {{ include('@JmonitorEasyAdmin/_errors.html.twig') }}
-    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Configuration', freshness: jm_freshness(snapshot, 'postgresql.settings', 'system.ram_total')}) }}
+    {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Version and configuration', freshness: jm_freshness(snapshot, 'postgresql.settings', 'system.ram_total')}) }}
 
     <div class="row g-3">
         <div class="col-md-6 col-xxl-3">

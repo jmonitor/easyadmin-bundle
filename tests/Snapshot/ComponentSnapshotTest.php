@@ -88,5 +88,7 @@ final class ComponentSnapshotTest extends TestCase
         self::assertSame(200, $freshness->nextReadIn());
         self::assertSame(300, $freshness->lifetime);
         self::assertNull($snapshot->freshness(1_200, 'cloudflare.today', 'cloudflare.zone'), 'a failure or a result without expiry tells nothing');
+        self::assertSame(0, $snapshot->freshness(1_050, 'cloudflare.images')?->age(), 'read by a web server whose clock is ahead');
+        self::assertSame(1_050, $snapshot->freshness(1_050, 'cloudflare.images')?->readAt);
     }
 }

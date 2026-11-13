@@ -6,7 +6,7 @@
     {% if view.notice('zone') %}
         <p class="text-muted">{{ view.notice('zone') }}</p>
     {% elseif view.has('zone') %}
-        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {title: 'Zone', freshness: jm_freshness(snapshot, 'cloudflare.zone')}) }}
+        {{ include('@JmonitorEasyAdmin/_heading.html.twig', {label: 'Zone', freshness: jm_freshness(snapshot, 'cloudflare.zone')}) }}
         <div class="row g-3">
             <div class="col-md-6 col-xl-4">
                 {% embed '@JmonitorEasyAdmin/_card.html.twig' with {title: 'Zone', metric: 'cloudflare.zone'} %}
